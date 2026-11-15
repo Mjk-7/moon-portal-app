@@ -1,6 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { CompanyMark } from '@/components/company-mark';
 import { Icon } from '@/components/icon';
@@ -8,22 +9,51 @@ import { ThemedText } from '@/components/themed-text';
 import { Card, Dot, ProgressBar } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { api, messageOf } from '@/lib/api';
 import { type DayGroup, type DayMode, placeOf, pointsOn, type RowStatus, rowStatus } from '@/lib/day';
+import { type PlaceInput, refreshWork } from '@/lib/query';
 import { pickOf } from '@/lib/status';
 import { POINT_LABEL, useChangeTask } from '@/lib/tasks';
 import type { Day, Task } from '@/lib/types';
 
-/** A day's tasks in groups, as the worklog page's sheet shows them. */
+/** Others' work in a project on the day: "2 mine / 5 total". */
+export type GroupTeam = { mine: number; total: number };
+
+/** Where "+ Add a task in …" puts a task typed under a group. */
+export function addPlaceOf(group: DayGroup, day: Day): PlaceInput | null {
+  if (group.key.startsWith('project:')) return { projectId: group.key.slice(8) };
+  if (group.place?.personal) return { personal: true };
+  // A company's general work goes in its core project.
+  if (group.key.startsWith('company:')) {
+    const companyId = group.key.slice(8);
+    const core = day.projects.find(
+      (p) => p.companyId === companyId && !p.isPersonal && p.name.trim().toUpperCase() === 'CORE',
+    );
+    return core ? { projectId: core.id } : null;
+  }
+  return null;
+}
+
+/**
+ * A day's tasks in groups, as the worklog page's sheet shows them: each
+ * place with its tasks, "N mine / M total" when others work there too, and
+ * a line at the end to add the next task in it.
+ */
 export function DaySheet({
   day,
   date,
   mode,
   groups,
+  teams,
+  onTeam,
 }: {
   day: Day;
   date: string;
   mode: DayMode;
   groups: DayGroup[];
+  teams?: Record<string, GroupTeam>;
+  /** Opens who is working on what in a project. */
+  onTeam?: (projectId: string) => void;
 }) {
   const theme = useTheme();
   return (
@@ -48,9 +78,7 @@ export function DaySheet({
             <ThemedText type="label" themeColor="textSecondary" numberOfLines={1} style={styles.flex}>
               {g.title}
             </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {g.tasks.length}
-            </ThemedText>
+            <GroupCount group={g} team={teams?.[g.key.slice(8)]} onTeam={onTeam} />
           </View>
           {g.tasks.map((task) => (
             <DayTaskRow
@@ -62,9 +90,103 @@ export function DaySheet({
               showPlace={mode !== 'summary'}
             />
           ))}
+          {addPlaceOf(g, day) ? <AddTaskLine place={addPlaceOf(g, day)!} name={g.title} date={date} /> : null}
         </Card>
       ))}
     </>
+  );
+}
+
+/** The group's count, or "2 mine / 5 total" (a link) when others work there too. */
+function GroupCount({
+  group,
+  team,
+  onTeam,
+}: {
+  group: DayGroup;
+  team?: GroupTeam;
+  onTeam?: (projectId: string) => void;
+}) {
+  const theme = useTheme();
+  if (!team || team.total <= team.mine || !group.key.startsWith('project:'))
+    return group.tasks.length ? (
+      <ThemedText type="small" themeColor="textSecondary">
+        {group.tasks.length}
+      </ThemedText>
+    ) : null;
+  return (
+    <Pressable
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityHint="Shows who is working on what here"
+      onPress={() => onTeam?.(group.key.slice(8))}
+      style={({ pressed }) => [styles.team, { opacity: pressed ? 0.6 : 1 }]}>
+      <Icon name="people" size={13} color={theme.textSecondary} />
+      <ThemedText type="small" themeColor="textSecondary">
+        <ThemedText type="smallBold" themeColor="textSecondary">
+          {team.mine} mine
+        </ThemedText>{' '}
+        / {team.total} total
+      </ThemedText>
+    </Pressable>
+  );
+}
+
+/**
+ * "+ Add a task in PORTAL": a tap turns it into a line to type in; done adds
+ * the task to the day and leaves the line open for the next one.
+ */
+function AddTaskLine({ place, name, date }: { place: PlaceInput; name: string; date: string }) {
+  const theme = useTheme();
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const add = async () => {
+    const words = title.trim();
+    if (!words) return setOpen(false);
+    setBusy(true);
+    try {
+      await api('/api/me/day/tasks', { method: 'POST', body: { title: words, date, place } });
+      setTitle('');
+      refreshWork();
+    } catch (e) {
+      Alert.alert('Couldn’t add the task', messageOf(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!open)
+    return (
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => setOpen(true)}
+        style={({ pressed }) => [styles.add, { borderColor: theme.border, opacity: pressed ? 0.6 : 1 }]}>
+        <Icon name="add" size={16} color={theme.textSecondary} />
+        <ThemedText themeColor="textSecondary" numberOfLines={1} style={styles.flex}>
+          Add a task in {name}
+        </ThemedText>
+      </Pressable>
+    );
+  return (
+    <View style={[styles.add, { borderColor: theme.border }]}>
+      <View style={[styles.ring, { borderColor: theme.textSecondary }]} />
+      <TextInput
+        value={title}
+        onChangeText={setTitle}
+        autoFocus
+        editable={!busy}
+        placeholder="What needs doing?"
+        placeholderTextColor={theme.textSecondary}
+        returnKeyType="done"
+        submitBehavior="submit"
+        onSubmitEditing={() => void add()}
+        onBlur={() => !title.trim() && setOpen(false)}
+        maxLength={200}
+        style={[styles.input, { color: theme.text }]}
+      />
+    </View>
   );
 }
 
@@ -204,4 +326,13 @@ const styles = StyleSheet.create({
   text: { flex: 1, gap: 2 },
   doing: { fontWeight: 600 },
   place: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+  team: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  add: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two + Spacing.one,
+    minHeight: 44,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  input: { flex: 1, fontSize: 16, paddingVertical: Spacing.two },
 });

@@ -15,47 +15,76 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SafeAreaView } from 'react-native-screens/experimental';
 
-import { DaySheet, WorkBar } from '@/components/day-sheet';
+import { CompanyMark } from '@/components/company-mark';
+import { DaySheet, type GroupTeam } from '@/components/day-sheet';
 import { Fab } from '@/components/fab';
 import { Icon } from '@/components/icon';
 import { MonthGrid } from '@/components/month-grid';
 import { OfflineBanner } from '@/components/offline-banner';
 import { StatusDot } from '@/components/status-dot';
 import { ThemedText } from '@/components/themed-text';
-import { Button, Card, Dot, IconButton, Notice, ProgressBar, QueryState, Segmented } from '@/components/ui';
+import { Avatar, Button, Card, Dot, IconButton, Notice, ProgressBar, QueryState } from '@/components/ui';
 import { buffOf, buffProgress } from '@/constants/buff';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { useToday } from '@/hooks/use-now';
 import { useTheme } from '@/hooks/use-theme';
 import { api, portalUrl, withQuery } from '@/lib/api';
-import { type DayMode, DAY_MODES, groupsFor, placeOf, workTally } from '@/lib/day';
-import { addDays, dayTitle, fromKey, monthOf, monthRange, monthTitle, todayKey } from '@/lib/dates';
+import { companyKeyOf, type DayGroup, groupTally, placeOf, projectGroups } from '@/lib/day';
+import { addDays, dayTitle, fromKey, monthOf, monthRange, monthTitle } from '@/lib/dates';
 import { openLink } from '@/lib/links';
 import { useMarkNotifications } from '@/lib/notifications';
-import { currentPick } from '@/lib/status';
-import type { Day, Days, MonthScore } from '@/lib/types';
+import { useCompanyLookup } from '@/lib/project-name';
+import { currentPick, pickOf } from '@/lib/status';
+import type { Day, Days, MonthScore, Task } from '@/lib/types';
 import { clearWorkReminders, linkOf, useMyTasks, useNeedsYou, useWorkNotifications } from '@/lib/work-badge';
 
 const DAY_KEY = /^\d{4}-\d{2}-\d{2}$/;
 /** Days either side of the anchor the pager holds. */
 const SPAN = 180;
 
+/** The company tab that shows every company. */
+const ALL = 'all';
+
+/** Someone's tasks in a project on a day (GET /api/me/day/teams). */
+type Team = GroupTeam & {
+  people: {
+    id: string;
+    name: string;
+    avatar: string | null;
+    tasks: (Pick<Task, 'id' | 'title' | 'status' | 'flag'>)[];
+  }[];
+};
+
 /**
- * The day's worklog, as on the website: a summary by project (the default),
- * as work (doing, to do, done) or as a plan. Tasks waiting on the person or
- * blocked show first. Swipe for the day before or after; the date opens a
- * calendar; the month's badge sits top right; + adds a task or goal.
+ * The day's worklog, as on the website now: the day by project, with a tab
+ * per company (All first) and a bar of what is finished. Each project shows
+ * "N mine / M total" when others work there too, and a line to add its next
+ * task; Personal is always there. Tasks waiting on the person or blocked
+ * show first. Swipe for the day before or after; the date opens a calendar;
+ * the month's badge sits top right; + adds a task or goal. At midnight the
+ * page moves on to the new day by itself.
  */
 export default function WorkScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const params = useLocalSearchParams<{ date?: string }>();
-  const today = todayKey();
+  const today = useToday();
   const [date, setDate] = useState(today);
-  const [mode, setMode] = useState<DayMode>('summary');
+  const [tab, setTab] = useState(ALL);
   const [calendar, setCalendar] = useState(false);
   // The pager holds a year around this day; a day further away moves it.
   const [anchor, setAnchor] = useState(today);
+
+  // Past midnight the open day was "today": move on with it.
+  const [lastToday, setLastToday] = useState(today);
+  if (today !== lastToday) {
+    setLastToday(today);
+    if (date === lastToday) {
+      setDate(today);
+      setAnchor(today);
+    }
+  }
 
   // A link to a day (a reminder, a notification) opens it.
   const [lastParam, setLastParam] = useState<string | undefined>(undefined);
@@ -130,7 +159,7 @@ export default function WorkScreen() {
           <MonthBadge score={score.data} onPress={() => setCalendar(true)} />
         </View>
         <WeekStrip date={date} today={today} days={monthDays.data} onPick={go} />
-        <Segmented value={mode} onChange={setMode} options={DAY_MODES} />
+        <CompanyTabs date={date} value={tab} onChange={setTab} />
       </View>
 
       {/* Ends above the tab bar, so the last task and the + clear it. */}
@@ -140,8 +169,8 @@ export default function WorkScreen() {
           ref={list}
           style={styles.flex}
           data={days}
-          // The pages show the picked view: draw them again when it changes.
-          extraData={mode}
+          // The pages show the picked company: draw them again when it changes.
+          extraData={tab}
           keyExtractor={(d) => d}
           horizontal
           pagingEnabled
@@ -155,7 +184,7 @@ export default function WorkScreen() {
             const i = Math.round(e.nativeEvent.contentOffset.x / width);
             if (days[i] && days[i] !== date) setDate(days[i]);
           }}
-          renderItem={({ item }) => <DayPage date={item} today={today} mode={mode} width={width} />}
+          renderItem={({ item }) => <DayPage date={item} today={today} tab={tab} width={width} />}
         />
         <Fab label="Add a task, goal or idea" onPress={() => router.push('/new-task')} />
       </SafeAreaView>
@@ -169,6 +198,126 @@ export default function WorkScreen() {
           go(d);
         }}
       />
+    </View>
+  );
+}
+
+/* ------------------------------ Company tabs ------------------------------ */
+
+/** The day's groups by company, in the order the tabs show them. */
+function useCompanyGroups(day: Day | undefined, date: string) {
+  const lookup = useCompanyLookup();
+  if (!day) return { groups: [] as DayGroup[], companies: [] };
+  const groups = projectGroups(day, date);
+  const keys: string[] = [];
+  for (const g of groups) {
+    const key = companyKeyOf(g, day);
+    if (key !== 'none' && key !== 'personal' && !keys.includes(key)) keys.push(key);
+  }
+  const tally = (key: string) =>
+    groupTally(
+      groups.filter((g) => companyKeyOf(g, day) === key),
+      day,
+      date,
+    );
+  // Busiest first, Personal last, as on the website.
+  const companies = keys
+    .map((key) => {
+      const company = lookup(key);
+      const name = company?.name ?? day.companies?.find((c) => c.id === key)?.name ?? 'Company';
+      return { key, name, color: company?.color ?? null, logo: company?.logo ?? null, personal: false, ...tally(key) };
+    })
+    .sort((a, b) => b.total - a.total);
+  companies.push({ key: 'personal', name: 'Personal', color: null, logo: null, personal: true, ...tally('personal') });
+  return { groups, companies };
+}
+
+function CompanyTabs({ date, value, onChange }: { date: string; value: string; onChange: (tab: string) => void }) {
+  const theme = useTheme();
+  const day = useQuery({
+    queryKey: ['day', date],
+    queryFn: () => api<Day>(withQuery('/api/me/day', { date })),
+  });
+  const { groups, companies } = useCompanyGroups(day.data, date);
+  if (!day.data) return <View style={styles.tabsPlaceholder} />;
+  const all = groupTally(groups, day.data, date);
+  const colorOf = (c: (typeof companies)[number]) => (c.personal ? theme.success : (c.color ?? theme.accent));
+
+  return (
+    <View style={styles.tabsWrap}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
+        <Pressable
+          onPress={() => onChange(ALL)}
+          style={({ pressed }) => [
+            styles.tab,
+            {
+              borderColor: value === ALL ? theme.text : theme.border,
+              backgroundColor: value === ALL ? theme.backgroundSelected : theme.backgroundElement,
+              opacity: pressed ? 0.7 : 1,
+            },
+          ]}>
+          <ThemedText type="smallBold">All</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {all.done}/{all.total}
+          </ThemedText>
+        </Pressable>
+        {companies.map((c) => {
+          const on = value === c.key;
+          return (
+            <Pressable
+              key={c.key}
+              accessibilityLabel={`${c.name}, ${c.done} of ${c.total} done`}
+              onPress={() => onChange(on ? ALL : c.key)}
+              style={({ pressed }) => [
+                styles.tab,
+                styles.tabMark,
+                {
+                  borderColor: on ? theme.text : theme.border,
+                  backgroundColor: on ? theme.backgroundSelected : theme.backgroundElement,
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}>
+              <CompanyMark id={c.key} name={c.name} color={c.color} logo={c.logo} personal={c.personal} size={24} />
+              {/* Only the picked company shows its name, as on the website. */}
+              {on ? (
+                <>
+                  <ThemedText type="smallBold" numberOfLines={1} style={styles.tabName}>
+                    {c.name}
+                  </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {c.done}/{c.total}
+                  </ThemedText>
+                </>
+              ) : null}
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      {/* One stretch per company, filled as its tasks finish. */}
+      {all.total ? (
+        <View style={styles.barRow}>
+          <View style={styles.bar}>
+            {companies
+              .filter((c) => c.total)
+              .map((c) => (
+                <View
+                  key={c.key}
+                  style={[
+                    styles.barPart,
+                    { flex: c.total, backgroundColor: theme.backgroundSelected },
+                    value !== ALL && value !== c.key && styles.barDim,
+                  ]}>
+                  <View
+                    style={[styles.barFill, { width: `${(c.done / c.total) * 100}%`, backgroundColor: colorOf(c) }]}
+                  />
+                </View>
+              ))}
+          </View>
+          <ThemedText type="small" themeColor="textSecondary">
+            {all.done}/{all.total} done
+          </ThemedText>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -253,52 +402,162 @@ function WeekStrip({
 function DayPage({
   date,
   today,
-  mode,
+  tab,
   width,
 }: {
   date: string;
   today: string;
-  mode: DayMode;
+  tab: string;
   width: number;
 }) {
+  const theme = useTheme();
   const day = useQuery({
     queryKey: ['day', date],
     queryFn: () => api<Day>(withQuery('/api/me/day', { date })),
   });
-  const groups = day.data ? groupsFor(mode, day.data, date) : [];
+  const [teamOf, setTeamOf] = useState<string | null>(null);
+  const { groups: all } = useCompanyGroups(day.data, date);
+  const groups = day.data && tab !== ALL ? all.filter((g) => companyKeyOf(g, day.data!) === tab) : all;
+  // Who else works in the day's projects (not Personal).
+  const projectIds = all
+    .filter((g) => g.key.startsWith('project:') && !g.place?.personal)
+    .map((g) => g.key.slice(8))
+    .slice(0, 24);
+  const teams = useQuery({
+    queryKey: ['day', date, 'teams', projectIds.join(',')],
+    queryFn: () =>
+      api<{ projects: Record<string, Team> }>(
+        withQuery('/api/me/day/teams', { date, projects: projectIds.join(',') }),
+      ),
+    enabled: projectIds.length > 0,
+  });
   const ahead = date > today;
+  const empty = !!day.data && !groups.some((g) => g.tasks.length);
+  const team = teamOf ? teams.data?.projects[teamOf] : null;
+  const teamName = teamOf ? groups.find((g) => g.key === `project:${teamOf}`)?.title : null;
 
   return (
     <ScrollView
       style={{ width }}
       // Room under the last task for the + button.
       contentContainerStyle={[styles.page, { paddingBottom: Spacing.six * 2 + Spacing.three }]}
-      refreshControl={<RefreshControl refreshing={day.isRefetching} onRefresh={() => void day.refetch()} />}>
+      keyboardShouldPersistTaps="handled"
+      refreshControl={
+        <RefreshControl
+          refreshing={day.isRefetching}
+          onRefresh={() => {
+            void day.refetch();
+            void teams.refetch();
+          }}
+        />
+      }>
       {date === today ? <OfflineBanner /> : null}
       {date === today ? <NeedsYou day={day.data} /> : null}
       {date === today ? <WorkUpdates /> : null}
-      <Button
-        title="Log work"
-        small
-        icon={<Icon name="pencil" size={16} />}
-        kind="secondary"
-        onPress={() => router.push('/log')}
-      />
       <QueryState
         loading={day.isPending}
         error={day.data ? null : day.error}
         onRetry={() => void day.refetch()}
         what="this day"
       />
-      {day.data && mode === 'work' ? <WorkBar {...workTally(day.data, date)} /> : null}
-      {day.data && !groups.length ? (
+      {empty ? (
         <Notice
           title={ahead ? 'Nothing planned yet' : 'Nothing on this day'}
-          body={ahead ? 'Add a task for this day.' : 'Log what you worked on, or add a task.'}
+          body={ahead ? 'Add a task for this day below.' : 'Log what you worked on, or add a task below.'}
         />
       ) : null}
-      {day.data ? <DaySheet day={day.data} date={date} mode={mode} groups={groups} /> : null}
+      {day.data ? (
+        <DaySheet
+          day={day.data}
+          date={date}
+          mode="summary"
+          groups={groups}
+          teams={teams.data?.projects}
+          onTeam={setTeamOf}
+        />
+      ) : null}
+      {day.data ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/log')}
+          style={({ pressed }) => [styles.logWork, { borderColor: theme.textSecondary, opacity: pressed ? 0.6 : 1 }]}>
+          <Icon name="pencil" size={16} color={theme.text} />
+          <ThemedText type="smallBold">Log work</ThemedText>
+        </Pressable>
+      ) : null}
+      <TeamSheet team={team ?? null} name={teamName ?? 'Project'} date={date} onClose={() => setTeamOf(null)} />
     </ScrollView>
+  );
+}
+
+/** Everyone's tasks in a project on the day, by person, from "N mine / M total". */
+function TeamSheet({
+  team,
+  name,
+  date,
+  onClose,
+}: {
+  team: Team | null;
+  name: string;
+  date: string;
+  onClose: () => void;
+}) {
+  const theme = useTheme();
+  return (
+    <Modal visible={!!team} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <ScrollView style={{ backgroundColor: theme.background }} contentContainerStyle={styles.sheet}>
+        <View style={styles.sheetHead}>
+          <View style={styles.flex}>
+            <ThemedText type="subtitle" numberOfLines={1}>
+              {name}
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              {dayTitle(date)} · {team?.mine ?? 0} mine / {team?.total ?? 0} total
+            </ThemedText>
+          </View>
+          <IconButton name="close" label="Close" onPress={onClose} />
+        </View>
+        {(team?.people ?? []).map((person) => (
+          <Card key={person.id} style={styles.teamCard}>
+            <View style={styles.teamWho}>
+              <Avatar uri={person.avatar} name={person.name} size={28} />
+              <ThemedText type="smallBold" style={styles.flex} numberOfLines={1}>
+                {person.name}
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                {person.tasks.length}
+              </ThemedText>
+            </View>
+            {person.tasks.map((t) => {
+              const status = currentPick(t);
+              return (
+                <Pressable
+                  key={t.id}
+                  onPress={() => {
+                    onClose();
+                    router.push({ pathname: '/task/[id]', params: { id: t.id } });
+                  }}
+                  style={({ pressed }) => [styles.teamTask, { borderColor: theme.border, opacity: pressed ? 0.6 : 1 }]}>
+                  {status === 'done' ? (
+                    <Icon name="checkCircle" size={16} color={theme.success} />
+                  ) : status !== 'archived' ? (
+                    <StatusDot status={status} size={10} />
+                  ) : null}
+                  <ThemedText
+                    style={[styles.flex, status === 'done' && { color: theme.textSecondary }]}
+                    numberOfLines={2}>
+                    {t.title}
+                  </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {status === 'archived' ? 'Archived' : pickOf(status).label}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </Card>
+        ))}
+      </ScrollView>
+    </Modal>
   );
 }
 
@@ -394,7 +653,7 @@ function CalendarSheet({
   onPick: (day: string) => void;
 }) {
   const theme = useTheme();
-  const today = todayKey();
+  const today = useToday();
   const [month, setMonth] = useState(monthOf(date));
   const [shownFor, setShownFor] = useState(date);
   // Opening on another day shows its month.
@@ -508,6 +767,44 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   needDot: { paddingTop: 5 },
+  tabsWrap: { gap: Spacing.two },
+  tabsPlaceholder: { height: 40 },
+  tabs: { gap: Spacing.two, alignItems: 'center' },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one + 2,
+    height: 40,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.three,
+  },
+  tabMark: { paddingHorizontal: 7 },
+  tabName: { maxWidth: 140 },
+  barRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  bar: { flex: 1, flexDirection: 'row', gap: 4 },
+  barPart: { height: 5, borderRadius: 3, overflow: 'hidden' },
+  barDim: { opacity: 0.35 },
+  barFill: { height: 5, borderRadius: 3 },
+  logWork: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    paddingVertical: Spacing.three,
+    borderRadius: Radius.medium,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+  },
+  teamCard: { gap: 0 },
+  teamWho: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingBottom: Spacing.two },
+  teamTask: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingVertical: Spacing.two,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
   updates: { gap: 0 },
   update: {
     flexDirection: 'row',

@@ -359,6 +359,24 @@ export type Project = {
   headerImage?: string | null;
 };
 
+/** GET /api/projects/week: lean projects with this week's tasks counted. */
+export type WeekProject = {
+  id: string;
+  companyId: string;
+  name: string;
+  color?: string | null;
+  logo?: string | null;
+  parentId?: string | null;
+  isCore?: boolean;
+  status: string;
+  leadIds?: string[];
+  memberIds?: string[];
+  /** Tasks planned or due Monday to Sunday: still open, and all of them. */
+  week: { open: number; total: number };
+};
+
+export type WeekProjects = { from: string; to: string; projects: WeekProject[] };
+
 /** A project on the projects page, with what is going on in it. */
 export type OverviewProject = Project & {
   activity: {

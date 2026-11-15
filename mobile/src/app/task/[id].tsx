@@ -13,18 +13,19 @@ import { StatusDot } from '@/components/status-dot';
 import { ThemedText } from '@/components/themed-text';
 import { Button, Card, Chip, Field, IconButton, QueryState, Screen } from '@/components/ui';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { useToday } from '@/hooks/use-now';
 import { useTheme } from '@/hooks/use-theme';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { addDays, clock, dayTitle, todayKey } from '@/lib/dates';
+import { addDays, clock, dayTitle, fromKey } from '@/lib/dates';
 import { useProjectLabel } from '@/lib/project-name';
 import { currentPick, pickOf, STATUS_PICKS, type StatusPick } from '@/lib/status';
 import { POINT_LABEL, useChangeTask } from '@/lib/tasks';
 import type { TaskDetail } from '@/lib/types';
 
 /**
- * One task: its status (at the top, and within thumb's reach at the bottom
- * with Log work), its day and project, the goal it is part of, and the work
+ * One task: its exact dates and status at the top (the status again within
+ * thumb's reach at the bottom), its day and project, the goal it is part of, and the work
  * logged on it. Archiving sits apart and asks first.
  */
 export default function TaskScreen() {
@@ -45,7 +46,7 @@ export default function TaskScreen() {
   });
   const data = query.data;
   const task = data?.task;
-  const today = todayKey();
+  const today = useToday();
   const current = task ? currentPick(task) : null;
   const archived = current === 'archived';
   const goal = task?.goalId ? data?.project?.goals?.find((g) => g.id === task.goalId) : null;
@@ -156,6 +157,7 @@ export default function TaskScreen() {
             ) : (
               <ThemedText type="subtitle">{task.title}</ThemedText>
             )}
+            <TaskDates forDate={task.forDate} dueDate={task.dueDate} done={current === 'done'} today={today} />
 
             {/* Its status, and a tap to change it. */}
             {archived ? (
@@ -258,6 +260,15 @@ export default function TaskScreen() {
             <ThemedText type="label" themeColor="textSecondary">
               History
             </ThemedText>
+            {!archived ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push({ pathname: '/log', params: { taskId: task.id } })}
+                style={({ pressed }) => [styles.logWork, { borderColor: theme.textSecondary, opacity: pressed ? 0.6 : 1 }]}>
+                <Icon name="pencil" size={16} color={theme.text} />
+                <ThemedText type="smallBold">Log work</ThemedText>
+              </Pressable>
+            ) : null}
             {byDay.size === 0 ? (
               <ThemedText themeColor="textSecondary">Nothing logged yet.</ThemedText>
             ) : (
@@ -327,11 +338,6 @@ export default function TaskScreen() {
           {/* As wide as the page above it (an iPad). */}
           <View style={styles.barInner}>
             <StatusPicker value={current} onPick={setStatus} />
-            <Button
-              title="Log work"
-              icon={<Icon name="pencil" size={16} color={theme.onAccent} />}
-              onPress={() => router.push({ pathname: '/log', params: { taskId: task.id } })}
-            />
           </View>
         </View>
       ) : null}
@@ -357,6 +363,70 @@ export default function TaskScreen() {
           />
         </View>
       </Modal>
+    </View>
+  );
+}
+
+/** "Sunday, 15 November 2026": the whole date, so there is no doubt which day. */
+const fullDate = (key: string) =>
+  fromKey(key).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+/**
+ * At the top of a task: the exact day it is planned for and the day it is
+ * due, with "today", "tomorrow" or "overdue" beside them.
+ */
+function TaskDates({
+  forDate,
+  dueDate,
+  done,
+  today,
+}: {
+  forDate?: string | null;
+  dueDate?: string | null;
+  done: boolean;
+  today: string;
+}) {
+  const theme = useTheme();
+  const due = dueDate ? dueDate.slice(0, 10) : null;
+  const near = (key: string) => {
+    if (key === today) return 'today';
+    if (key === addDays(today, 1)) return 'tomorrow';
+    if (key === addDays(today, -1)) return 'yesterday';
+    return null;
+  };
+  const lines: { icon: 'calendar' | 'flag'; label: string; date: string; tag: string | null; late?: boolean }[] = [];
+  if (forDate) lines.push({ icon: 'calendar', label: 'For', date: forDate, tag: near(forDate) });
+  if (due && due !== forDate) {
+    const late = !done && due < today;
+    lines.push({ icon: 'flag', label: 'Due', date: due, tag: late ? 'overdue' : near(due), late });
+  }
+  if (!lines.length)
+    return (
+      <View style={styles.dateRow}>
+        <Icon name="calendar" size={14} color={theme.textSecondary} />
+        <ThemedText type="small" themeColor="textSecondary">
+          No day yet · Later
+        </ThemedText>
+      </View>
+    );
+  return (
+    <View style={styles.dates}>
+      {lines.map((l) => (
+        <View key={l.label} style={styles.dateRow}>
+          <Icon name={l.icon} size={14} color={l.late ? theme.danger : theme.textSecondary} />
+          <ThemedText type="small" themeColor="textSecondary">
+            {l.label}{' '}
+          </ThemedText>
+          <ThemedText type="smallBold" style={l.late ? { color: theme.danger } : null}>
+            {fullDate(l.date)}
+          </ThemedText>
+          {l.tag ? (
+            <ThemedText type="small" style={{ color: l.late ? theme.danger : theme.textSecondary }}>
+              · {l.tag}
+            </ThemedText>
+          ) : null}
+        </View>
+      ))}
     </View>
   );
 }
@@ -430,6 +500,18 @@ const styles = StyleSheet.create({
     padding: Spacing.two,
   },
   noProject: { width: 30, height: 30, borderRadius: 8, borderWidth: 1.5, borderStyle: 'dashed' },
+  dates: { gap: Spacing.one, marginTop: -Spacing.one },
+  dateRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.one },
+  logWork: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    paddingVertical: Spacing.three,
+    borderRadius: Radius.medium,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+  },
   point: { gap: Spacing.half, paddingTop: Spacing.two, borderTopWidth: StyleSheet.hairlineWidth },
   pointStatus: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   archive: {
