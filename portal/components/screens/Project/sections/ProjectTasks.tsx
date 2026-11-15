@@ -1727,7 +1727,6 @@ export const ProjectTasks = ({
       <ActivityChart
         points={data?.points ?? []}
         tasks={live}
-        users={Array.from(everyone.values())}
         color={color}
         loading={!data}
         from={from}
