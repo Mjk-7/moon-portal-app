@@ -403,8 +403,8 @@ const MarkButton = ({
     className={cn(
       'flex size-8 items-center justify-center rounded-md text-[18px] transition-colors',
       active
-        ? 'bg-white/[0.12] text-white'
-        : 'text-neutral-400 hover:bg-white/[0.07] hover:text-white',
+        ? 'bg-white/[0.12] text-white auto-light:bg-black/[0.12] auto-light:text-neutral-950'
+        : 'text-neutral-400 hover:bg-white/[0.07] hover:text-white auto-light:text-neutral-600 auto-light:hover:bg-black/[0.07] auto-light:hover:text-neutral-950',
     )}
   >
     <Icon name={icon} />
@@ -436,7 +436,7 @@ const FormatBar = ({ editor }: { editor: Editor }) => {
         !editor.isActive('codeBlock')
       }
       tippyOptions={{ duration: 120, onHidden: () => setLinking(false) }}
-      className="flex items-center gap-0.5 rounded-xl border border-white/10 bg-neutral-900/95 p-1 shadow-2xl shadow-black/50 backdrop-blur"
+      className="flex items-center gap-0.5 rounded-xl border border-white/10 bg-neutral-900/95 p-1 shadow-2xl shadow-black/50 backdrop-blur auto-light:border-black/[0.125] auto-light:bg-white/95 auto-light:shadow-black/10"
     >
       {linking ? (
         <form
@@ -452,7 +452,7 @@ const FormatBar = ({ editor }: { editor: Editor }) => {
             onChange={(e) => setHref(e.target.value)}
             onKeyDown={(e) => e.key === 'Escape' && setLinking(false)}
             placeholder="Paste a link"
-            className="h-8 w-56 rounded-md bg-white/[0.06] px-2 text-sm text-white outline-none placeholder:text-neutral-500"
+            className="h-8 w-56 rounded-md bg-white/[0.06] px-2 text-sm text-white outline-none placeholder:text-neutral-500 auto-light:bg-black/[0.06] auto-light:text-neutral-950"
           />
           <MarkButton icon="check" label="Save link" onClick={applyLink} />
         </form>
@@ -494,7 +494,7 @@ const FormatBar = ({ editor }: { editor: Editor }) => {
             active={editor.isActive('highlight')}
             onClick={() => editor.chain().focus().toggleHighlight().run()}
           />
-          <span className="mx-0.5 h-5 w-px bg-white/10" />
+          <span className="mx-0.5 h-5 w-px bg-white/10 auto-light:bg-black/10" />
           <MarkButton
             icon="link"
             label="Link"
@@ -533,7 +533,7 @@ const TableBar = ({ editor }: { editor: Editor }) => (
       state.selection.empty && editor.isEditable && editor.isActive('table')
     }
     tippyOptions={{ duration: 120, placement: 'top-start' }}
-    className="flex items-center gap-0.5 rounded-xl border border-white/10 bg-neutral-900/95 p-1 shadow-2xl shadow-black/50 backdrop-blur"
+    className="flex items-center gap-0.5 rounded-xl border border-white/10 bg-neutral-900/95 p-1 shadow-2xl shadow-black/50 backdrop-blur auto-light:border-black/[0.125] auto-light:bg-white/95 auto-light:shadow-black/10"
   >
     <MarkButton
       icon="add_row_below"
@@ -551,7 +551,7 @@ const TableBar = ({ editor }: { editor: Editor }) => (
       active={editor.isActive('tableHeader')}
       onClick={() => editor.chain().focus().toggleHeaderRow().run()}
     />
-    <span className="mx-0.5 h-5 w-px bg-white/10" />
+    <span className="mx-0.5 h-5 w-px bg-white/10 auto-light:bg-black/10" />
     <MarkButton
       icon="variable_remove"
       label="Delete this row"
@@ -646,7 +646,7 @@ const AskBox = ({
         left: Math.max(8, Math.min(asking.x, window.innerWidth - 336)),
         top: Math.min(asking.y + 6, window.innerHeight - 320),
       }}
-      className="z-50 w-80 rounded-xl border border-white/10 bg-neutral-900/95 p-2 shadow-2xl shadow-black/50 backdrop-blur"
+      className="z-50 w-80 rounded-xl border border-white/10 bg-neutral-900/95 p-2 shadow-2xl shadow-black/50 backdrop-blur auto-light:border-black/[0.125] auto-light:bg-white/95 auto-light:shadow-black/10"
     >
       {asking.kind === 'image' && (
         <>
@@ -654,7 +654,7 @@ const AskBox = ({
             type="button"
             disabled={uploading}
             onClick={() => fileRef.current?.click()}
-            className="mb-2 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-white/15 py-3 text-sm text-neutral-300 hover:border-white/30 hover:text-white"
+            className="mb-2 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-white/15 py-3 text-sm text-neutral-300 hover:border-white/30 hover:text-white auto-light:border-black/[0.188] auto-light:text-neutral-700 auto-light:hover:border-black/[0.375] auto-light:hover:text-neutral-950"
           >
             {uploading ? (
               <Spin className="size-4" />
@@ -705,12 +705,12 @@ const AskBox = ({
                 ? 'Or paste an image link'
                 : 'Paste a link: YouTube, Loom, Figma, Google Docs…'
           }
-          className="h-9 min-w-0 flex-1 rounded-lg bg-white/[0.06] px-2.5 text-sm text-white outline-none placeholder:text-neutral-500"
+          className="h-9 min-w-0 flex-1 rounded-lg bg-white/[0.06] px-2.5 text-sm text-white outline-none placeholder:text-neutral-500 auto-light:bg-black/[0.06] auto-light:text-neutral-950"
         />
         {asking.kind !== 'page' && (
           <button
             type="submit"
-            className="h-9 rounded-lg bg-white px-3 text-sm font-medium text-neutral-900"
+            className="h-9 rounded-lg bg-white px-3 text-sm font-medium text-neutral-900 auto-light:bg-neutral-900 auto-light:text-white"
           >
             {asking.kind === 'image' ? 'Add' : 'Embed'}
           </button>
@@ -725,8 +725,10 @@ const AskBox = ({
               onMouseEnter={() => setActive(i)}
               onClick={() => onPage(page)}
               className={cn(
-                'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-neutral-200',
-                i === active ? 'bg-white/[0.08]' : 'hover:bg-white/[0.04]',
+                'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-neutral-200 auto-light:text-neutral-800',
+                i === active
+                  ? 'bg-white/[0.08] auto-light:bg-black/[0.08]'
+                  : 'hover:bg-white/[0.04] auto-light:hover:bg-black/[0.04]',
               )}
             >
               <span>{page.emoji || '📄'}</span>
@@ -764,8 +766,8 @@ const DocTool = ({
     className={cn(
       'flex h-6 items-center gap-1 rounded-md px-1.5 text-[11px] transition-colors',
       active
-        ? 'bg-white/[0.1] text-white'
-        : 'text-neutral-500 hover:bg-white/[0.06] hover:text-neutral-200',
+        ? 'bg-white/[0.1] text-white auto-light:bg-black/[0.1] auto-light:text-neutral-950'
+        : 'text-neutral-500 hover:bg-white/[0.06] hover:text-neutral-200 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-800',
     )}
   >
     <Icon name={icon} className="text-[15px]" />
@@ -794,7 +796,7 @@ const MarkdownBox = ({
   }, [value]);
   useEffect(() => ref.current?.focus(), []);
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02]">
+    <div className="rounded-xl border border-white/10 bg-white/[0.02] auto-light:border-black/[0.125] auto-light:bg-black/[0.02]">
       <textarea
         ref={ref}
         value={value}
@@ -810,16 +812,16 @@ const MarkdownBox = ({
           '# A heading\n\nWrite in **Markdown**: - lists, [ ] to-dos, > quotes, ``` code…'
         }
         className={cn(
-          'block w-full resize-none bg-transparent px-4 py-3 font-mono text-[13px] leading-6 text-neutral-200 outline-none placeholder:text-neutral-600',
+          'block w-full resize-none bg-transparent px-4 py-3 font-mono text-[13px] leading-6 text-neutral-200 outline-none placeholder:text-neutral-600 auto-light:text-neutral-800 auto-light:placeholder:text-neutral-400',
           compact ? 'min-h-[96px]' : 'min-h-[50vh]',
         )}
       />
-      <div className="flex items-center justify-between border-t border-white/[0.06] px-3 py-1.5 text-[11px] text-neutral-500">
+      <div className="flex items-center justify-between border-t border-white/[0.06] px-3 py-1.5 text-[11px] text-neutral-500 auto-light:border-black/[0.075]">
         <span>Markdown · saves as you type · Esc to go back</span>
         <button
           type="button"
           onClick={onDone}
-          className="rounded-md px-2 py-0.5 text-neutral-300 hover:bg-white/[0.06] hover:text-white"
+          className="rounded-md px-2 py-0.5 text-neutral-300 hover:bg-white/[0.06] hover:text-white auto-light:text-neutral-700 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-950"
         >
           Done
         </button>
@@ -1204,7 +1206,7 @@ export const DocEditor = ({
                 left: Math.max(8, Math.min(slash.x, window.innerWidth - 296)),
                 top: Math.min(slash.y + 6, window.innerHeight - 360),
               }}
-              className="z-50 w-72 overflow-hidden rounded-xl border border-white/10 bg-neutral-900/95 shadow-2xl shadow-black/50 backdrop-blur"
+              className="z-50 w-72 overflow-hidden rounded-xl border border-white/10 bg-neutral-900/95 shadow-2xl shadow-black/50 backdrop-blur auto-light:border-black/[0.125] auto-light:bg-white/95 auto-light:shadow-black/10"
             >
               <div ref={menuRef} className="max-h-[340px] overflow-y-auto p-1">
                 {list.map((command, i) => (
@@ -1223,15 +1225,15 @@ export const DocEditor = ({
                       className={cn(
                         'flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left',
                         i === active
-                          ? 'bg-white/[0.08]'
-                          : 'hover:bg-white/[0.04]',
+                          ? 'bg-white/[0.08] auto-light:bg-black/[0.08]'
+                          : 'hover:bg-white/[0.04] auto-light:hover:bg-black/[0.04]',
                       )}
                     >
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.04] text-[18px] text-neutral-300">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.04] text-[18px] text-neutral-300 auto-light:border-black/[0.125] auto-light:bg-black/[0.04] auto-light:text-neutral-700">
                         <Icon name={command.icon} />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-sm text-neutral-100">
+                        <span className="block text-sm text-neutral-100 auto-light:text-neutral-900">
                           {command.label}
                         </span>
                         <span className="block truncate text-[11px] text-neutral-500">
@@ -1239,7 +1241,7 @@ export const DocEditor = ({
                         </span>
                       </span>
                       {command.md && (
-                        <kbd className="shrink-0 font-mono text-[11px] text-neutral-600">
+                        <kbd className="shrink-0 font-mono text-[11px] text-neutral-600 auto-light:text-neutral-400">
                           {command.md}
                         </kbd>
                       )}

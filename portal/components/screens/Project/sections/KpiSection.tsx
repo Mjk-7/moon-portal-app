@@ -57,8 +57,9 @@ const Trend = ({
           <motion.span
             className={cn(
               'w-full rounded-t-[3px]',
-              (v ?? 0) === 0 && 'bg-white/[0.06]',
-              i === values.length - 1 && 'ring-1 ring-white/25',
+              (v ?? 0) === 0 && 'bg-white/[0.06] auto-light:bg-black/[0.06]',
+              i === values.length - 1 &&
+                'ring-1 ring-white/25 auto-light:ring-black/[0.313]',
             )}
             style={
               v
@@ -86,7 +87,9 @@ const Delta = ({ now, before }: { now: number; before: number }) => {
     <span
       className={cn(
         'flex items-center text-[11px]',
-        diff > 0 ? 'text-emerald-300' : 'text-rose-300',
+        diff > 0
+          ? 'text-emerald-300 auto-light:text-emerald-700'
+          : 'text-rose-300 auto-light:text-rose-700',
       )}
     >
       <Icon
@@ -109,12 +112,14 @@ const KpiTile = ({
   hint: string;
   children?: React.ReactNode;
 }) => (
-  <div className="min-w-0 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+  <div className="min-w-0 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 auto-light:border-black/[0.088] auto-light:bg-black/[0.02]">
     <p className="text-xs text-neutral-500" title={hint}>
       {label}
     </p>
     <div className="mt-1 flex flex-wrap items-baseline gap-x-2">
-      <p className="text-2xl font-semibold tabular-nums text-white">{value}</p>
+      <p className="text-2xl font-semibold tabular-nums text-white auto-light:text-neutral-950">
+        {value}
+      </p>
     </div>
     {children}
   </div>
@@ -241,7 +246,7 @@ export const KpiSection = ({
             <ul className="mt-4 flex flex-col gap-1.5">
               {scheduled.slice(0, 4).map((g) => (
                 <li key={g.id} className="flex items-center gap-2 text-xs">
-                  <span className="min-w-0 flex-1 truncate text-neutral-300">
+                  <span className="min-w-0 flex-1 truncate text-neutral-300 auto-light:text-neutral-700">
                     {g.title}
                   </span>
                   <span className="flex gap-1">
@@ -252,7 +257,7 @@ export const KpiSection = ({
                         className={cn(
                           'size-2.5 rounded-[3px]',
                           p.met === null
-                            ? 'border border-white/20'
+                            ? 'border border-white/20 auto-light:border-black/25'
                             : p.met
                               ? 'bg-emerald-400'
                               : 'bg-rose-400/70',
@@ -307,7 +312,7 @@ export const KpiSection = ({
             <p className="text-[11px] text-neutral-500">
               {g.met ? 'Reached' : `${g.percent}% of the way`}
             </p>
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/[0.06]">
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/[0.06] auto-light:bg-black/[0.06]">
               <motion.div
                 className="h-full rounded-full"
                 style={{ backgroundColor: g.met ? '#34d399' : color }}
@@ -319,7 +324,7 @@ export const KpiSection = ({
           </KpiTile>
         ))}
       </div>
-      <p className="mt-4 text-xs text-neutral-600">
+      <p className="mt-4 text-xs text-neutral-600 auto-light:text-neutral-400">
         Bars run Monday to Sunday, oldest on the left; the outlined one is this
         week.
       </p>

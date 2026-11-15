@@ -158,7 +158,7 @@ const NewTask = ({
   const forSomeoneElse = assignee.id !== me.id;
 
   return (
-    <div className="mb-6 flex items-center gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.03] py-1.5 pl-4 pr-1.5 focus-within:border-white/20">
+    <div className="mb-6 flex items-center gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.03] py-1.5 pl-4 pr-1.5 focus-within:border-white/20 auto-light:border-black/10 auto-light:bg-black/[0.03] auto-light:focus-within:border-black/25">
       {saving ? (
         <Spin className="size-4" />
       ) : (
@@ -177,12 +177,11 @@ const NewTask = ({
             ? `Add a task for ${assignee.name?.split(' ')[0] || 'them'}…`
             : 'Add a task for yourself…'
         }
-        className="h-9 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-neutral-500"
+        className="h-9 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-neutral-500 auto-light:text-neutral-950"
       />
       <DatePopover
         value={forDate}
         onPick={setForDate}
-        autoTheme={false}
         trigger={
           <button
             type="button"
@@ -190,8 +189,8 @@ const NewTask = ({
             className={cn(
               'flex h-9 shrink-0 items-center gap-1 whitespace-nowrap rounded-xl px-2 text-xs transition-colors',
               forDate
-                ? 'bg-white/[0.06] text-neutral-200 hover:bg-white/[0.1]'
-                : 'text-neutral-500 hover:bg-white/[0.06] hover:text-white',
+                ? 'bg-white/[0.06] text-neutral-200 hover:bg-white/[0.1] auto-light:bg-black/[0.06] auto-light:text-neutral-800 auto-light:hover:bg-black/[0.1]'
+                : 'text-neutral-500 hover:bg-white/[0.06] hover:text-white auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-950',
             )}
           >
             <Icon name="event" className="text-[16px]" />
@@ -213,8 +212,8 @@ const NewTask = ({
             className={cn(
               'flex h-9 shrink-0 items-center gap-1.5 rounded-xl px-2 text-xs transition-colors',
               forSomeoneElse
-                ? 'bg-sky-500/15 text-sky-200 hover:bg-sky-500/20'
-                : 'text-neutral-400 hover:bg-white/[0.06] hover:text-white',
+                ? 'bg-sky-500/15 text-sky-200 hover:bg-sky-500/20 auto-light:text-sky-700'
+                : 'text-neutral-400 hover:bg-white/[0.06] hover:text-white auto-light:text-neutral-600 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-950',
             )}
           >
             <UserAvatar src={assignee.avatar} name={assignee.name} size={22} />
@@ -226,14 +225,14 @@ const NewTask = ({
         </PopoverTrigger>
         <PopoverContent
           align="end"
-          className="w-64 border-white/10 bg-neutral-900 p-1.5 text-neutral-200"
+          className="w-64 border-white/10 bg-neutral-900 p-1.5 text-neutral-200 auto-light:border-black/[0.125] auto-light:bg-white auto-light:text-neutral-800"
         >
           <input
             autoFocus
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Assign to…"
-            className="mb-1 h-8 w-full rounded-lg bg-white/[0.05] px-2.5 text-sm outline-none placeholder:text-neutral-500"
+            className="mb-1 h-8 w-full rounded-lg bg-white/[0.05] px-2.5 text-sm outline-none placeholder:text-neutral-500 auto-light:bg-black/[0.05]"
           />
           <div className="custom-scrollbar max-h-64 overflow-y-auto">
             {matches.map((p) => (
@@ -247,8 +246,9 @@ const NewTask = ({
                   input.current?.focus();
                 }}
                 className={cn(
-                  'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-white/[0.06]',
-                  p.id === assignee.id && 'bg-white/[0.06]',
+                  'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-white/[0.06] auto-light:hover:bg-black/[0.06]',
+                  p.id === assignee.id &&
+                    'bg-white/[0.06] auto-light:bg-black/[0.06]',
                 )}
               >
                 <UserAvatar src={p.avatar} name={p.name} size={22} />
@@ -259,7 +259,10 @@ const NewTask = ({
                   )}
                 </span>
                 {p.id === assignee.id && (
-                  <Icon name="check" className="text-[16px] text-sky-300" />
+                  <Icon
+                    name="check"
+                    className="text-[16px] text-sky-300 auto-light:text-sky-700"
+                  />
                 )}
               </button>
             ))}
@@ -280,7 +283,7 @@ const NewTask = ({
 /* -------------------------------------------------------------------------- */
 
 const chip =
-  'flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-white/[0.04] px-2.5 text-xs text-neutral-300 transition-colors hover:bg-white/[0.08] hover:text-white';
+  'flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-white/[0.04] auto-light:bg-black/[0.04] px-2.5 text-xs text-neutral-300 auto-light:text-neutral-700 transition-colors hover:bg-white/[0.08] auto-light:hover:bg-black/[0.08] hover:text-white auto-light:hover:text-neutral-950';
 
 /** Who a task is for: any number of people, picked from a list. */
 const AssigneePicker = ({
@@ -334,14 +337,14 @@ const AssigneePicker = ({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-64 border-white/10 bg-neutral-900 p-1.5 text-neutral-200"
+        className="w-64 border-white/10 bg-neutral-900 p-1.5 text-neutral-200 auto-light:border-black/[0.125] auto-light:bg-white auto-light:text-neutral-800"
       >
         <input
           autoFocus
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Assign to…"
-          className="mb-1 h-8 w-full rounded-lg bg-white/[0.05] px-2.5 text-sm outline-none placeholder:text-neutral-500"
+          className="mb-1 h-8 w-full rounded-lg bg-white/[0.05] px-2.5 text-sm outline-none placeholder:text-neutral-500 auto-light:bg-black/[0.05]"
         />
         <div className="custom-scrollbar max-h-64 overflow-y-auto">
           {matches.map((p) => {
@@ -352,8 +355,8 @@ const AssigneePicker = ({
                 type="button"
                 onClick={() => toggle(p.id)}
                 className={cn(
-                  'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-white/[0.06]',
-                  on && 'bg-white/[0.06]',
+                  'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-white/[0.06] auto-light:hover:bg-black/[0.06]',
+                  on && 'bg-white/[0.06] auto-light:bg-black/[0.06]',
                 )}
               >
                 <UserAvatar src={p.avatar} name={p.name} size={22} />
@@ -361,7 +364,10 @@ const AssigneePicker = ({
                   {p.name || 'Unnamed'}
                 </span>
                 {on && (
-                  <Icon name="check" className="text-[16px] text-sky-300" />
+                  <Icon
+                    name="check"
+                    className="text-[16px] text-sky-300 auto-light:text-sky-700"
+                  />
                 )}
               </button>
             );
@@ -430,7 +436,7 @@ const TaskEditor = ({
         }}
         maxLength={200}
         aria-label="Task title"
-        className="h-9 w-full rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 text-sm font-medium text-white outline-none focus:border-white/20"
+        className="h-9 w-full rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 text-sm font-medium text-white outline-none focus:border-white/20 auto-light:border-black/[0.075] auto-light:bg-black/[0.03] auto-light:text-neutral-950 auto-light:focus:border-black/25"
       />
       <div className="flex flex-wrap items-center gap-2">
         <label className={cn(chip, 'relative cursor-pointer')}>
@@ -443,7 +449,7 @@ const TaskEditor = ({
               onUpdate({ status: e.target.value as Task['status'] })
             }
             aria-label="Status"
-            className="absolute inset-0 cursor-pointer opacity-0 [&>option]:bg-neutral-900"
+            className="absolute inset-0 cursor-pointer opacity-0 [&>option]:bg-neutral-900 auto-light:[&>option]:bg-white"
           >
             {STATUS_CHOICES.map((s) => (
               <option key={s.value} value={s.value}>
@@ -456,7 +462,6 @@ const TaskEditor = ({
           value={task.forDate ?? null}
           onPick={(forDate) => onUpdate({ forDate })}
           clearable
-          autoTheme={false}
           align="start"
           trigger={
             <button
@@ -482,7 +487,7 @@ const TaskEditor = ({
             onClick={onDelete}
             className={cn(
               chip,
-              'bg-transparent text-neutral-500 hover:bg-rose-500/10 hover:text-rose-300',
+              'bg-transparent text-neutral-500 hover:bg-rose-500/10 hover:text-rose-300 auto-light:hover:text-rose-700',
             )}
           >
             <Icon name="delete" className="text-[16px]" />
@@ -497,7 +502,7 @@ const TaskEditor = ({
         rows={notes ? 3 : 1}
         placeholder="Add notes…"
         aria-label="Notes"
-        className="w-full resize-y rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-neutral-300 outline-none placeholder:text-neutral-600 focus:border-white/20"
+        className="w-full resize-y rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-neutral-300 outline-none placeholder:text-neutral-600 focus:border-white/20 auto-light:border-black/[0.075] auto-light:bg-black/[0.03] auto-light:text-neutral-700 auto-light:placeholder:text-neutral-400 auto-light:focus:border-black/25"
       />
     </div>
   );
@@ -554,8 +559,8 @@ const TaskRow = ({
   return (
     <li
       className={cn(
-        'border-b border-white/[0.05] last:border-b-0',
-        open && 'bg-white/[0.02]',
+        'border-b border-white/[0.05] last:border-b-0 auto-light:border-black/[0.063]',
+        open && 'bg-white/[0.02] auto-light:bg-black/[0.02]',
       )}
     >
       <div
@@ -572,7 +577,9 @@ const TaskRow = ({
           className={cn(
             'flex size-5 shrink-0 items-center justify-center rounded-full',
             fullInfo && 'mt-px',
-            canTick && !done && 'hover:text-emerald-300',
+            canTick &&
+              !done &&
+              'hover:text-emerald-300 auto-light:hover:text-emerald-700',
           )}
         >
           <Icon
@@ -587,10 +594,10 @@ const TaskRow = ({
             className={cn(
               'text-[18px]',
               done
-                ? 'text-emerald-400'
+                ? 'text-emerald-400 auto-light:text-emerald-600'
                 : underWay
-                  ? 'text-sky-400'
-                  : 'text-neutral-600',
+                  ? 'text-sky-400 auto-light:text-sky-600'
+                  : 'text-neutral-600 auto-light:text-neutral-400',
             )}
           />
         </button>
@@ -604,8 +611,8 @@ const TaskRow = ({
             className={cn(
               'flex items-center gap-2 text-[13px] leading-5',
               done
-                ? 'text-neutral-500 line-through decoration-neutral-600'
-                : 'text-neutral-100',
+                ? 'text-neutral-500 line-through decoration-neutral-600 auto-light:decoration-neutral-400'
+                : 'text-neutral-100 auto-light:text-neutral-900',
             )}
           >
             {underWay && (
@@ -630,7 +637,11 @@ const TaskRow = ({
           {fullInfo && (
             <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-neutral-500">
               {when && (
-                <span className={cn(late && 'text-amber-300/80')}>
+                <span
+                  className={cn(
+                    late && 'text-amber-300/80 auto-light:text-amber-700/80',
+                  )}
+                >
                   {done ? 'Done' : 'for'} {when}
                 </span>
               )}
@@ -645,7 +656,7 @@ const TaskRow = ({
                 </span>
               )}
               {last && !open && (
-                <span className="min-w-0 max-w-full truncate text-neutral-400">
+                <span className="min-w-0 max-w-full truncate text-neutral-400 auto-light:text-neutral-600">
                   · {last.text}
                 </span>
               )}
@@ -656,7 +667,7 @@ const TaskRow = ({
           <span
             className={cn(
               'shrink-0 text-[11px] tabular-nums text-neutral-500',
-              late && 'text-amber-300/80',
+              late && 'text-amber-300/80 auto-light:text-amber-700/80',
             )}
           >
             {when}
@@ -666,7 +677,9 @@ const TaskRow = ({
           (people.length > 0 ? (
             <AvatarStack users={people} max={3} />
           ) : (
-            <span className="text-[11px] text-neutral-600">Nobody</span>
+            <span className="text-[11px] text-neutral-600 auto-light:text-neutral-400">
+              Nobody
+            </span>
           ))}
       </div>
 
@@ -691,7 +704,7 @@ const TaskRow = ({
                 />
               )}
               {!canEdit && task.description && (
-                <p className="mb-3 whitespace-pre-wrap text-sm text-neutral-400">
+                <p className="mb-3 whitespace-pre-wrap text-sm text-neutral-400 auto-light:text-neutral-600">
                   {task.description}
                 </p>
               )}
@@ -712,7 +725,7 @@ const TaskRow = ({
                           size={20}
                         />
                         <div className="min-w-0 flex-1">
-                          <p className="flex flex-wrap items-center gap-1.5 text-neutral-200">
+                          <p className="flex flex-wrap items-center gap-1.5 text-neutral-200 auto-light:text-neutral-800">
                             {p.text && <span>{p.text}</span>}
                             {meta && <Pill tone={meta.tone}>{meta.label}</Pill>}
                           </p>
@@ -858,7 +871,7 @@ const doneDayOf = (t: Task) =>
     : dayOf(t);
 
 const Empty = ({ children }: { children: React.ReactNode }) => (
-  <p className="rounded-xl border border-dashed border-white/[0.08] px-3 py-4 text-center text-xs text-neutral-600">
+  <p className="rounded-xl border border-dashed border-white/[0.08] px-3 py-4 text-center text-xs text-neutral-600 auto-light:border-black/10 auto-light:text-neutral-400">
     {children}
   </p>
 );
@@ -882,7 +895,9 @@ const ColumnTitle = ({
   >
     <Icon name={icon} className="text-[16px]" />
     {title}
-    <span className="text-neutral-600">{count}</span>
+    <span className="text-neutral-600 auto-light:text-neutral-400">
+      {count}
+    </span>
   </h3>
 );
 
@@ -935,10 +950,10 @@ const TaskChip = ({
         draggable && 'cursor-grab active:cursor-grabbing',
         dragging && 'opacity-40',
         done
-          ? 'border-emerald-400/15 bg-emerald-400/[0.06] text-neutral-400 line-through decoration-neutral-600'
+          ? 'border-emerald-400/15 bg-emerald-400/[0.06] text-neutral-400 line-through decoration-neutral-600 auto-light:text-neutral-600 auto-light:decoration-neutral-400'
           : underWay
-            ? 'border-sky-400/20 bg-sky-400/[0.07] text-neutral-100'
-            : 'border-white/[0.07] bg-white/[0.03] text-neutral-200',
+            ? 'border-sky-400/20 bg-sky-400/[0.07] text-neutral-100 auto-light:text-neutral-900'
+            : 'border-white/[0.07] bg-white/[0.03] text-neutral-200 auto-light:border-black/[0.088] auto-light:bg-black/[0.03] auto-light:text-neutral-800',
       )}
     >
       {draggable ? (
@@ -1202,7 +1217,7 @@ export const ProjectTasks = ({
 
   const rows = (list: Task[], empty: string) =>
     list.length ? (
-      <ul className="overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.015]">
+      <ul className="overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.015] auto-light:border-black/[0.075] auto-light:bg-black/[0.015]">
         {list.map((task) => (
           <TaskRow
             key={task.id}
@@ -1282,14 +1297,14 @@ export const ProjectTasks = ({
       <div
         {...dropZone(null)}
         className={cn(
-          'min-w-0 rounded-xl border border-dashed border-white/[0.1] p-1.5 transition-colors',
+          'min-w-0 rounded-xl border border-dashed border-white/[0.1] p-1.5 transition-colors auto-light:border-black/[0.125]',
           over === 'unplanned' && 'border-sky-400/60 bg-sky-400/[0.06]',
         )}
       >
-        <p className="mb-1.5 flex items-center gap-1 px-1 text-[11px] font-semibold text-neutral-400">
+        <p className="mb-1.5 flex items-center gap-1 px-1 text-[11px] font-semibold text-neutral-400 auto-light:text-neutral-600">
           <Icon name="inbox" className="text-[14px]" />
           Unplanned
-          <span className="font-normal text-neutral-600">
+          <span className="font-normal text-neutral-600 auto-light:text-neutral-400">
             {unplanned.length}
           </span>
         </p>
@@ -1297,28 +1312,30 @@ export const ProjectTasks = ({
           {chips([...unplanned].sort(byRecent))}
         </ul>
         {!unplanned.length && (
-          <p className="px-1 pb-1 text-[11px] text-neutral-600">
+          <p className="px-1 pb-1 text-[11px] text-neutral-600 auto-light:text-neutral-400">
             Tasks with no day. Drop one here to take its day off.
           </p>
         )}
       </div>
       <div className="min-w-0 rounded-xl border border-dashed border-rose-400/20 p-1.5">
-        <p className="mb-1.5 flex items-center gap-1 px-1 text-[11px] font-semibold text-rose-300/80">
+        <p className="mb-1.5 flex items-center gap-1 px-1 text-[11px] font-semibold text-rose-300/80 auto-light:text-rose-700/80">
           <Icon name="schedule" className="text-[14px]" />
           Overdue
-          <span className="font-normal text-neutral-600">{overdue.length}</span>
+          <span className="font-normal text-neutral-600 auto-light:text-neutral-400">
+            {overdue.length}
+          </span>
         </p>
         <ul className="flex flex-col gap-1">
           {chips([...overdue].sort(byDay))}
         </ul>
         {!overdue.length && (
-          <p className="px-1 pb-1 text-[11px] text-neutral-600">
+          <p className="px-1 pb-1 text-[11px] text-neutral-600 auto-light:text-neutral-400">
             Nothing late.
           </p>
         )}
       </div>
       {canTick && (unplanned.length > 0 || overdue.length > 0) && (
-        <p className="px-1 text-[10px] leading-snug text-neutral-600">
+        <p className="px-1 text-[10px] leading-snug text-neutral-600 auto-light:text-neutral-400">
           Drag a task onto a day to plan it, or tap it to pick one.
         </p>
       )}
@@ -1345,8 +1362,9 @@ export const ProjectTasks = ({
         className={cn(
           'min-w-0 rounded-xl p-1 transition-colors',
           opts.cap ? 'min-h-[96px]' : 'min-h-[160px]',
-          isToday && 'bg-white/[0.04] ring-1 ring-white/10',
-          weekend && !isToday && 'bg-white/[0.015]',
+          isToday &&
+            'bg-white/[0.04] ring-1 ring-white/10 auto-light:bg-black/[0.04] auto-light:ring-black/[0.125]',
+          weekend && !isToday && 'bg-white/[0.015] auto-light:bg-black/[0.015]',
           opts.inMonth === false && 'opacity-40',
           over === k && 'bg-sky-400/[0.08] ring-1 ring-sky-400/50',
         )}
@@ -1354,20 +1372,28 @@ export const ProjectTasks = ({
         <p
           className={cn(
             'mb-1.5 px-1 text-[11px]',
-            isToday ? 'font-semibold text-white' : 'text-neutral-500',
+            isToday
+              ? 'font-semibold text-white auto-light:text-neutral-950'
+              : 'text-neutral-500',
           )}
         >
           {opts.cap ? (
             <>
               {isToday ? 'Today ' : ''}
-              <span className={cn(!isToday && 'text-neutral-400')}>
+              <span
+                className={cn(
+                  !isToday && 'text-neutral-400 auto-light:text-neutral-600',
+                )}
+              >
                 {d.format('D')}
               </span>
             </>
           ) : (
             <>
               {isToday ? 'Today' : d.format('ddd')}{' '}
-              <span className="text-neutral-600">{d.format('D')}</span>
+              <span className="text-neutral-600 auto-light:text-neutral-400">
+                {d.format('D')}
+              </span>
             </>
           )}
         </p>
@@ -1379,7 +1405,7 @@ export const ProjectTasks = ({
               setAnchor(k);
               setSpan('week');
             }}
-            className="mt-1 px-1 text-[10px] text-neutral-500 hover:text-neutral-200"
+            className="mt-1 px-1 text-[10px] text-neutral-500 hover:text-neutral-200 auto-light:hover:text-neutral-800"
           >
             +{list.length - cap} more
           </button>
@@ -1440,7 +1466,7 @@ export const ProjectTasks = ({
               <button
                 type="button"
                 onClick={() => onLayout('timeline')}
-                className="mt-3 flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-200"
+                className="mt-3 flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-200 auto-light:hover:text-neutral-800"
               >
                 <Icon name="inbox" className="text-[15px]" />
                 {outside.length} more{' '}
@@ -1475,7 +1501,7 @@ export const ProjectTasks = ({
                 key: 'late',
                 title: 'Overdue',
                 icon: 'schedule',
-                tone: 'text-rose-300/80',
+                tone: 'text-rose-300/80 auto-light:text-rose-700/80',
                 tasks: open
                   .filter(
                     (t) => t.status === 'TODO' && (dayOf(t) ?? '9999') < from,
@@ -1490,7 +1516,10 @@ export const ProjectTasks = ({
             key: k,
             title: titleOf(k),
             icon: k === 'now' ? 'progress_activity' : 'today',
-            tone: k === today ? 'text-neutral-200' : undefined,
+            tone:
+              k === today
+                ? 'text-neutral-200 auto-light:text-neutral-800'
+                : undefined,
             tasks: list,
           })),
           ...(isNow
@@ -1523,7 +1552,7 @@ export const ProjectTasks = ({
               <button
                 type="button"
                 onClick={() => setShowDone((v) => !v)}
-                className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-500 hover:text-neutral-300"
+                className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-500 hover:text-neutral-300 auto-light:hover:text-neutral-700"
               >
                 <Icon
                   name="chevron_right"
@@ -1533,7 +1562,9 @@ export const ProjectTasks = ({
                   )}
                 />
                 Done
-                <span className="text-neutral-600">{shownDone.length}</span>
+                <span className="text-neutral-600 auto-light:text-neutral-400">
+                  {shownDone.length}
+                </span>
               </button>
               {showDone && (
                 <div className="mt-2.5">
@@ -1556,7 +1587,7 @@ export const ProjectTasks = ({
                     (d) => (
                       <p
                         key={d}
-                        className="px-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-600"
+                        className="px-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-600 auto-light:text-neutral-400"
                       >
                         {d}
                       </p>
@@ -1622,7 +1653,7 @@ export const ProjectTasks = ({
             {rowsOf.map((r) => (
               <div
                 key={r.id}
-                className="min-w-0 rounded-2xl border border-white/[0.06] bg-white/[0.015] p-3"
+                className="min-w-0 rounded-2xl border border-white/[0.06] bg-white/[0.015] p-3 auto-light:border-black/[0.075] auto-light:bg-black/[0.015]"
               >
                 <div className="mb-3 flex items-center gap-2.5">
                   <UserAvatar
@@ -1630,24 +1661,26 @@ export const ProjectTasks = ({
                     name={r.who!.name}
                     size={28}
                   />
-                  <p className="min-w-0 flex-1 truncate text-sm font-medium text-white">
+                  <p className="min-w-0 flex-1 truncate text-sm font-medium text-white auto-light:text-neutral-950">
                     {r.who!.name}
                   </p>
                   <span className="flex shrink-0 gap-3 text-[11px] tabular-nums text-neutral-500">
                     <span>
-                      <b className="font-semibold text-sky-300">
+                      <b className="font-semibold text-sky-300 auto-light:text-sky-700">
                         {r.doing.length}
                       </b>{' '}
                       doing
                     </span>
                     <span>
-                      <b className="font-semibold text-neutral-200">
+                      <b className="font-semibold text-neutral-200 auto-light:text-neutral-800">
                         {r.todo.length}
                       </b>{' '}
                       to do
                     </span>
                     <span>
-                      <b className="font-semibold text-emerald-300">{r.done}</b>{' '}
+                      <b className="font-semibold text-emerald-300 auto-light:text-emerald-700">
+                        {r.done}
+                      </b>{' '}
                       done
                     </span>
                   </span>
@@ -1664,10 +1697,12 @@ export const ProjectTasks = ({
               </div>
             ))}
             {nobody.length > 0 && (
-              <div className="min-w-0 rounded-2xl border border-dashed border-white/[0.08] p-3">
-                <p className="mb-3 text-sm font-medium text-neutral-400">
+              <div className="min-w-0 rounded-2xl border border-dashed border-white/[0.08] p-3 auto-light:border-black/10">
+                <p className="mb-3 text-sm font-medium text-neutral-400 auto-light:text-neutral-600">
                   Nobody on it yet{' '}
-                  <span className="text-neutral-600">{nobody.length}</span>
+                  <span className="text-neutral-600 auto-light:text-neutral-400">
+                    {nobody.length}
+                  </span>
                 </p>
                 {rows(nobody.sort(byDay).slice(0, 5), '')}
               </div>
@@ -1720,14 +1755,15 @@ export const ProjectTasks = ({
               type="button"
               title="What each task shows"
               className={cn(
-                'flex h-10 items-center gap-1.5 rounded-lg border border-white/[0.07] px-3 text-xs font-medium text-neutral-400 transition-colors hover:bg-white/[0.05] hover:text-neutral-200',
-                (show.people || show.info) && 'text-neutral-200',
+                'flex h-10 items-center gap-1.5 rounded-lg border border-white/[0.07] px-3 text-xs font-medium text-neutral-400 transition-colors hover:bg-white/[0.05] hover:text-neutral-200 auto-light:border-black/[0.088] auto-light:text-neutral-600 auto-light:hover:bg-black/[0.05] auto-light:hover:text-neutral-800',
+                (show.people || show.info) &&
+                  'text-neutral-200 auto-light:text-neutral-800',
               )}
             >
               <Icon name="tune" className="text-[16px]" />
               Show
               {(show.people || show.info) && (
-                <span className="rounded bg-white/[0.08] px-1.5 py-px text-[10px] font-semibold">
+                <span className="rounded bg-white/[0.08] px-1.5 py-px text-[10px] font-semibold auto-light:bg-black/[0.08]">
                   {Number(show.people) + Number(show.info)}
                 </span>
               )}
@@ -1735,7 +1771,7 @@ export const ProjectTasks = ({
           </PopoverTrigger>
           <PopoverContent
             align="end"
-            className="w-60 border-white/10 bg-neutral-900 p-1.5 text-neutral-200"
+            className="w-60 border-white/10 bg-neutral-900 p-1.5 text-neutral-200 auto-light:border-black/[0.125] auto-light:bg-white auto-light:text-neutral-800"
           >
             {(
               [
@@ -1759,7 +1795,7 @@ export const ProjectTasks = ({
                   key={o.k}
                   type="button"
                   onClick={() => setShow({ ...show, [o.k]: !on })}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-white/[0.06]"
+                  className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-white/[0.06] auto-light:hover:bg-black/[0.06]"
                 >
                   <Icon
                     name={o.icon}
@@ -1776,7 +1812,9 @@ export const ProjectTasks = ({
                     filled={on}
                     className={cn(
                       'text-[18px]',
-                      on ? 'text-sky-300' : 'text-neutral-600',
+                      on
+                        ? 'text-sky-300 auto-light:text-sky-700'
+                        : 'text-neutral-600 auto-light:text-neutral-400',
                     )}
                   />
                 </button>
@@ -1792,7 +1830,7 @@ export const ProjectTasks = ({
             type="button"
             onClick={() => step(-1)}
             aria-label={`Previous ${viewSpan}`}
-            className="flex size-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-white/[0.06] hover:text-white"
+            className="flex size-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-white/[0.06] hover:text-white auto-light:text-neutral-600 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-950"
           >
             <Icon name="chevron_left" className="text-[20px]" />
           </button>
@@ -1800,12 +1838,12 @@ export const ProjectTasks = ({
             type="button"
             onClick={() => step(1)}
             aria-label={`Next ${viewSpan}`}
-            className="flex size-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-white/[0.06] hover:text-white"
+            className="flex size-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-white/[0.06] hover:text-white auto-light:text-neutral-600 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-950"
           >
             <Icon name="chevron_right" className="text-[20px]" />
           </button>
         </div>
-        <p className="text-sm font-semibold text-white">
+        <p className="text-sm font-semibold text-white auto-light:text-neutral-950">
           {rangeLabel(viewSpan, range.from, range.to)}
           {hint && (
             <span className="ml-2 text-xs font-normal text-neutral-500">
@@ -1817,7 +1855,7 @@ export const ProjectTasks = ({
           <button
             type="button"
             onClick={() => setAnchor(today)}
-            className="h-7 rounded-lg border border-white/[0.08] px-2.5 text-xs text-neutral-300 hover:bg-white/[0.06] hover:text-white"
+            className="h-7 rounded-lg border border-white/[0.08] px-2.5 text-xs text-neutral-300 hover:bg-white/[0.06] hover:text-white auto-light:border-black/10 auto-light:text-neutral-700 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-950"
           >
             Today
           </button>

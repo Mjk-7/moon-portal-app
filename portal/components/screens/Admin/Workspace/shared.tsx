@@ -82,7 +82,7 @@ export const CompanyMark = ({
         backgroundColor: color || '#404040',
         fontSize: size / 2.4,
       }}
-      className="flex shrink-0 items-center justify-center rounded-xl font-bold text-white"
+      className="flex shrink-0 items-center justify-center rounded-xl font-bold text-white auto-light:text-neutral-950"
     >
       {(name || '?').slice(0, 1).toUpperCase()}
     </span>
@@ -125,7 +125,7 @@ export const ProgressBar = ({
 }) => (
   <div
     className={cn(
-      'h-1.5 w-full overflow-hidden rounded-full bg-white/[0.07]',
+      'h-1.5 w-full overflow-hidden rounded-full bg-white/[0.07] auto-light:bg-black/[0.07]',
       className,
     )}
     role="progressbar"
@@ -253,7 +253,7 @@ export const PeoplePicker = ({
         onChange={setSearch}
         placeholder="Search people…"
       />
-      <div className="custom-scrollbar max-h-56 overflow-y-auto rounded-lg border border-white/[0.07]">
+      <div className="custom-scrollbar max-h-56 overflow-y-auto rounded-lg border border-white/[0.07] auto-light:border-black/[0.088]">
         {filtered.length === 0 && (
           <p className="px-3 py-4 text-center text-xs text-neutral-500">
             Nobody matches that search.
@@ -267,14 +267,14 @@ export const PeoplePicker = ({
               key={u.id}
               onClick={() => toggle(u.id)}
               className={cn(
-                'flex w-full items-center gap-3 border-b border-white/[0.05] px-3 py-2 text-left last:border-b-0 hover:bg-white/[0.04]',
-                selected && 'bg-white/[0.06]',
+                'flex w-full items-center gap-3 border-b border-white/[0.05] px-3 py-2 text-left last:border-b-0 hover:bg-white/[0.04] auto-light:border-black/[0.063] auto-light:hover:bg-black/[0.04]',
+                selected && 'bg-white/[0.06] auto-light:bg-black/[0.06]',
               )}
             >
               <CheckBox checked={selected} size="sm" />
               <UserAvatar src={u.avatar} name={u.name} size={26} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm text-neutral-200">
+                <span className="block truncate text-sm text-neutral-200 auto-light:text-neutral-800">
                   {u.name || 'Unnamed'}
                 </span>
                 <span className="block truncate text-[11px] text-neutral-500">
@@ -303,11 +303,11 @@ export const AvatarStack = ({
         src={u.avatar}
         name={u.name}
         size={24}
-        className="ring-2 ring-neutral-950"
+        className="ring-2 ring-neutral-950 auto-light:ring-neutral-100"
       />
     ))}
     {users.length > max && (
-      <span className="flex size-6 items-center justify-center rounded-full bg-neutral-800 text-[10px] text-neutral-400 ring-2 ring-neutral-950">
+      <span className="flex size-6 items-center justify-center rounded-full bg-neutral-800 text-[10px] text-neutral-400 ring-2 ring-neutral-950 auto-light:bg-neutral-100 auto-light:text-neutral-600 auto-light:ring-neutral-100">
         +{users.length - max}
       </span>
     )}
@@ -315,7 +315,7 @@ export const AvatarStack = ({
 );
 
 export const NeedsCompany = ({ text }: { text: string }) => (
-  <div className="flex items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3 text-sm text-neutral-400">
+  <div className="flex items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3 text-sm text-neutral-400 auto-light:border-black/[0.088] auto-light:bg-black/[0.02] auto-light:text-neutral-600">
     <Icon name="domain" className="text-[18px]" />
     {text}
   </div>

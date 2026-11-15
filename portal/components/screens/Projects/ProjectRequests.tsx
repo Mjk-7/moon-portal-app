@@ -40,9 +40,18 @@ export type ProjectRequestRow = {
 export type RequestsData = { requests: ProjectRequestRow[]; users: Person[] };
 
 const STATUS = {
-  PENDING: { label: 'Waiting for approval', tone: 'text-amber-200' },
-  APPROVED: { label: 'Approved', tone: 'text-emerald-300' },
-  DECLINED: { label: 'Not approved', tone: 'text-rose-300' },
+  PENDING: {
+    label: 'Waiting for approval',
+    tone: 'text-amber-200 auto-light:text-amber-700',
+  },
+  APPROVED: {
+    label: 'Approved',
+    tone: 'text-emerald-300 auto-light:text-emerald-700',
+  },
+  DECLINED: {
+    label: 'Not approved',
+    tone: 'text-rose-300 auto-light:text-rose-700',
+  },
   WITHDRAWN: { label: 'Taken back', tone: 'text-neutral-500' },
 } as const;
 
@@ -110,7 +119,7 @@ export const ProjectRequests = ({
       <h2 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
         Requests
         {toReview > 0 && (
-          <span className="rounded-full bg-amber-300/15 px-1.5 py-px text-[10px] text-amber-200">
+          <span className="rounded-full bg-amber-300/15 px-1.5 py-px text-[10px] text-amber-200 auto-light:text-amber-700">
             {toReview} to answer
           </span>
         )}
@@ -129,10 +138,10 @@ export const ProjectRequests = ({
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.97 }}
                 className={cn(
-                  'flex flex-col gap-3 rounded-2xl border border-dashed bg-white/[0.015] p-4',
+                  'flex flex-col gap-3 rounded-2xl border border-dashed bg-white/[0.015] p-4 auto-light:bg-black/[0.015]',
                   highlight === r.id
                     ? 'border-amber-300/60'
-                    : 'border-white/[0.12]',
+                    : 'border-white/[0.12] auto-light:border-black/15',
                 )}
               >
                 <div className="flex items-start gap-3">
@@ -141,7 +150,7 @@ export const ProjectRequests = ({
                     style={{ backgroundColor: r.color || '#737373' }}
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold text-white">
+                    <p className="truncate font-semibold text-white auto-light:text-neutral-950">
                       {r.name}
                     </p>
                     <p className="truncate text-xs text-neutral-500">
@@ -169,12 +178,12 @@ export const ProjectRequests = ({
                 </div>
 
                 {(r.note || r.description) && (
-                  <p className="line-clamp-3 text-xs text-neutral-400">
+                  <p className="line-clamp-3 text-xs text-neutral-400 auto-light:text-neutral-600">
                     {r.note || r.description}
                   </p>
                 )}
                 {r.reviewNote && r.status !== 'PENDING' && (
-                  <p className="rounded-lg bg-white/[0.04] px-2.5 py-1.5 text-xs text-neutral-400">
+                  <p className="rounded-lg bg-white/[0.04] px-2.5 py-1.5 text-xs text-neutral-400 auto-light:bg-black/[0.04] auto-light:text-neutral-600">
                     {r.reviewNote}
                   </p>
                 )}

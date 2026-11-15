@@ -107,12 +107,12 @@ export const ActivityChart = ({
   }, []);
 
   return (
-    <section className="mb-5 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+    <section className="mb-5 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 auto-light:border-black/[0.088] auto-light:bg-black/[0.02]">
       <header className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
           Activity
         </h3>
-        <p className="text-xs text-neutral-400">
+        <p className="text-xs text-neutral-400 auto-light:text-neutral-600">
           {loading
             ? 'Loading…'
             : `${plural(totalPoints, 'work point')} and ${plural(totalDone, 'task')} done in the last year, on ${plural(activeDays, 'day')}`}
@@ -124,7 +124,7 @@ export const ActivityChart = ({
               key={i}
               className={cn(
                 'size-[10px] rounded-[3px]',
-                i === 0 && 'bg-white/[0.06]',
+                i === 0 && 'bg-white/[0.06] auto-light:bg-black/[0.06]',
               )}
               style={
                 i ? { backgroundColor: `rgba(${rgb.join(',')},${a})` } : {}
@@ -136,7 +136,7 @@ export const ActivityChart = ({
       </header>
       <div ref={scroller} className="quiet-scrollbar overflow-x-auto pb-1">
         <div className="inline-flex min-w-full gap-[3px]">
-          <div className="mr-1 flex flex-col gap-[3px] pt-[16px] text-[9px] leading-[11px] text-neutral-600">
+          <div className="mr-1 flex flex-col gap-[3px] pt-[16px] text-[9px] leading-[11px] text-neutral-600 auto-light:text-neutral-400">
             {['Mon', '', 'Wed', '', 'Fri', '', 'Sun'].map((d, i) => (
               <span key={i} className="h-[11px]">
                 {d}
@@ -147,7 +147,7 @@ export const ActivityChart = ({
             const monthStarts = days.find((d) => d.date() === 1);
             return (
               <div key={w} className="flex flex-col gap-[3px]">
-                <span className="h-[13px] whitespace-nowrap text-[9px] leading-[13px] text-neutral-600">
+                <span className="h-[13px] whitespace-nowrap text-[9px] leading-[13px] text-neutral-600 auto-light:text-neutral-400">
                   {(w === 0 || monthStarts) && w < WEEKS - 1
                     ? (monthStarts ?? days[0]).format('MMM')
                     : ''}
@@ -177,9 +177,13 @@ export const ActivityChart = ({
                       }`}
                       className={cn(
                         'size-[11px] rounded-[3px] transition-transform hover:scale-125',
-                        level === 0 && 'bg-white/[0.06]',
-                        picked && 'ring-1 ring-white/60 ring-offset-0',
-                        key === todayKey && !picked && 'ring-1 ring-white/30',
+                        level === 0 &&
+                          'bg-white/[0.06] auto-light:bg-black/[0.06]',
+                        picked &&
+                          'ring-1 ring-white/60 ring-offset-0 auto-light:ring-black/75',
+                        key === todayKey &&
+                          !picked &&
+                          'ring-1 ring-white/30 auto-light:ring-black/[0.375]',
                       )}
                       style={
                         level

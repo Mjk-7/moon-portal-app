@@ -186,11 +186,11 @@ export const PlanEditor = ({
             onChange={(title) => set('title', title)}
             placeholder="Name the plan"
             disabled={!canEdit}
-            className="text-2xl font-semibold leading-tight text-white placeholder:text-neutral-600"
+            className="text-2xl font-semibold leading-tight text-white placeholder:text-neutral-600 auto-light:text-neutral-950 auto-light:placeholder:text-neutral-400"
           />
 
           {/* Who and by when. */}
-          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-neutral-400">
+          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-neutral-400 auto-light:text-neutral-600">
             <label
               className="flex items-center gap-1.5"
               title={
@@ -208,7 +208,7 @@ export const PlanEditor = ({
                 value={plan.projectId ?? ''}
                 disabled={!canEdit || lockLink}
                 onChange={(e) => set('projectId', e.target.value || null)}
-                className="max-w-[200px] cursor-pointer truncate rounded-md bg-transparent px-1 py-0.5 font-medium text-neutral-200 hover:bg-white/[0.05] focus:outline-none disabled:cursor-default disabled:hover:bg-transparent [&>option]:bg-neutral-900"
+                className="max-w-[200px] cursor-pointer truncate rounded-md bg-transparent px-1 py-0.5 font-medium text-neutral-200 hover:bg-white/[0.05] focus:outline-none disabled:cursor-default disabled:hover:bg-transparent auto-light:text-neutral-800 auto-light:hover:bg-black/[0.05] [&>option]:bg-neutral-900 auto-light:[&>option]:bg-white"
               >
                 <option value="">None (grand plan)</option>
                 {plan.projectId && !linkedProject && (
@@ -224,7 +224,7 @@ export const PlanEditor = ({
                 value={plan.ownerId}
                 disabled={!canEdit}
                 onChange={(e) => set('ownerId', e.target.value)}
-                className="cursor-pointer bg-transparent font-medium text-neutral-200 focus:outline-none [&>option]:bg-neutral-900"
+                className="cursor-pointer bg-transparent font-medium text-neutral-200 focus:outline-none auto-light:text-neutral-800 [&>option]:bg-neutral-900 auto-light:[&>option]:bg-white"
               >
                 {!owner && <option value={plan.ownerId}>Someone</option>}
                 {people.map((p) => (
@@ -244,10 +244,12 @@ export const PlanEditor = ({
                 onChange={(e) => set('endOn', e.target.value || null)}
                 className={cn(
                   'bg-transparent font-medium [color-scheme:dark] focus:outline-none',
-                  plan.endOn ? 'text-neutral-200' : 'text-neutral-500',
+                  plan.endOn
+                    ? 'text-neutral-200 auto-light:text-neutral-800'
+                    : 'text-neutral-500',
                   plan.status !== PLAN_STATUS.DONE &&
                     isPast(plan.endOn) &&
-                    'text-rose-300',
+                    'text-rose-300 auto-light:text-rose-700',
                 )}
               />
             </label>
@@ -257,7 +259,7 @@ export const PlanEditor = ({
                 type="button"
                 disabled={!canEdit}
                 onClick={() => setPickingPeople((v) => !v)}
-                className="flex items-center gap-1.5 rounded-md px-1 py-0.5 hover:bg-white/[0.05]"
+                className="flex items-center gap-1.5 rounded-md px-1 py-0.5 hover:bg-white/[0.05] auto-light:hover:bg-black/[0.05]"
               >
                 {members.length ? (
                   <AvatarStack users={members as unknown as User[]} max={5} />
@@ -266,7 +268,7 @@ export const PlanEditor = ({
                 )}
               </button>
               {pickingPeople && (
-                <div className="absolute left-0 top-8 z-20 w-72 rounded-xl border border-white/10 bg-neutral-900 p-3 shadow-2xl">
+                <div className="absolute left-0 top-8 z-20 w-72 rounded-xl border border-white/10 bg-neutral-900 p-3 shadow-2xl auto-light:border-black/[0.125] auto-light:bg-white">
                   <PeoplePicker
                     users={people as unknown as User[]}
                     value={plan.memberIds ?? []}
@@ -323,7 +325,7 @@ export const PlanEditor = ({
           {extra}
 
           {/* The plan day by day, and what is coming up. */}
-          <div className="mt-10 border-t border-white/[0.07] pt-6">
+          <div className="mt-10 border-t border-white/[0.07] pt-6 auto-light:border-black/[0.088]">
             <PlansTimeline
               inPlan
               data={{ plans: [plan], projects }}

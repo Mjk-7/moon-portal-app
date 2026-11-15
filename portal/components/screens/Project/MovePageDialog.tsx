@@ -122,14 +122,14 @@ export const MovePageDialog = ({
         </>
       }
     >
-      <label className="mb-3 flex h-9 items-center gap-2 rounded-lg bg-white/[0.05] px-3 text-neutral-500 focus-within:bg-white/[0.08]">
+      <label className="mb-3 flex h-9 items-center gap-2 rounded-lg bg-white/[0.05] px-3 text-neutral-500 focus-within:bg-white/[0.08] auto-light:bg-black/[0.05] auto-light:focus-within:bg-black/[0.08]">
         <Icon name="search" className="text-[17px]" />
         <input
           autoFocus
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Find a project"
-          className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-neutral-600"
+          className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-neutral-600 auto-light:text-neutral-950 auto-light:placeholder:text-neutral-400"
         />
       </label>
       <div className="custom-scrollbar -mx-1 max-h-80 overflow-y-auto px-1">
@@ -142,7 +142,7 @@ export const MovePageDialog = ({
         )}
         {groups.map(({ company, projects }) => (
           <div key={company.id} className="pb-2">
-            <p className="flex items-center gap-2 px-2 py-1.5 text-xs font-semibold text-neutral-400">
+            <p className="flex items-center gap-2 px-2 py-1.5 text-xs font-semibold text-neutral-400 auto-light:text-neutral-600">
               <CompanyMark
                 name={company.name}
                 color={company.color}
@@ -159,8 +159,8 @@ export const MovePageDialog = ({
                 className={cn(
                   'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors',
                   picked === p.id
-                    ? 'bg-white/[0.1] text-white'
-                    : 'text-neutral-300 hover:bg-white/[0.05]',
+                    ? 'bg-white/[0.1] text-white auto-light:bg-black/[0.1] auto-light:text-neutral-950'
+                    : 'text-neutral-300 hover:bg-white/[0.05] auto-light:text-neutral-700 auto-light:hover:bg-black/[0.05]',
                 )}
               >
                 <span

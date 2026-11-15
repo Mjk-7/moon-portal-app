@@ -154,8 +154,8 @@ export const NewProjectDialog = ({
         <div
           className={
             direct
-              ? 'flex items-start gap-2.5 rounded-xl bg-emerald-400/[0.07] px-3 py-2.5 text-xs text-emerald-200/90'
-              : 'flex items-start gap-2.5 rounded-xl bg-amber-300/[0.08] px-3 py-2.5 text-xs text-amber-100/90'
+              ? 'flex items-start gap-2.5 rounded-xl bg-emerald-400/[0.07] px-3 py-2.5 text-xs text-emerald-200/90 auto-light:text-emerald-700/90'
+              : 'flex items-start gap-2.5 rounded-xl bg-amber-300/[0.08] px-3 py-2.5 text-xs text-amber-100/90 auto-light:text-amber-700/90'
           }
         >
           <Icon

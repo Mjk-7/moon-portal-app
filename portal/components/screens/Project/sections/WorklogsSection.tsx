@@ -120,7 +120,7 @@ export const WorklogsSection = ({
             type="button"
             aria-label="Previous"
             onClick={() => setPeriod(shiftPeriod(period, -1))}
-            className="flex size-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-white/[0.06] hover:text-white"
+            className="flex size-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-white/[0.06] hover:text-white auto-light:text-neutral-600 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-950"
           >
             <Icon name="chevron_left" className="text-[20px]" />
           </button>
@@ -129,13 +129,13 @@ export const WorklogsSection = ({
             aria-label="Next"
             disabled={isCurrent}
             onClick={() => setPeriod(shiftPeriod(period, 1))}
-            className="flex size-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-white/[0.06] hover:text-white disabled:pointer-events-none disabled:opacity-30"
+            className="flex size-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-white/[0.06] hover:text-white disabled:pointer-events-none disabled:opacity-30 auto-light:text-neutral-600 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-950"
           >
             <Icon name="chevron_right" className="text-[20px]" />
           </button>
         </div>
         <div className="min-w-0 flex-1">
-          <p className="whitespace-nowrap text-lg font-semibold leading-tight tracking-tight text-white">
+          <p className="whitespace-nowrap text-lg font-semibold leading-tight tracking-tight text-white auto-light:text-neutral-950">
             {label.title}
           </p>
           {label.range && (
@@ -159,8 +159,8 @@ export const WorklogsSection = ({
             className={cn(
               'h-8 rounded-full px-3 text-xs font-medium transition-colors',
               !person
-                ? 'bg-white text-neutral-950'
-                : 'bg-white/[0.05] text-neutral-400 hover:text-white',
+                ? 'bg-white text-neutral-950 auto-light:bg-neutral-900 auto-light:text-white'
+                : 'bg-white/[0.05] text-neutral-400 hover:text-white auto-light:bg-black/[0.05] auto-light:text-neutral-600 auto-light:hover:text-neutral-950',
             )}
           >
             Everyone
@@ -177,8 +177,8 @@ export const WorklogsSection = ({
                 className={cn(
                   'flex h-8 items-center gap-1.5 rounded-full pl-1 pr-3 text-xs font-medium transition-colors',
                   on
-                    ? 'bg-white text-neutral-950'
-                    : 'bg-white/[0.05] text-neutral-400 hover:text-white',
+                    ? 'bg-white text-neutral-950 auto-light:bg-neutral-900 auto-light:text-white'
+                    : 'bg-white/[0.05] text-neutral-400 hover:text-white auto-light:bg-black/[0.05] auto-light:text-neutral-600 auto-light:hover:text-neutral-950',
                 )}
               >
                 <UserAvatar src={user?.avatar} name={user?.name} size={24} />
@@ -188,13 +188,13 @@ export const WorklogsSection = ({
           })}
         </div>
         <div className="flex-1" />
-        <label className="flex h-8 w-full items-center gap-1.5 rounded-lg border border-white/[0.07] bg-neutral-900/60 px-2.5 text-xs text-neutral-400 focus-within:border-white/20 sm:w-48">
+        <label className="flex h-8 w-full items-center gap-1.5 rounded-lg border border-white/[0.07] bg-neutral-900/60 px-2.5 text-xs text-neutral-400 focus-within:border-white/20 auto-light:border-black/[0.088] auto-light:bg-white/60 auto-light:text-neutral-600 auto-light:focus-within:border-black/25 sm:w-48">
           <Icon name="search" className="text-[16px]" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search lines…"
-            className="min-w-0 flex-1 bg-transparent text-neutral-200 outline-none placeholder:text-neutral-500"
+            className="min-w-0 flex-1 bg-transparent text-neutral-200 outline-none placeholder:text-neutral-500 auto-light:text-neutral-800"
           />
         </label>
         <Segmented value={ticks} onChange={setTicks} options={TICKS} />
@@ -216,13 +216,13 @@ export const WorklogsSection = ({
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className="h-24 animate-pulse rounded-2xl bg-white/[0.03]"
+              className="h-24 animate-pulse rounded-2xl bg-white/[0.03] auto-light:bg-black/[0.03]"
             />
           ))}
         </div>
       ) : byDay.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-white/10 px-6 py-14 text-center">
-          <p className="text-sm text-neutral-300">
+        <div className="rounded-3xl border border-dashed border-white/10 px-6 py-14 text-center auto-light:border-black/[0.125]">
+          <p className="text-sm text-neutral-300 auto-light:text-neutral-700">
             {data?.entries.length
               ? 'No lines match these filters'
               : 'No worklog lines in this period'}
@@ -233,7 +233,7 @@ export const WorklogsSection = ({
           </p>
         </div>
       ) : (
-        <ol className="relative ml-2 border-l border-white/[0.08] pl-6">
+        <ol className="relative ml-2 border-l border-white/[0.08] pl-6 auto-light:border-black/10">
           {byDay.map(([date, entries], i) => (
             <motion.li
               key={date}
@@ -242,8 +242,8 @@ export const WorklogsSection = ({
               transition={{ delay: Math.min(i, 8) * 0.04 }}
               className="relative mb-8 last:mb-0"
             >
-              <span className="absolute left-[-31px] top-1 size-3 rounded-full border-2 border-neutral-950 bg-neutral-500" />
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+              <span className="absolute left-[-31px] top-1 size-3 rounded-full border-2 border-neutral-950 bg-neutral-500 auto-light:border-neutral-100" />
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-neutral-400 auto-light:text-neutral-600">
                 {dayLabel(date)}
               </p>
               <div className="flex flex-col gap-3">
@@ -252,7 +252,7 @@ export const WorklogsSection = ({
                   return (
                     <div
                       key={entry.id}
-                      className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4"
+                      className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 auto-light:border-black/[0.088] auto-light:bg-black/[0.02]"
                     >
                       <div className="mb-2 flex items-center gap-2">
                         <UserAvatar
@@ -260,7 +260,7 @@ export const WorklogsSection = ({
                           name={user?.name}
                           size={24}
                         />
-                        <span className="text-sm font-medium text-white">
+                        <span className="text-sm font-medium text-white auto-light:text-neutral-950">
                           {user?.name || 'Someone'}
                         </span>
                         <span className="text-xs text-neutral-500">
@@ -286,14 +286,14 @@ export const WorklogsSection = ({
                                 className={cn(
                                   'mt-0.5 text-[16px]',
                                   line.done
-                                    ? 'text-emerald-400'
-                                    : 'text-neutral-600',
+                                    ? 'text-emerald-400 auto-light:text-emerald-600'
+                                    : 'text-neutral-600 auto-light:text-neutral-400',
                                 )}
                               />
-                              <span className="min-w-0 flex-1 text-neutral-200">
+                              <span className="min-w-0 flex-1 text-neutral-200 auto-light:text-neutral-800">
                                 {line.text}
                                 {task && (
-                                  <span className="ml-2 inline-flex items-center gap-0.5 rounded-md bg-white/[0.05] px-1.5 py-0.5 align-middle text-[11px] text-neutral-400">
+                                  <span className="ml-2 inline-flex items-center gap-0.5 rounded-md bg-white/[0.05] px-1.5 py-0.5 align-middle text-[11px] text-neutral-400 auto-light:bg-black/[0.05] auto-light:text-neutral-600">
                                     <Icon
                                       name="task_alt"
                                       className="text-[12px]"

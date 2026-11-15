@@ -216,15 +216,17 @@ const FontRow = ({
 }) => {
   const preview = useFontPreview(font.family, font.url, font.weight);
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2">
+    <div className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2 auto-light:border-black/[0.088] auto-light:bg-black/[0.02]">
       <span
-        className="w-10 text-center text-2xl text-white"
+        className="w-10 text-center text-2xl text-white auto-light:text-neutral-950"
         style={{ fontFamily: preview, fontWeight: font.weight }}
       >
         Aa
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-neutral-200">{font.family}</p>
+        <p className="truncate text-sm text-neutral-200 auto-light:text-neutral-800">
+          {font.family}
+        </p>
         <p className="text-xs text-neutral-500">
           {font.weight ?? 'Regular'}
           {font.role ? ` · ${font.role}` : ''}
@@ -246,10 +248,12 @@ const Section = ({
   action?: React.ReactNode;
   children: React.ReactNode;
 }) => (
-  <section className="flex flex-col gap-3 border-t border-white/[0.06] pt-5 first:border-0 first:pt-0">
+  <section className="flex flex-col gap-3 border-t border-white/[0.06] pt-5 first:border-0 first:pt-0 auto-light:border-black/[0.075]">
     <div className="flex items-end justify-between gap-3">
       <div>
-        <h3 className="text-sm font-semibold text-white">{title}</h3>
+        <h3 className="text-sm font-semibold text-white auto-light:text-neutral-950">
+          {title}
+        </h3>
         {hint && <p className="text-xs text-neutral-500">{hint}</p>}
       </div>
       {action}
@@ -497,12 +501,12 @@ export const BrandKitEditor = ({
     >
       <div className="flex flex-col gap-5">
         {/* Import */}
-        <div className="flex flex-col items-start gap-3 rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-4 sm:flex-row sm:items-center">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-[22px] text-neutral-300">
+        <div className="flex flex-col items-start gap-3 rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-4 auto-light:border-black/[0.188] auto-light:bg-black/[0.03] sm:flex-row sm:items-center">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-[22px] text-neutral-300 auto-light:bg-black/[0.06] auto-light:text-neutral-700">
             <Icon name="folder_zip" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-white">
+            <p className="text-sm font-medium text-white auto-light:text-neutral-950">
               {importing
                 ? busy!.slice('import:'.length) || 'Reading the folder…'
                 : 'Have a brand folder?'}
@@ -527,10 +531,14 @@ export const BrandKitEditor = ({
         {(kit.name || kit.spectrum || kit.note) && (
           <div className="flex flex-col gap-1">
             {kit.name && (
-              <p className="text-sm font-medium text-neutral-200">{kit.name}</p>
+              <p className="text-sm font-medium text-neutral-200 auto-light:text-neutral-800">
+                {kit.name}
+              </p>
             )}
             {kit.spectrum && (
-              <p className="text-xs text-neutral-400">{kit.spectrum}</p>
+              <p className="text-xs text-neutral-400 auto-light:text-neutral-600">
+                {kit.spectrum}
+              </p>
             )}
             {kit.note && <p className="text-xs text-neutral-500">{kit.note}</p>}
           </div>
@@ -564,7 +572,7 @@ export const BrandKitEditor = ({
                 <div key={`${logo.url}-${i}`} className="group relative">
                   <div
                     style={CHECKER}
-                    className="flex aspect-square items-center justify-center overflow-hidden rounded-xl border border-white/[0.07] bg-neutral-900 p-3"
+                    className="flex aspect-square items-center justify-center overflow-hidden rounded-xl border border-white/[0.07] bg-neutral-900 p-3 auto-light:border-black/[0.088] auto-light:bg-white"
                   >
                     <img
                       src={logo.url}
@@ -572,7 +580,7 @@ export const BrandKitEditor = ({
                       className="max-h-full max-w-full object-contain"
                     />
                   </div>
-                  <p className="mt-1 truncate text-xs text-neutral-400">
+                  <p className="mt-1 truncate text-xs text-neutral-400 auto-light:text-neutral-600">
                     {logo.label}
                   </p>
                   <button
@@ -581,7 +589,7 @@ export const BrandKitEditor = ({
                     onClick={() =>
                       update({ logos: kit.logos.filter((_, j) => j !== i) })
                     }
-                    className="absolute right-1.5 top-1.5 hidden size-6 items-center justify-center rounded-full bg-black/70 text-neutral-300 hover:text-white group-hover:flex"
+                    className="absolute right-1.5 top-1.5 hidden size-6 items-center justify-center rounded-full bg-black/70 text-neutral-300 hover:text-white group-hover:flex auto-light:text-neutral-700 auto-light:hover:text-neutral-950"
                   >
                     <Icon name="close" className="text-[14px]" />
                   </button>
@@ -589,7 +597,9 @@ export const BrandKitEditor = ({
               ))}
             </div>
           ) : (
-            <p className="text-xs text-neutral-600">No logos yet.</p>
+            <p className="text-xs text-neutral-600 auto-light:text-neutral-400">
+              No logos yet.
+            </p>
           )}
         </Section>
 
@@ -645,10 +655,10 @@ export const BrandKitEditor = ({
               {kit.colors.map((color, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-2"
+                  className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-2 auto-light:border-black/[0.088] auto-light:bg-black/[0.02]"
                 >
                   <label
-                    className="relative size-10 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-white/10"
+                    className="relative size-10 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-white/10 auto-light:border-black/[0.125]"
                     style={{ backgroundColor: color.hex }}
                   >
                     <input
@@ -676,7 +686,7 @@ export const BrandKitEditor = ({
                           ),
                         })
                       }
-                      className="w-full bg-transparent text-sm text-neutral-200 outline-none"
+                      className="w-full bg-transparent text-sm text-neutral-200 outline-none auto-light:text-neutral-800"
                     />
                     <input
                       value={color.hex}
@@ -700,7 +710,7 @@ export const BrandKitEditor = ({
                     />
                     {color.role && (
                       <p
-                        className="truncate text-[11px] text-neutral-600"
+                        className="truncate text-[11px] text-neutral-600 auto-light:text-neutral-400"
                         title={color.role}
                       >
                         {color.role}
@@ -719,7 +729,9 @@ export const BrandKitEditor = ({
             </div>
           ) : (
             !pasting && (
-              <p className="text-xs text-neutral-600">No colors yet.</p>
+              <p className="text-xs text-neutral-600 auto-light:text-neutral-400">
+                No colors yet.
+              </p>
             )
           )}
         </Section>
@@ -755,7 +767,9 @@ export const BrandKitEditor = ({
               ))}
             </div>
           ) : (
-            <p className="text-xs text-neutral-600">No fonts yet.</p>
+            <p className="text-xs text-neutral-600 auto-light:text-neutral-400">
+              No fonts yet.
+            </p>
           )}
         </Section>
 
@@ -792,7 +806,7 @@ export const BrandKitEditor = ({
                   <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
                     {BRAND_GROUP_LABELS[group] ??
                       group[0].toUpperCase() + group.slice(1)}
-                    <span className="ml-1.5 text-neutral-700">
+                    <span className="ml-1.5 text-neutral-700 auto-light:text-neutral-300">
                       {items.length}
                     </span>
                   </p>
@@ -800,7 +814,7 @@ export const BrandKitEditor = ({
                     {items.map(({ asset, index }) => (
                       <div
                         key={`${asset.url}-${index}`}
-                        className="flex items-center gap-2.5 rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-1.5"
+                        className="flex items-center gap-2.5 rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-1.5 auto-light:border-black/[0.075] auto-light:bg-black/[0.02]"
                       >
                         {asset.kind === 'image' ? (
                           <img
@@ -809,7 +823,7 @@ export const BrandKitEditor = ({
                             className="size-8 shrink-0 rounded object-cover"
                           />
                         ) : (
-                          <span className="flex size-8 shrink-0 items-center justify-center rounded bg-white/[0.05] text-[18px] text-neutral-400">
+                          <span className="flex size-8 shrink-0 items-center justify-center rounded bg-white/[0.05] text-[18px] text-neutral-400 auto-light:bg-black/[0.05] auto-light:text-neutral-600">
                             <Icon name={KIND_ICONS[asset.kind]} />
                           </span>
                         )}
@@ -817,7 +831,7 @@ export const BrandKitEditor = ({
                           href={asset.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="min-w-0 flex-1 truncate text-sm text-neutral-300 hover:text-white"
+                          className="min-w-0 flex-1 truncate text-sm text-neutral-300 hover:text-white auto-light:text-neutral-700 auto-light:hover:text-neutral-950"
                         >
                           {asset.label}
                         </a>
@@ -837,7 +851,9 @@ export const BrandKitEditor = ({
               ))}
             </div>
           ) : (
-            <p className="text-xs text-neutral-600">No files yet.</p>
+            <p className="text-xs text-neutral-600 auto-light:text-neutral-400">
+              No files yet.
+            </p>
           )}
         </Section>
 
@@ -887,11 +903,16 @@ export const BrandKitSummary = ({
     <button
       type="button"
       onClick={onOpen}
-      className="flex w-full items-center gap-3 border-t border-white/[0.07] px-5 py-3 text-left transition-colors hover:bg-white/[0.02]"
+      className="flex w-full items-center gap-3 border-t border-white/[0.07] px-5 py-3 text-left transition-colors hover:bg-white/[0.02] auto-light:border-black/[0.088] auto-light:hover:bg-black/[0.02]"
     >
-      <Icon name="palette" className="text-[20px] text-neutral-400" />
+      <Icon
+        name="palette"
+        className="text-[20px] text-neutral-400 auto-light:text-neutral-600"
+      />
       <div className="min-w-0 flex-1">
-        <p className="text-sm text-neutral-200">Brand kit</p>
+        <p className="text-sm text-neutral-200 auto-light:text-neutral-800">
+          Brand kit
+        </p>
         <p className="truncate text-xs text-neutral-500">
           {empty
             ? 'Add logos, colors, fonts and brand files'
@@ -903,7 +924,7 @@ export const BrandKitSummary = ({
           {kit!.colors.slice(0, 6).map((c, i) => (
             <span
               key={i}
-              className="size-5 rounded-full border-2 border-neutral-950"
+              className="size-5 rounded-full border-2 border-neutral-950 auto-light:border-neutral-100"
               style={{ backgroundColor: c.hex }}
             />
           ))}

@@ -111,7 +111,7 @@ export const SaveBadge = ({ state }: { state: SaveState }) => (
         <Spin className="size-3" /> Saving
       </>
     ) : state === 'error' ? (
-      <span className="text-rose-300">Not saved</span>
+      <span className="text-rose-300 auto-light:text-rose-700">Not saved</span>
     ) : state === 'saved' ? (
       <>
         <Icon name="cloud_done" className="text-[15px]" /> Saved
@@ -196,7 +196,7 @@ export const PageDoc = ({
           type="button"
           disabled={!canEdit}
           onClick={() => setPicking((v) => !v)}
-          className="rounded-xl p-1 text-5xl leading-none transition-colors enabled:hover:bg-white/[0.06]"
+          className="rounded-xl p-1 text-5xl leading-none transition-colors enabled:hover:bg-white/[0.06] auto-light:enabled:hover:bg-black/[0.06]"
           aria-label="Change icon"
         >
           {emoji}
@@ -205,7 +205,7 @@ export const PageDoc = ({
           <motion.div
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
-            className="absolute left-0 top-full z-20 mt-1 flex flex-wrap gap-1 rounded-xl border border-white/10 bg-neutral-900 p-2 shadow-2xl"
+            className="absolute left-0 top-full z-20 mt-1 flex flex-wrap gap-1 rounded-xl border border-white/10 bg-neutral-900 p-2 shadow-2xl auto-light:border-black/[0.125] auto-light:bg-white"
           >
             {EMOJIS.map((e) => (
               <button
@@ -216,7 +216,7 @@ export const PageDoc = ({
                   setPicking(false);
                   queue({ emoji: e });
                 }}
-                className="flex size-9 items-center justify-center rounded-lg text-xl hover:bg-white/[0.08]"
+                className="flex size-9 items-center justify-center rounded-lg text-xl hover:bg-white/[0.08] auto-light:hover:bg-black/[0.08]"
               >
                 {e}
               </button>
@@ -236,7 +236,7 @@ export const PageDoc = ({
           queue({ title: next });
         }}
         placeholder={titlePlaceholder}
-        className="w-full resize-none bg-transparent text-3xl font-bold leading-tight tracking-tight text-white outline-none placeholder:text-neutral-700 md:text-4xl"
+        className="w-full resize-none bg-transparent text-3xl font-bold leading-tight tracking-tight text-white outline-none placeholder:text-neutral-700 auto-light:text-neutral-950 auto-light:placeholder:text-neutral-300 md:text-4xl"
       />
 
       {page?.updatedAt && (

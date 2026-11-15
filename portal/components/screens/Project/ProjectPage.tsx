@@ -100,7 +100,7 @@ const NavItem = ({
     {active && (
       <motion.span
         layoutId="project-nav-active"
-        className="absolute inset-0 rounded-lg bg-white/[0.08]"
+        className="absolute inset-0 rounded-lg bg-white/[0.08] auto-light:bg-black/[0.08]"
         transition={{ type: 'spring', stiffness: 500, damping: 40 }}
       />
     )}
@@ -109,7 +109,9 @@ const NavItem = ({
       onClick={onClick}
       className={cn(
         'relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors',
-        active ? 'text-white' : 'text-neutral-400 hover:text-neutral-100',
+        active
+          ? 'text-white auto-light:text-neutral-950'
+          : 'text-neutral-400 hover:text-neutral-100 auto-light:text-neutral-600 auto-light:hover:text-neutral-900',
       )}
     >
       {icon && <Icon name={icon} filled={active} className="text-[19px]" />}
@@ -174,7 +176,7 @@ const PageTreeItem = ({
                     }
                   }}
                   className={cn(
-                    'flex size-4 items-center justify-center rounded text-neutral-600 hover:bg-white/[0.08] hover:text-white',
+                    'flex size-4 items-center justify-center rounded text-neutral-600 hover:bg-white/[0.08] hover:text-white auto-light:text-neutral-400 auto-light:hover:bg-black/[0.08] auto-light:hover:text-neutral-950',
                     !inside.length && 'opacity-0 group-hover/page:opacity-100',
                   )}
                 >
@@ -200,7 +202,7 @@ const PageTreeItem = ({
                     >
                       <Icon
                         name="lock"
-                        className="text-[13px] text-amber-200/70"
+                        className="text-[13px] text-amber-200/70 auto-light:text-amber-700/70"
                       />
                     </span>
                   )}
@@ -220,7 +222,7 @@ const PageTreeItem = ({
                           onNewPage(page.id);
                         }
                       }}
-                      className="-mr-1 flex size-5 items-center justify-center rounded text-neutral-500 opacity-0 hover:bg-white/[0.08] hover:text-white group-hover/page:opacity-100"
+                      className="-mr-1 flex size-5 items-center justify-center rounded text-neutral-500 opacity-0 hover:bg-white/[0.08] hover:text-white group-hover/page:opacity-100 auto-light:hover:bg-black/[0.08] auto-light:hover:text-neutral-950"
                     >
                       {creatingIn === page.id ? (
                         <Spin className="size-3" />
@@ -244,7 +246,7 @@ const PageTreeItem = ({
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className="overflow-hidden"
           >
-            <div className="ml-[15px] flex flex-col border-l border-white/[0.07] pl-1.5">
+            <div className="ml-[15px] flex flex-col border-l border-white/[0.07] pl-1.5 auto-light:border-black/[0.088]">
               {inside.map((child) => (
                 <PageTreeItem
                   key={child.id}
@@ -261,7 +263,7 @@ const PageTreeItem = ({
                 />
               ))}
               {!inside.length && (
-                <p className="px-2.5 py-1 text-xs text-neutral-600">
+                <p className="px-2.5 py-1 text-xs text-neutral-600 auto-light:text-neutral-400">
                   No pages inside
                 </p>
               )}
@@ -278,7 +280,7 @@ const PLAN_DOT: Record<string, string> = {
   IDEA: 'bg-amber-300/80',
   ACTIVE: 'bg-sky-400',
   DONE: 'bg-emerald-400',
-  DROPPED: 'bg-neutral-600',
+  DROPPED: 'bg-neutral-600 auto-light:bg-neutral-300',
 };
 
 /**
@@ -341,7 +343,9 @@ const NestedMenu = ({
           size={28}
         />
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-white">{name}</p>
+          <p className="truncate text-sm font-semibold text-white auto-light:text-neutral-950">
+            {name}
+          </p>
           <p className="text-[11px] text-neutral-500">
             {kind === 'pages' ? 'Pages' : 'Plans'}
           </p>
@@ -358,7 +362,7 @@ const NestedMenu = ({
                 onClick={() => onSelect('pages', null)}
                 badge={
                   all.length > 0 && (
-                    <span className="text-[11px] text-neutral-600">
+                    <span className="text-[11px] text-neutral-600 auto-light:text-neutral-400">
                       {all.length}
                     </span>
                   )
@@ -380,11 +384,11 @@ const NestedMenu = ({
                 trailing={
                   <Icon
                     name="push_pin"
-                    className="text-[13px] text-neutral-600"
+                    className="text-[13px] text-neutral-600 auto-light:text-neutral-400"
                   />
                 }
               />
-              <div className="my-1.5 h-px bg-white/[0.05]" />
+              <div className="my-1.5 h-px bg-white/[0.05] auto-light:bg-black/[0.05]" />
               {top.map((page) => (
                 <PageTreeItem
                   key={page.id}
@@ -405,7 +409,7 @@ const NestedMenu = ({
                   type="button"
                   onClick={() => onNewPage(null)}
                   disabled={creatingIn !== undefined}
-                  className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs text-neutral-500 transition-colors hover:bg-white/[0.04] hover:text-neutral-200"
+                  className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs text-neutral-500 transition-colors hover:bg-white/[0.04] hover:text-neutral-200 auto-light:hover:bg-black/[0.04] auto-light:hover:text-neutral-800"
                 >
                   {creatingIn === null ? (
                     <Spin className="size-3" />
@@ -416,7 +420,7 @@ const NestedMenu = ({
                 </button>
               )}
               {!canEdit && !all.length && (
-                <p className="px-2.5 py-1.5 text-xs text-neutral-600">
+                <p className="px-2.5 py-1.5 text-xs text-neutral-600 auto-light:text-neutral-400">
                   No pages yet
                 </p>
               )}
@@ -430,15 +434,15 @@ const NestedMenu = ({
                 onClick={() => onSelect('plans', null)}
                 badge={
                   !!plans?.length && (
-                    <span className="text-[11px] text-neutral-600">
+                    <span className="text-[11px] text-neutral-600 auto-light:text-neutral-400">
                       {plans.length}
                     </span>
                   )
                 }
               />
-              <div className="my-1.5 h-px bg-white/[0.05]" />
+              <div className="my-1.5 h-px bg-white/[0.05] auto-light:bg-black/[0.05]" />
               {plans === null && (
-                <p className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-neutral-600">
+                <p className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-neutral-600 auto-light:text-neutral-400">
                   <Spin className="size-3" /> Loading plans
                 </p>
               )}
@@ -458,7 +462,8 @@ const NestedMenu = ({
                         <span
                           className={cn(
                             'order-first -mr-1 size-1.5 shrink-0 rounded-full',
-                            PLAN_DOT[plan.status] ?? 'bg-neutral-600',
+                            PLAN_DOT[plan.status] ??
+                              'bg-neutral-600 auto-light:bg-neutral-300',
                           )}
                         />
                       }
@@ -471,7 +476,7 @@ const NestedMenu = ({
                   type="button"
                   onClick={onNewPlan}
                   disabled={creatingPlan}
-                  className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs text-neutral-500 transition-colors hover:bg-white/[0.04] hover:text-neutral-200"
+                  className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs text-neutral-500 transition-colors hover:bg-white/[0.04] hover:text-neutral-200 auto-light:hover:bg-black/[0.04] auto-light:hover:text-neutral-800"
                 >
                   {creatingPlan ? (
                     <Spin className="size-3" />
@@ -482,7 +487,7 @@ const NestedMenu = ({
                 </button>
               )}
               {!canAddPlan && plans?.length === 0 && (
-                <p className="px-2.5 py-1.5 text-xs text-neutral-600">
+                <p className="px-2.5 py-1.5 text-xs text-neutral-600 auto-light:text-neutral-400">
                   No plans yet
                 </p>
               )}
@@ -563,13 +568,13 @@ const Banner = ({
           <circle cx="40" cy="104" r="44" fill="#000" opacity={0.08} />
         </svg>
       )}
-      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-neutral-950/60 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-neutral-950/60 to-transparent auto-light:from-neutral-50/60" />
       {canChange && (
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="absolute right-3 top-3 flex h-8 items-center gap-1.5 rounded-lg bg-black/45 px-2.5 text-xs font-medium text-white backdrop-blur transition-colors hover:bg-black/60"
+              className="absolute right-3 top-3 flex h-8 items-center gap-1.5 rounded-lg bg-black/45 px-2.5 text-xs font-medium text-white backdrop-blur transition-colors hover:bg-black/60 auto-light:bg-white auto-light:text-neutral-950"
             >
               <Icon name="photo" className="text-[16px]" />
               <span className="hidden sm:inline">Change banner</span>
@@ -577,13 +582,13 @@ const Banner = ({
           </PopoverTrigger>
           <PopoverContent
             align="end"
-            className="w-80 border-white/10 bg-neutral-900 p-3 text-neutral-100"
+            className="w-80 border-white/10 bg-neutral-900 p-3 text-neutral-100 auto-light:border-black/[0.125] auto-light:bg-white auto-light:text-neutral-900"
           >
             <button
               type="button"
               disabled={uploading}
               onClick={() => fileRef.current?.click()}
-              className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-neutral-950 transition-opacity hover:opacity-90 disabled:opacity-60"
+              className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-neutral-950 transition-opacity hover:opacity-90 disabled:opacity-60 auto-light:bg-neutral-900 auto-light:text-white"
             >
               {uploading ? (
                 <Spin className="size-3.5" />
@@ -603,7 +608,7 @@ const Banner = ({
                 if (file) upload(file);
               }}
             />
-            <p className="mb-2 text-xs font-semibold text-neutral-300">
+            <p className="mb-2 text-xs font-semibold text-neutral-300 auto-light:text-neutral-700">
               Or pick from the brand kit
             </p>
             {images.length ? (
@@ -617,13 +622,13 @@ const Banner = ({
                       'relative aspect-[3/1] overflow-hidden rounded-lg border',
                       image === url
                         ? 'border-white'
-                        : 'border-white/10 hover:border-white/40',
+                        : 'border-white/10 hover:border-white/40 auto-light:border-black/[0.125] auto-light:hover:border-black/50',
                     )}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={url} alt="" className="size-full object-cover" />
                     {saving === url && (
-                      <span className="absolute inset-0 flex items-center justify-center bg-black/50">
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/50 auto-light:bg-white">
                         <Spin className="size-4" />
                       </span>
                     )}
@@ -638,7 +643,7 @@ const Banner = ({
             <button
               type="button"
               onClick={() => pick(null)}
-              className="mt-3 w-full rounded-lg bg-white/[0.06] px-3 py-1.5 text-xs text-neutral-300 hover:bg-white/[0.1]"
+              className="mt-3 w-full rounded-lg bg-white/[0.06] px-3 py-1.5 text-xs text-neutral-300 hover:bg-white/[0.1] auto-light:bg-black/[0.06] auto-light:text-neutral-700 auto-light:hover:bg-black/[0.1]"
             >
               {saving === null ? 'Saving…' : 'Reset to the default banner'}
             </button>
@@ -667,8 +672,8 @@ const HeaderButton = ({
   const className = cn(
     'flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors',
     primary
-      ? 'bg-white text-neutral-950 hover:opacity-90'
-      : 'bg-white/[0.06] text-neutral-200 hover:bg-white/[0.1] hover:text-white',
+      ? 'bg-white auto-light:bg-neutral-900 text-neutral-950 auto-light:text-white hover:opacity-90'
+      : 'bg-white/[0.06] auto-light:bg-black/[0.06] text-neutral-200 auto-light:text-neutral-800 hover:bg-white/[0.1] auto-light:hover:bg-black/[0.1] hover:text-white auto-light:hover:text-neutral-950',
   );
   const body = (
     <>
@@ -689,8 +694,11 @@ const HeaderButton = ({
 
 /** A PERSONAL's note, under its name. */
 const PersonalHint = () => (
-  <p className="mt-3 flex max-w-2xl items-start gap-1.5 rounded-lg border border-teal-400/15 bg-teal-400/[0.06] p-2.5 text-xs leading-relaxed text-teal-100/80">
-    <Icon name="lock" className="mt-px text-[13px] text-teal-200" />
+  <p className="mt-3 flex max-w-2xl items-start gap-1.5 rounded-lg border border-teal-400/15 bg-teal-400/[0.06] p-2.5 text-xs leading-relaxed text-teal-100/80 auto-light:text-teal-700/80">
+    <Icon
+      name="lock"
+      className="mt-px text-[13px] text-teal-200 auto-light:text-teal-700"
+    />
     Just for you. Your own goals and habits go here: gym, exercise, reading,
     learning or any other self-help. Nobody else can see it.
   </p>
@@ -965,7 +973,10 @@ export const ProjectPage = ({ projectId }: { projectId: string }) => {
           title="Project not found"
           description={error}
           action={
-            <Link href={APP_ROUTES.projects} className="text-sm text-sky-300">
+            <Link
+              href={APP_ROUTES.projects}
+              className="text-sm text-sky-300 auto-light:text-sky-700"
+            >
               All projects
             </Link>
           }
@@ -1074,7 +1085,7 @@ export const ProjectPage = ({ projectId }: { projectId: string }) => {
             <button
               type="button"
               onClick={() => select('home')}
-              className="mx-auto mt-5 flex w-full max-w-5xl items-center gap-1 px-5 text-xs text-neutral-500 hover:text-neutral-200 md:px-10"
+              className="mx-auto mt-5 flex w-full max-w-5xl items-center gap-1 px-5 text-xs text-neutral-500 hover:text-neutral-200 auto-light:hover:text-neutral-800 md:px-10"
             >
               <Icon name="arrow_back" className="text-[15px]" /> Home
             </button>
@@ -1301,7 +1312,7 @@ export const ProjectPage = ({ projectId }: { projectId: string }) => {
       {/* Who the project is */}
       <div className="mx-auto w-full max-w-6xl px-4 md:px-8">
         <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
-          <div className="relative z-10 -mt-10 shrink-0 rounded-[22px] bg-neutral-950 p-1 md:-mt-12">
+          <div className="relative z-10 -mt-10 shrink-0 rounded-[22px] bg-neutral-950 p-1 auto-light:bg-neutral-50 md:-mt-12">
             <CompanyMark
               name={projectName}
               color={mainColor}
@@ -1310,7 +1321,7 @@ export const ProjectPage = ({ projectId }: { projectId: string }) => {
             />
           </div>
           <div className="min-w-0 flex-1 pt-2">
-            <h1 className="truncate text-2xl font-bold tracking-tight text-white md:text-[28px]">
+            <h1 className="truncate text-2xl font-bold tracking-tight text-white auto-light:text-neutral-950 md:text-[28px]">
               {projectName}
             </h1>
             <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-500">
@@ -1322,7 +1333,7 @@ export const ProjectPage = ({ projectId }: { projectId: string }) => {
                 <Link
                   href={`${APP_ROUTES.projects}/${coreId}`}
                   title={`Open ${companyName ?? 'the company'}'s core project`}
-                  className="hover:text-white"
+                  className="hover:text-white auto-light:hover:text-neutral-950"
                 >
                   {companyName}
                 </Link>
@@ -1331,10 +1342,12 @@ export const ProjectPage = ({ projectId }: { projectId: string }) => {
               )}
               {parent && (
                 <>
-                  <span className="text-neutral-700">·</span>
+                  <span className="text-neutral-700 auto-light:text-neutral-300">
+                    ·
+                  </span>
                   <Link
                     href={`${APP_ROUTES.projects}/${parent.id}`}
-                    className="flex items-center gap-0.5 hover:text-white"
+                    className="flex items-center gap-0.5 hover:text-white auto-light:hover:text-neutral-950"
                   >
                     <Icon
                       name="subdirectory_arrow_right"
@@ -1381,7 +1394,7 @@ export const ProjectPage = ({ projectId }: { projectId: string }) => {
           <PersonalHint />
         ) : (
           project.description && (
-            <p className="mt-3 line-clamp-2 max-w-3xl text-sm leading-relaxed text-neutral-400">
+            <p className="mt-3 line-clamp-2 max-w-3xl text-sm leading-relaxed text-neutral-400 auto-light:text-neutral-600">
               {project.description}
             </p>
           )
@@ -1391,7 +1404,7 @@ export const ProjectPage = ({ projectId }: { projectId: string }) => {
             <button
               type="button"
               onClick={() => select('members')}
-              className="flex items-center gap-2 hover:text-neutral-200"
+              className="flex items-center gap-2 hover:text-neutral-200 auto-light:hover:text-neutral-800"
             >
               <AvatarStack users={people} max={5} />
               {people.length} {people.length === 1 ? 'person' : 'people'}
@@ -1401,7 +1414,7 @@ export const ProjectPage = ({ projectId }: { projectId: string }) => {
               <button
                 type="button"
                 onClick={() => select('members')}
-                className="flex items-center gap-1 hover:text-neutral-200"
+                className="flex items-center gap-1 hover:text-neutral-200 auto-light:hover:text-neutral-800"
               >
                 <Icon name="person_add" className="text-[15px]" />
                 Add people
@@ -1420,7 +1433,7 @@ export const ProjectPage = ({ projectId }: { projectId: string }) => {
       {/* Tabs, kept at the top while the page scrolls */}
       <div
         ref={tabsRef}
-        className="sticky top-0 z-20 mt-4 border-b border-white/[0.07] bg-neutral-950/90 backdrop-blur"
+        className="sticky top-0 z-20 mt-4 border-b border-white/[0.07] bg-neutral-950/90 backdrop-blur auto-light:border-black/[0.088] auto-light:bg-neutral-50/90"
       >
         <div className="mx-auto flex w-full max-w-6xl items-center gap-1 px-2 md:px-6">
           <NavMenuButton />
@@ -1443,20 +1456,20 @@ export const ProjectPage = ({ projectId }: { projectId: string }) => {
                     className={cn(
                       'relative flex h-12 shrink-0 items-center gap-1.5 px-3 text-sm font-medium transition-colors',
                       active
-                        ? 'text-white'
-                        : 'text-neutral-500 hover:text-neutral-200',
+                        ? 'text-white auto-light:text-neutral-950'
+                        : 'text-neutral-500 hover:text-neutral-200 auto-light:hover:text-neutral-800',
                     )}
                   >
                     {t.label}
                     {t.key === 'pages' && all.length > 0 && (
-                      <span className="text-[11px] text-neutral-600">
+                      <span className="text-[11px] text-neutral-600 auto-light:text-neutral-400">
                         {all.length}
                       </span>
                     )}
                     {active && (
                       <motion.span
                         layoutId="project-tab-line"
-                        className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-white"
+                        className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-white auto-light:bg-neutral-900"
                         transition={{
                           type: 'spring',
                           stiffness: 500,
@@ -1486,7 +1499,7 @@ export const ProjectPage = ({ projectId }: { projectId: string }) => {
                 onClick={() => setMoving(page)}
                 aria-label="Move to another project"
                 title="Move to another project"
-                className="flex size-8 items-center justify-center rounded-lg text-neutral-500 hover:bg-white/[0.06] hover:text-white"
+                className="flex size-8 items-center justify-center rounded-lg text-neutral-500 hover:bg-white/[0.06] hover:text-white auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-950"
               >
                 <Icon name="drive_file_move" className="text-[18px]" />
               </button>
@@ -1497,7 +1510,7 @@ export const ProjectPage = ({ projectId }: { projectId: string }) => {
                 onClick={() => setDeleting(page)}
                 aria-label="Delete page"
                 title="Delete page"
-                className="flex size-8 items-center justify-center rounded-lg text-neutral-500 hover:bg-white/[0.06] hover:text-rose-300"
+                className="flex size-8 items-center justify-center rounded-lg text-neutral-500 hover:bg-white/[0.06] hover:text-rose-300 auto-light:hover:bg-black/[0.06] auto-light:hover:text-rose-700"
               >
                 <Icon name="delete" className="text-[18px]" />
               </button>
@@ -1510,7 +1523,7 @@ export const ProjectPage = ({ projectId }: { projectId: string }) => {
             <button
               type="button"
               onClick={() => select(tab)}
-              className="shrink-0 hover:text-white"
+              className="shrink-0 hover:text-white auto-light:hover:text-neutral-950"
             >
               {tab === 'plans' ? 'Plans' : 'Pages'}
             </button>
@@ -1526,12 +1539,12 @@ export const ProjectPage = ({ projectId }: { projectId: string }) => {
               >
                 <Icon
                   name="chevron_right"
-                  className="text-[14px] text-neutral-700"
+                  className="text-[14px] text-neutral-700 auto-light:text-neutral-300"
                 />
                 <button
                   type="button"
                   onClick={() => select('pages', above.id)}
-                  className="hover:text-white"
+                  className="hover:text-white auto-light:hover:text-neutral-950"
                 >
                   {above.label}
                 </button>
@@ -1539,9 +1552,9 @@ export const ProjectPage = ({ projectId }: { projectId: string }) => {
             ))}
             <Icon
               name="chevron_right"
-              className="text-[14px] text-neutral-700"
+              className="text-[14px] text-neutral-700 auto-light:text-neutral-300"
             />
-            <span className="truncate text-neutral-300">
+            <span className="truncate text-neutral-300 auto-light:text-neutral-700">
               {view === 'objective'
                 ? 'Objective'
                 : page

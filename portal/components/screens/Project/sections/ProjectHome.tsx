@@ -72,8 +72,9 @@ const Tile = ({
       onClick={onClick}
       title={hint}
       className={cn(
-        'min-w-0 rounded-2xl border border-white/[0.07] bg-white/[0.02] px-4 py-3 text-left',
-        onClick && 'transition-colors hover:border-white/[0.14]',
+        'min-w-0 rounded-2xl border border-white/[0.07] bg-white/[0.02] px-4 py-3 text-left auto-light:border-black/[0.088] auto-light:bg-black/[0.02]',
+        onClick &&
+          'transition-colors hover:border-white/[0.14] auto-light:hover:border-black/[0.175]',
       )}
     >
       <p className="truncate text-[11px] font-medium uppercase tracking-wider text-neutral-500">
@@ -81,7 +82,7 @@ const Tile = ({
       </p>
       <p
         className={cn(
-          'mt-1 text-2xl font-semibold tabular-nums text-white',
+          'mt-1 text-2xl font-semibold tabular-nums text-white auto-light:text-neutral-950',
           tone,
         )}
       >
@@ -104,7 +105,7 @@ const Card = ({
 }) => (
   <section
     className={cn(
-      'flex min-w-0 flex-col rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4',
+      'flex min-w-0 flex-col rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 auto-light:border-black/[0.088] auto-light:bg-black/[0.02]',
       className,
     )}
   >
@@ -128,7 +129,7 @@ const CardLink = ({
   <button
     type="button"
     onClick={onClick}
-    className="flex items-center gap-0.5 text-xs text-neutral-400 hover:text-white"
+    className="flex items-center gap-0.5 text-xs text-neutral-400 hover:text-white auto-light:text-neutral-600 auto-light:hover:text-neutral-950"
   >
     {children}
     <Icon name="chevron_right" className="text-[15px]" />
@@ -233,13 +234,21 @@ export const ProjectHome = ({
         <Tile
           label="Done this week"
           value={doneWeek.length}
-          tone={doneWeek.length ? 'text-emerald-300' : undefined}
+          tone={
+            doneWeek.length
+              ? 'text-emerald-300 auto-light:text-emerald-700'
+              : undefined
+          }
           hint="Tasks finished in the last 7 days"
         />
         <Tile
           label="Overdue"
           value={overdue.length}
-          tone={overdue.length ? 'text-rose-300' : undefined}
+          tone={
+            overdue.length
+              ? 'text-rose-300 auto-light:text-rose-700'
+              : undefined
+          }
           hint="Open tasks whose day has passed"
           onClick={overdue.length ? () => setLayout('list') : undefined}
         />
@@ -255,7 +264,9 @@ export const ProjectHome = ({
                 </span>
               </>
             ) : (
-              <span className="text-neutral-600">–</span>
+              <span className="text-neutral-600 auto-light:text-neutral-400">
+                –
+              </span>
             )
           }
           hint="Goals that reached their target this period"
@@ -281,7 +292,9 @@ export const ProjectHome = ({
                     <span
                       className={cn(
                         'min-w-0 flex-1 truncate',
-                        g.met ? 'text-emerald-300' : 'text-neutral-200',
+                        g.met
+                          ? 'text-emerald-300 auto-light:text-emerald-700'
+                          : 'text-neutral-200 auto-light:text-neutral-800',
                       )}
                     >
                       {g.met && (
@@ -296,7 +309,7 @@ export const ProjectHome = ({
                       {fmt(g.done)}/{fmt(g.target)} {g.when}
                     </span>
                   </p>
-                  <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/[0.06]">
+                  <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/[0.06] auto-light:bg-black/[0.06]">
                     <motion.div
                       className={cn(
                         'h-full rounded-full',
@@ -346,7 +359,7 @@ export const ProjectHome = ({
                   <li key={p.id} className="flex items-center gap-2.5">
                     <UserAvatar src={p.avatar} name={p.name} size={26} />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm text-neutral-100">
+                      <p className="truncate text-sm text-neutral-100 auto-light:text-neutral-900">
                         {p.name}
                       </p>
                       <p className="truncate text-[11px] text-neutral-500">
@@ -381,7 +394,7 @@ export const ProjectHome = ({
           }
         >
           {about ? (
-            <p className="line-clamp-5 text-sm leading-relaxed text-neutral-300">
+            <p className="line-clamp-5 text-sm leading-relaxed text-neutral-300 auto-light:text-neutral-700">
               {about}
             </p>
           ) : (
@@ -393,7 +406,7 @@ export const ProjectHome = ({
           )}
           {subs.length > 0 && (
             <div className="mt-auto pt-3">
-              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-600">
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-600 auto-light:text-neutral-400">
                 Sub-projects
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -401,7 +414,7 @@ export const ProjectHome = ({
                   <Link
                     key={s.id}
                     href={`${APP_ROUTES.projects}/${s.id}`}
-                    className="flex items-center gap-1.5 rounded-full bg-white/[0.05] px-2.5 py-1 text-xs text-neutral-300 transition-colors hover:bg-white/[0.1] hover:text-white"
+                    className="flex items-center gap-1.5 rounded-full bg-white/[0.05] px-2.5 py-1 text-xs text-neutral-300 transition-colors hover:bg-white/[0.1] hover:text-white auto-light:bg-black/[0.05] auto-light:text-neutral-700 auto-light:hover:bg-black/[0.1] auto-light:hover:text-neutral-950"
                   >
                     <span
                       className="size-1.5 rounded-full"
@@ -418,7 +431,9 @@ export const ProjectHome = ({
 
       {/* Tasks, in the view the person picks */}
       <section className="min-w-0">
-        <h2 className="mb-3 text-lg font-semibold text-white">Tasks</h2>
+        <h2 className="mb-3 text-lg font-semibold text-white auto-light:text-neutral-950">
+          Tasks
+        </h2>
         <ProjectTasks
           projectId={project.id}
           tasks={tasks}
@@ -441,15 +456,17 @@ export const ProjectHome = ({
         action={<CardLink onClick={() => onOpen('logs')}>All logs</CardLink>}
       >
         {!recent ? (
-          <p className="text-xs text-neutral-600">Loading…</p>
+          <p className="text-xs text-neutral-600 auto-light:text-neutral-400">
+            Loading…
+          </p>
         ) : recent.length ? (
           <ul className="flex flex-col gap-2.5">
             {recent.map((p) => (
               <li key={p.id} className="flex items-start gap-2.5">
                 <UserAvatar src={p.who?.avatar} name={p.who?.name} size={22} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-neutral-200">
-                    <span className="font-medium text-white">
+                  <p className="text-sm text-neutral-200 auto-light:text-neutral-800">
+                    <span className="font-medium text-white auto-light:text-neutral-950">
                       {p.who?.name?.split(' ')[0] ?? 'Someone'}
                     </span>{' '}
                     {p.text || (p.status === 'done' ? 'finished' : 'worked on')}
@@ -457,7 +474,7 @@ export const ProjectHome = ({
                       <span className="text-neutral-500"> · {p.task}</span>
                     )}
                   </p>
-                  <p className="text-[11px] text-neutral-600">
+                  <p className="text-[11px] text-neutral-600 auto-light:text-neutral-400">
                     {dayLabel(p.date)} {dayjs(p.at).format('h:mm A')}
                     {p.by !== 'person' && ` · via ${p.by}`}
                   </p>

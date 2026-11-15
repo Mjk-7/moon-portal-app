@@ -128,7 +128,9 @@ const Row = ({
         <div
           className={cn(
             'group flex items-center rounded-lg transition-colors',
-            active ? 'bg-white/[0.08]' : 'hover:bg-white/[0.05]',
+            active
+              ? 'bg-white/[0.08] auto-light:bg-black/[0.08]'
+              : 'hover:bg-white/[0.05] auto-light:hover:bg-black/[0.05]',
           )}
           style={{ paddingLeft: depth * 14 }}
         >
@@ -138,7 +140,7 @@ const Row = ({
               aria-label={expanded ? 'Hide sub-projects' : 'Show sub-projects'}
               aria-expanded={expanded}
               onClick={() => toggle(project.id)}
-              className="flex size-6 shrink-0 items-center justify-center rounded text-neutral-500 hover:text-white"
+              className="flex size-6 shrink-0 items-center justify-center rounded text-neutral-500 hover:text-white auto-light:hover:text-neutral-950"
             >
               <Icon
                 name="chevron_right"
@@ -155,10 +157,10 @@ const Row = ({
             href={`${APP_ROUTES.projects}/${project.id}`}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-2 text-[13px] outline-none focus-visible:text-white',
+              'flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-2 text-[13px] outline-none focus-visible:text-white auto-light:focus-visible:text-neutral-950',
               active
-                ? 'font-medium text-white'
-                : 'text-neutral-400 group-hover:text-white',
+                ? 'font-medium text-white auto-light:text-neutral-950'
+                : 'text-neutral-400 group-hover:text-white auto-light:text-neutral-600 auto-light:group-hover:text-neutral-950',
             )}
           >
             <span
@@ -169,7 +171,7 @@ const Row = ({
             {project.status && project.status !== 'ACTIVE' && (
               <span
                 title="Not active"
-                className="ml-auto size-1.5 shrink-0 rounded-full bg-neutral-600"
+                className="ml-auto size-1.5 shrink-0 rounded-full bg-neutral-600 auto-light:bg-neutral-300"
               />
             )}
           </Link>
@@ -202,7 +204,7 @@ const NavSkeleton = () => (
     {[70, 55, 62, 48, 66].map((w, i) => (
       <div
         key={i}
-        className="h-3 animate-pulse rounded bg-white/[0.05]"
+        className="h-3 animate-pulse rounded bg-white/[0.05] auto-light:bg-black/[0.05]"
         style={{ width: `${w}%`, marginLeft: i % 3 ? 22 : 0 }}
       />
     ))}
@@ -302,7 +304,7 @@ export const ProjectsNav = ({
           <button
             type="button"
             onClick={onBack}
-            className="mb-2 flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-neutral-500 transition-colors hover:bg-white/[0.04] hover:text-neutral-200"
+            className="mb-2 flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-neutral-500 transition-colors hover:bg-white/[0.04] hover:text-neutral-200 auto-light:hover:bg-black/[0.04] auto-light:hover:text-neutral-800"
           >
             <Icon name="arrow_back" className="text-[15px]" />
             Back to {backTo}
@@ -314,20 +316,20 @@ export const ProjectsNav = ({
           className={cn(
             'mb-3 flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm font-medium transition-colors',
             atHome
-              ? 'bg-white/[0.08] text-white'
-              : 'text-neutral-300 hover:bg-white/[0.05] hover:text-white',
+              ? 'bg-white/[0.08] text-white auto-light:bg-black/[0.08] auto-light:text-neutral-950'
+              : 'text-neutral-300 hover:bg-white/[0.05] hover:text-white auto-light:text-neutral-700 auto-light:hover:bg-black/[0.05] auto-light:hover:text-neutral-950',
           )}
         >
           <Icon name="home" filled={atHome} className="text-[19px]" />
           Home
         </Link>
-        <label className="flex h-8 items-center gap-2 rounded-lg bg-white/[0.04] px-2.5 text-neutral-500 focus-within:bg-white/[0.07] focus-within:text-neutral-300">
+        <label className="flex h-8 items-center gap-2 rounded-lg bg-white/[0.04] px-2.5 text-neutral-500 focus-within:bg-white/[0.07] focus-within:text-neutral-300 auto-light:bg-black/[0.04] auto-light:focus-within:bg-black/[0.07] auto-light:focus-within:text-neutral-700">
           <Icon name="search" className="text-[16px]" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Find a project"
-            className="min-w-0 flex-1 bg-transparent text-[13px] text-white outline-none placeholder:text-neutral-600"
+            className="min-w-0 flex-1 bg-transparent text-[13px] text-white outline-none placeholder:text-neutral-600 auto-light:text-neutral-950 auto-light:placeholder:text-neutral-400"
           />
         </label>
       </div>
@@ -394,7 +396,7 @@ export const ProjectsNav = ({
                   type="button"
                   aria-expanded={!shut}
                   onClick={() => setClosedCompanies((s) => flip(s, company.id))}
-                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left text-xs font-semibold text-neutral-300 hover:bg-white/[0.04]"
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left text-xs font-semibold text-neutral-300 hover:bg-white/[0.04] auto-light:text-neutral-700 auto-light:hover:bg-black/[0.04]"
                 >
                   <CompanyMark
                     name={company.name}

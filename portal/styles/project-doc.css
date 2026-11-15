@@ -1,10 +1,44 @@
+/* Colors for night; day takes over on a light screen (see lib/theme). */
+.project-doc {
+  --doc-ink: 255, 255, 255;
+  --doc-text: #e5e5e5;
+  --doc-strong: #fff;
+  --doc-line-strong: #525252;
+  --doc-quote: #d4d4d4;
+  --doc-code: #fda4af;
+  --doc-link: #7dd3fc;
+  --doc-muted: #a3a3a3;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) .auto-theme .project-doc {
+    --doc-ink: 0, 0, 0;
+    --doc-text: #262626;
+    --doc-strong: #0a0a0a;
+    --doc-line-strong: #a3a3a3;
+    --doc-quote: #404040;
+    --doc-code: #be123c;
+    --doc-link: #0369a1;
+    --doc-muted: #525252;
+  }
+}
+:root[data-theme='light'] .auto-theme .project-doc {
+  --doc-ink: 0, 0, 0;
+  --doc-text: #262626;
+  --doc-strong: #0a0a0a;
+  --doc-line-strong: #a3a3a3;
+  --doc-quote: #404040;
+  --doc-code: #be123c;
+  --doc-link: #0369a1;
+  --doc-muted: #525252;
+}
+
 /* Notion-like pages of a project (Objective, Ideas). Dark, like Plans. */
 
 .project-doc {
-  color: #e5e5e5;
+  color: var(--doc-text);
   font-size: 15px;
   line-height: 1.7;
-  caret-color: #fff;
+  caret-color: var(--doc-strong);
 }
 
 .project-doc:focus {
@@ -18,7 +52,7 @@
 .project-doc h1,
 .project-doc h2,
 .project-doc h3 {
-  color: #fff;
+  color: var(--doc-strong);
   font-weight: 650;
   letter-spacing: -0.01em;
   line-height: 1.3;
@@ -86,7 +120,7 @@
   place-content: center;
   width: 1.05em;
   height: 1.05em;
-  border: 1.5px solid #525252;
+  border: 1.5px solid var(--doc-line-strong);
   border-radius: 0.3em;
   cursor: pointer;
   transition:
@@ -114,22 +148,22 @@
 }
 
 .project-doc blockquote {
-  border-left: 3px solid #525252;
+  border-left: 3px solid var(--doc-line-strong);
   padding-left: 1em;
-  color: #d4d4d4;
+  color: var(--doc-quote);
 }
 
 .project-doc code {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--doc-ink), 0.08);
   border-radius: 4px;
-  color: #fda4af;
+  color: var(--doc-code);
   font-size: 0.88em;
   padding: 0.15em 0.35em;
 }
 
 .project-doc pre {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(var(--doc-ink), 0.04);
+  border: 1px solid rgba(var(--doc-ink), 0.07);
   border-radius: 10px;
   font-size: 0.88em;
   padding: 0.9em 1.1em;
@@ -138,18 +172,18 @@
 
 .project-doc pre code {
   background: none;
-  color: #e5e5e5;
+  color: var(--doc-text);
   padding: 0;
 }
 
 .project-doc hr {
   border: none;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(var(--doc-ink), 0.1);
   margin: 1.4em 0;
 }
 
 .project-doc a {
-  color: #7dd3fc;
+  color: var(--doc-link);
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
@@ -165,7 +199,7 @@
 /* Placeholders: the empty page, and the line being written on. */
 .project-doc .is-empty::before {
   content: attr(data-placeholder);
-  color: #525252;
+  color: var(--doc-line-strong);
   float: left;
   height: 0;
   pointer-events: none;
@@ -197,8 +231,8 @@
   display: flex;
   gap: 0.6em;
   align-items: flex-start;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(var(--doc-ink), 0.04);
+  border: 1px solid rgba(var(--doc-ink), 0.07);
   border-radius: 10px;
   padding: 0.75em 1em;
 }
@@ -212,7 +246,7 @@
 }
 
 .project-doc .doc-callout-icon:enabled:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--doc-ink), 0.08);
 }
 
 .project-doc .doc-callout-body {
@@ -240,13 +274,13 @@
   width: 1.5em;
   height: 1.7em;
   border-radius: 6px;
-  color: #a3a3a3;
+  color: var(--doc-muted);
   font-size: 1.25em;
 }
 
 .project-doc .doc-toggle-arrow:hover {
-  background: rgba(255, 255, 255, 0.07);
-  color: #fff;
+  background: rgba(var(--doc-ink), 0.07);
+  color: var(--doc-strong);
 }
 
 .project-doc .doc-toggle-arrow > span {
@@ -298,8 +332,8 @@
   max-height: 80vh;
   overflow: hidden;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(var(--doc-ink), 0.08);
+  background: rgba(var(--doc-ink), 0.03);
 }
 
 .project-doc .doc-embed-frame iframe {
@@ -312,18 +346,18 @@
   display: flex;
   align-items: center;
   gap: 0.75em;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(var(--doc-ink), 0.08);
   border-radius: 10px;
   padding: 0.65em 0.8em;
   text-decoration: none;
 }
 
 .project-doc a.doc-bookmark:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(var(--doc-ink), 0.04);
 }
 
 .project-doc .doc-toc {
-  border-left: 2px solid rgba(255, 255, 255, 0.08);
+  border-left: 2px solid rgba(var(--doc-ink), 0.08);
   padding: 0.2em 0;
 }
 
@@ -347,7 +381,7 @@
 
 .project-doc th,
 .project-doc td {
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(var(--doc-ink), 0.1);
   padding: 0.4em 0.6em;
   vertical-align: top;
   min-width: 80px;
@@ -355,8 +389,8 @@
 }
 
 .project-doc th {
-  background: rgba(255, 255, 255, 0.04);
-  color: #fff;
+  background: rgba(var(--doc-ink), 0.04);
+  color: var(--doc-strong);
   font-weight: 600;
   text-align: left;
 }

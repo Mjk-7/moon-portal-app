@@ -12,9 +12,11 @@ import {
 } from 'react';
 import { Toaster } from 'sonner';
 
+import { ThemeChoice, useAutoThemeBody } from '@/components/global/ThemeChoice';
 import { PortalSdk } from '@/utils/services/PortalSdk';
 
 import { Icon } from '../Admin/shared/AdminUI';
+import { useResolvedTheme } from '../Meet/useResolvedTheme';
 import { type NavData, ProjectsNav } from './ProjectsNav';
 
 /* -------------------------------------------------------------------------- */
@@ -77,7 +79,7 @@ export const NavMenuButton = ({ className }: { className?: string }) => {
       aria-label="Open projects menu"
       className={
         className ??
-        'flex size-9 shrink-0 items-center justify-center rounded-lg text-neutral-400 hover:bg-white/[0.06] hover:text-white md:hidden'
+        'flex size-9 shrink-0 items-center justify-center rounded-lg text-neutral-400 hover:bg-white/[0.06] hover:text-white auto-light:text-neutral-600 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-950 md:hidden'
       }
     >
       <Icon name="menu" className="text-[20px]" />
@@ -100,6 +102,8 @@ export const ProjectsShell = ({ children }: { children: React.ReactNode }) => {
   /** Showing every project while a nested menu is available. */
   const [showAll, setShowAll] = useState(false);
   const [drawer, setDrawer] = useState(false);
+  useAutoThemeBody();
+  const theme = useResolvedTheme();
 
   const refreshNav = useCallback(() => {
     PortalSdk.getData('/api/projects/nav', null)
@@ -151,7 +155,7 @@ export const ProjectsShell = ({ children }: { children: React.ReactNode }) => {
           <button
             type="button"
             onClick={() => setShowAll(true)}
-            className="mx-3 mt-6 flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-neutral-500 transition-colors hover:bg-white/[0.04] hover:text-neutral-200 md:mt-8"
+            className="mx-3 mt-6 flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-neutral-500 transition-colors hover:bg-white/[0.04] hover:text-neutral-200 auto-light:hover:bg-black/[0.04] auto-light:hover:text-neutral-800 md:mt-8"
           >
             <Icon name="arrow_back" className="text-[15px]" />
             All projects
@@ -161,6 +165,10 @@ export const ProjectsShell = ({ children }: { children: React.ReactNode }) => {
           ref={inDrawer ? setMobileSlot : setSlot}
           className="flex min-h-0 flex-1 flex-col"
         />
+      </div>
+      <div className="flex items-center gap-2 border-t border-white/[0.06] px-4 py-2.5 auto-light:border-black/[0.07]">
+        <span className="flex-1 text-[11px] text-neutral-500">Theme</span>
+        <ThemeChoice />
       </div>
     </div>
   );
@@ -179,8 +187,8 @@ export const ProjectsShell = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <Ctx.Provider value={value}>
-      <div className="fixed inset-0 flex bg-neutral-950 text-neutral-100 md:left-16">
-        <aside className="hidden w-64 shrink-0 border-r border-white/[0.06] bg-neutral-950 md:block">
+      <div className="fixed inset-0 flex bg-neutral-950 text-neutral-100 auto-light:bg-neutral-50 auto-light:text-neutral-900 md:left-16">
+        <aside className="hidden w-64 shrink-0 border-r border-white/[0.06] bg-neutral-950 auto-light:border-black/[0.075] auto-light:bg-neutral-50 md:block">
           {sidebar(false)}
         </aside>
         <div className="relative min-w-0 flex-1">{children}</div>
@@ -204,14 +212,14 @@ export const ProjectsShell = ({ children }: { children: React.ReactNode }) => {
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: 'spring', stiffness: 420, damping: 40 }}
-              className="absolute inset-y-0 left-0 w-[280px] border-r border-white/[0.06] bg-neutral-950"
+              className="absolute inset-y-0 left-0 w-[280px] border-r border-white/[0.06] bg-neutral-950 auto-light:border-black/[0.075] auto-light:bg-neutral-50"
             >
               {sidebar(true)}
             </motion.aside>
           </motion.div>
         )}
       </AnimatePresence>
-      <Toaster theme="dark" position="bottom-right" richColors />
+      <Toaster theme={theme} position="bottom-right" richColors />
     </Ctx.Provider>
   );
 };

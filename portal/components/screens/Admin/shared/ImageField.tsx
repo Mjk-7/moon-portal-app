@@ -60,7 +60,7 @@ export const ImageField = ({
             }),
           }}
           className={cn(
-            'flex shrink-0 items-center justify-center overflow-hidden border border-dashed border-white/15 bg-white/[0.04] text-neutral-500 transition-colors hover:border-white/30 hover:text-neutral-300',
+            'flex shrink-0 items-center justify-center overflow-hidden border border-dashed border-white/15 bg-white/[0.04] text-neutral-500 transition-colors hover:border-white/30 hover:text-neutral-300 auto-light:border-black/[0.188] auto-light:bg-black/[0.04] auto-light:hover:border-black/[0.375] auto-light:hover:text-neutral-700',
             shape === 'circle' ? 'rounded-full' : 'rounded-xl',
           )}
           aria-label="Upload image"
@@ -88,7 +88,7 @@ export const ImageField = ({
             type="button"
             disabled={uploading}
             onClick={() => fileRef.current?.click()}
-            className="flex h-9 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.06] px-3 text-sm text-neutral-200 transition-colors hover:bg-white/[0.1] disabled:opacity-50"
+            className="flex h-9 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.06] px-3 text-sm text-neutral-200 transition-colors hover:bg-white/[0.1] disabled:opacity-50 auto-light:border-black/[0.125] auto-light:bg-black/[0.06] auto-light:text-neutral-800 auto-light:hover:bg-black/[0.1]"
           >
             <Icon name="upload" className="text-[18px]" />
             {uploading ? 'Uploading…' : value ? 'Replace' : 'Upload'}
@@ -97,7 +97,7 @@ export const ImageField = ({
             <button
               type="button"
               onClick={() => onChange('')}
-              className="h-9 rounded-lg px-2 text-xs text-neutral-500 hover:text-rose-300"
+              className="h-9 rounded-lg px-2 text-xs text-neutral-500 hover:text-rose-300 auto-light:hover:text-rose-700"
             >
               Remove
             </button>
@@ -106,7 +106,7 @@ export const ImageField = ({
             <button
               type="button"
               onClick={() => setShowLink(true)}
-              className="h-9 px-1 text-xs text-neutral-500 hover:text-neutral-300"
+              className="h-9 px-1 text-xs text-neutral-500 hover:text-neutral-300 auto-light:hover:text-neutral-700"
             >
               Paste a link instead
             </button>

@@ -27,10 +27,10 @@ export type RowAction =
   | false;
 
 const itemClass =
-  'flex cursor-default select-none items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] text-neutral-200 outline-none data-[disabled]:pointer-events-none data-[highlighted]:bg-white/[0.08] data-[highlighted]:text-white data-[disabled]:opacity-40';
+  'flex cursor-default select-none items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] text-neutral-200 auto-light:text-neutral-800 outline-none data-[disabled]:pointer-events-none data-[highlighted]:bg-white/[0.08] auto-light:data-[highlighted]:bg-black/[0.08] data-[highlighted]:text-white auto-light:data-[highlighted]:text-neutral-950 data-[disabled]:opacity-40';
 
 const panelClass =
-  'z-[60] min-w-[200px] overflow-hidden rounded-xl border border-white/10 bg-neutral-900/95 p-1 shadow-2xl shadow-black/50 backdrop-blur';
+  'z-[60] min-w-[200px] overflow-hidden rounded-xl border border-white/10 auto-light:border-black/[0.125] bg-neutral-900/95 auto-light:bg-white/95 p-1 shadow-2xl shadow-black/50 auto-light:shadow-black/10 backdrop-blur';
 
 /**
  * Right-click (or long-press) menu for a row in the projects sidebar.
@@ -68,13 +68,16 @@ export const RowMenu = ({
           )}
           {tidy.map((a, i) =>
             a === 'separator' ? (
-              <Menu.Separator key={i} className="my-1 h-px bg-white/[0.07]" />
+              <Menu.Separator
+                key={i}
+                className="my-1 h-px bg-white/[0.07] auto-light:bg-black/[0.07]"
+              />
             ) : 'sub' in a ? (
               <Menu.Sub key={a.label}>
                 <Menu.SubTrigger className={itemClass}>
                   <Icon
                     name={a.icon}
-                    className="text-[17px] text-neutral-400"
+                    className="text-[17px] text-neutral-400 auto-light:text-neutral-600"
                   />
                   <span className="flex-1">{a.label}</span>
                   <Icon
@@ -94,7 +97,9 @@ export const RowMenu = ({
                           name="check"
                           className={cn(
                             'text-[16px]',
-                            s.checked ? 'text-white' : 'opacity-0',
+                            s.checked
+                              ? 'text-white auto-light:text-neutral-950'
+                              : 'opacity-0',
                           )}
                         />
                         {s.label}
@@ -111,14 +116,16 @@ export const RowMenu = ({
                 className={cn(
                   itemClass,
                   a.danger &&
-                    'text-rose-300 data-[highlighted]:bg-rose-500/15 data-[highlighted]:text-rose-200',
+                    'text-rose-300 data-[highlighted]:bg-rose-500/15 data-[highlighted]:text-rose-200 auto-light:text-rose-700 auto-light:data-[highlighted]:text-rose-700',
                 )}
               >
                 <Icon
                   name={a.icon}
                   className={cn(
                     'text-[17px]',
-                    a.danger ? 'text-rose-300' : 'text-neutral-400',
+                    a.danger
+                      ? 'text-rose-300 auto-light:text-rose-700'
+                      : 'text-neutral-400 auto-light:text-neutral-600',
                   )}
                 />
                 {a.label}

@@ -203,7 +203,7 @@ export const GoalActivity = ({
     >
       <div className="custom-scrollbar flex justify-end overflow-x-auto">
         <div className="flex gap-[3px]">
-          <div className="mr-1 flex flex-col gap-[3px] pt-[15px] text-[9px] leading-[11px] text-neutral-600">
+          <div className="mr-1 flex flex-col gap-[3px] pt-[15px] text-[9px] leading-[11px] text-neutral-600 auto-light:text-neutral-400">
             {ROWS.map((r, i) => (
               <span key={i} className="h-[11px]">
                 {r}
@@ -213,7 +213,7 @@ export const GoalActivity = ({
           {weeks.map((week, w) => (
             <div key={week[0].day} className="flex flex-col gap-[3px]">
               <span className="relative h-3 w-[11px]">
-                <span className="absolute left-0 top-0 whitespace-nowrap text-[9px] leading-3 text-neutral-600">
+                <span className="absolute left-0 top-0 whitespace-nowrap text-[9px] leading-3 text-neutral-600 auto-light:text-neutral-400">
                   {months[w]}
                 </span>
               </span>
@@ -243,17 +243,21 @@ export const GoalActivity = ({
                       'relative block size-[11px] rounded-[3px]',
                       'cursor-default',
                       open?.day === c.day &&
-                        'outline outline-1 outline-white/80',
+                        'outline outline-1 outline-white/80 auto-light:outline-black/[1]',
                       ticking === c.day && 'animate-pulse',
-                      !level && !failed && 'bg-white/[0.05]',
+                      !level &&
+                        !failed &&
+                        'bg-white/[0.05] auto-light:bg-black/[0.05]',
                       !level && failed && 'bg-rose-400/70',
                       level && failed && 'ring-1 ring-rose-400',
-                      c.planned > 0 && !level && 'ring-1 ring-white/25',
+                      c.planned > 0 &&
+                        !level &&
+                        'ring-1 ring-white/25 auto-light:ring-black/[0.313]',
                       c.future && !c.planned && !inRange && 'opacity-40',
                       inRange && '!bg-emerald-400/60',
                       c.day === today &&
                         open?.day !== c.day &&
-                        'outline outline-1 outline-white/50',
+                        'outline outline-1 outline-white/50 auto-light:outline-black/[0.625]',
                     )}
                     style={
                       level
@@ -277,8 +281,8 @@ export const GoalActivity = ({
             !pinned && 'pointer-events-none',
           )}
         >
-          <div className="rounded-xl border border-white/10 bg-neutral-900/95 p-2.5 text-xs text-neutral-300 shadow-2xl shadow-black/50 backdrop-blur">
-            <p className="font-semibold text-white">
+          <div className="rounded-xl border border-white/10 bg-neutral-900/95 p-2.5 text-xs text-neutral-300 shadow-2xl shadow-black/50 backdrop-blur auto-light:border-black/[0.125] auto-light:bg-white/95 auto-light:text-neutral-700 auto-light:shadow-black/10">
+            <p className="font-semibold text-white auto-light:text-neutral-950">
               {dayjs(card.day).format('ddd D MMM YYYY')}
               {card.day === today && (
                 <span className="ml-1.5 font-normal text-neutral-500">
@@ -312,8 +316,8 @@ export const GoalActivity = ({
                   className={cn(
                     'flex items-center gap-1.5 rounded-lg px-2 py-1 text-left transition-colors disabled:opacity-40',
                     card.done
-                      ? 'text-neutral-300 hover:bg-white/[0.06]'
-                      : 'bg-emerald-400/15 text-emerald-200 hover:bg-emerald-400/25',
+                      ? 'text-neutral-300 hover:bg-white/[0.06] auto-light:text-neutral-700 auto-light:hover:bg-black/[0.06]'
+                      : 'bg-emerald-400/15 text-emerald-200 hover:bg-emerald-400/25 auto-light:text-emerald-700',
                   )}
                 >
                   <Icon
@@ -329,7 +333,7 @@ export const GoalActivity = ({
                     onMouseEnter={() => setUntil(card.day)}
                     onMouseLeave={() => setUntil(null)}
                     onClick={() => run(card.day, onTickUntil(card.day))}
-                    className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-left text-neutral-300 transition-colors hover:bg-white/[0.06] disabled:opacity-40"
+                    className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-left text-neutral-300 transition-colors hover:bg-white/[0.06] disabled:opacity-40 auto-light:text-neutral-700 auto-light:hover:bg-black/[0.06]"
                   >
                     <Icon name="done_all" className="text-[14px]" />
                     Done up to here ({daysUpTo(card.day)} days)
@@ -344,7 +348,7 @@ export const GoalActivity = ({
         <span className="tabular-nums">{label}</span>
         <span className="flex shrink-0 items-center gap-[3px]">
           Less
-          <span className="size-[9px] rounded-[2px] bg-white/[0.05]" />
+          <span className="size-[9px] rounded-[2px] bg-white/[0.05] auto-light:bg-black/[0.05]" />
           {LEVELS.map((o) => (
             <span
               key={o}

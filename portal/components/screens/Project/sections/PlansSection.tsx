@@ -50,15 +50,15 @@ const PlanCard = ({
     <button
       type="button"
       onClick={onOpen}
-      className="flex flex-col gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 text-left transition-colors hover:border-white/[0.12] hover:bg-white/[0.04]"
+      className="flex flex-col gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 text-left transition-colors hover:border-white/[0.12] hover:bg-white/[0.04] auto-light:border-black/[0.075] auto-light:bg-black/[0.02] auto-light:hover:border-black/15 auto-light:hover:bg-black/[0.04]"
     >
       <span className="flex items-center gap-2">
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-neutral-100">
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-neutral-100 auto-light:text-neutral-900">
           {plan.title || 'Untitled plan'}
         </span>
         {grand && (
           <span
-            className="flex shrink-0 items-center gap-1 text-[11px] text-violet-300/80"
+            className="flex shrink-0 items-center gap-1 text-[11px] text-violet-300/80 auto-light:text-violet-700/80"
             title={
               plan.projectId
                 ? 'Linked to another project, with a step for this one'
@@ -69,7 +69,7 @@ const PlanCard = ({
             {plan.projectId ? 'Other project' : 'Grand plan'}
           </span>
         )}
-        <span className="shrink-0 rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] text-neutral-400">
+        <span className="shrink-0 rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] text-neutral-400 auto-light:bg-black/[0.06] auto-light:text-neutral-600">
           {status?.label}
         </span>
       </span>
@@ -92,7 +92,7 @@ const PlanCard = ({
             className={cn(
               plan.status !== PLAN_STATUS.DONE &&
                 isPast(plan.endOn) &&
-                'text-rose-300',
+                'text-rose-300 auto-light:text-rose-700',
             )}
           >
             by {shortDay(plan.endOn)}
@@ -185,8 +185,8 @@ export const PlansSection = ({
             ))}
           </div>
         ) : (
-          <div className="rounded-3xl border border-dashed border-white/10 px-6 py-14 text-center">
-            <p className="text-sm text-neutral-300">
+          <div className="rounded-3xl border border-dashed border-white/10 px-6 py-14 text-center auto-light:border-black/[0.125]">
+            <p className="text-sm text-neutral-300 auto-light:text-neutral-700">
               No plans for this project
             </p>
             <p className="mx-auto mt-1 max-w-sm text-xs text-neutral-500">
@@ -295,7 +295,7 @@ export const PlansSection = ({
     <div className="flex h-full min-h-0">
       <div className="min-w-0 flex-1">{editor}</div>
       {wide && details && (
-        <div className="w-[360px] shrink-0 border-l border-white/[0.07]">
+        <div className="w-[360px] shrink-0 border-l border-white/[0.07] auto-light:border-black/[0.088]">
           {details}
         </div>
       )}
