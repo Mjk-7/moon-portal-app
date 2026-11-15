@@ -102,8 +102,8 @@ const DayPicker = ({
           className={cn(
             'h-7 rounded-md px-2 text-xs font-medium transition-colors',
             on
-              ? 'bg-white text-neutral-950'
-              : 'bg-white/[0.05] text-neutral-400 hover:bg-white/[0.1] hover:text-neutral-100',
+              ? 'bg-white text-neutral-950 auto-light:bg-neutral-900 auto-light:text-white'
+              : 'bg-white/[0.05] text-neutral-400 hover:bg-white/[0.1] hover:text-neutral-100 auto-light:bg-black/[0.05] auto-light:text-neutral-600 auto-light:hover:bg-black/[0.1] auto-light:hover:text-neutral-900',
           )}
         >
           {WEEKDAYS[d]}
@@ -241,7 +241,7 @@ const SlotsPicker = ({
               : { ...(quarter && { month: 1 }), date: firstDate },
           ]);
         }}
-        className="self-start text-xs text-neutral-400 hover:text-neutral-200"
+        className="self-start text-xs text-neutral-400 hover:text-neutral-200 auto-light:text-neutral-600 auto-light:hover:text-neutral-800"
       >
         {value.length
           ? '+ Add a day'
@@ -250,7 +250,7 @@ const SlotsPicker = ({
             : 'Pick days (else all on one day)'}
       </button>
       {value.some((s) => (s.date ?? 0) > 28) && (
-        <span className="text-[11px] text-neutral-600">
+        <span className="text-[11px] text-neutral-600 auto-light:text-neutral-400">
           In shorter months, a date past the end falls on the last day.
         </span>
       )}
@@ -276,14 +276,16 @@ const SpreadNote = ({ goal, total }: { goal: GoalDraft; total: number }) => {
   const per = PERIOD_LABELS[goal.period];
   if (each * days === total)
     return (
-      <p className="text-[11px] text-neutral-400">
+      <p className="text-[11px] text-neutral-400 auto-light:text-neutral-600">
         {total} {what} {per} over {days} days:{' '}
-        <span className="font-medium text-neutral-200">{each} on each day</span>
+        <span className="font-medium text-neutral-200 auto-light:text-neutral-800">
+          {each} on each day
+        </span>
         {each !== total && `, not ${total} on each`}.
       </p>
     );
   return (
-    <p className="flex items-start gap-1.5 text-[11px] text-amber-300/90">
+    <p className="flex items-start gap-1.5 text-[11px] text-amber-300/90 auto-light:text-amber-700/90">
       <Icon name="warning" className="mt-px text-[13px]" />
       {total} doesn’t split evenly over {days} days, so each day gets {each} (
       {each * days} {per}). Set the target to a multiple of {days}, or pick
@@ -318,7 +320,7 @@ export const GoalFields = ({
   const [addingImage, setAddingImage] = useState(false);
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+    <div className="flex flex-col gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 auto-light:border-black/[0.088] auto-light:bg-black/[0.02]">
       <div className="flex items-center justify-between gap-2">
         <Segmented<GoalKind>
           value={kind}
@@ -345,9 +347,13 @@ export const GoalFields = ({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {isTarget && <span className="text-sm text-neutral-400">Reach</span>}
+        {isTarget && (
+          <span className="text-sm text-neutral-400 auto-light:text-neutral-600">
+            Reach
+          </span>
+        )}
         {parts.length ? (
-          <span className="w-20 text-center text-sm font-semibold text-white">
+          <span className="w-20 text-center text-sm font-semibold text-white auto-light:text-neutral-950">
             {total}
           </span>
         ) : (
@@ -388,8 +394,8 @@ export const GoalFields = ({
       </div>
 
       {!isTarget && (
-        <div className="flex flex-col gap-2 rounded-lg bg-white/[0.02] p-2.5">
-          <label className="flex cursor-pointer items-center gap-2 text-xs text-neutral-300">
+        <div className="flex flex-col gap-2 rounded-lg bg-white/[0.02] p-2.5 auto-light:bg-black/[0.02]">
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-neutral-300 auto-light:text-neutral-700">
             <input
               type="checkbox"
               checked={makesTasks}
@@ -493,7 +499,7 @@ export const GoalFields = ({
               ],
             })
           }
-          className="self-start text-xs text-neutral-500 hover:text-neutral-300"
+          className="self-start text-xs text-neutral-500 hover:text-neutral-300 auto-light:hover:text-neutral-700"
         >
           {parts.length ? '+ Add a part' : 'Split it (e.g. across channels)'}
         </button>
@@ -503,7 +509,7 @@ export const GoalFields = ({
         <div className="flex flex-col gap-1.5">
           <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">
             Inspiration{' '}
-            <span className="normal-case tracking-normal text-neutral-600">
+            <span className="normal-case tracking-normal text-neutral-600 auto-light:text-neutral-400">
               · an image to keep in mind, shown on the goal
             </span>
           </p>
@@ -520,7 +526,7 @@ export const GoalFields = ({
         <button
           type="button"
           onClick={() => setAddingImage(true)}
-          className="flex items-center gap-1.5 self-start text-xs text-neutral-500 hover:text-neutral-300"
+          className="flex items-center gap-1.5 self-start text-xs text-neutral-500 hover:text-neutral-300 auto-light:hover:text-neutral-700"
         >
           <Icon name="add_photo_alternate" className="text-[15px]" />
           Add an inspiration image
@@ -531,7 +537,7 @@ export const GoalFields = ({
         <div className="flex flex-col gap-1.5">
           <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">
             Who it’s for{' '}
-            <span className="normal-case tracking-normal text-neutral-600">
+            <span className="normal-case tracking-normal text-neutral-600 auto-light:text-neutral-400">
               {goal.assigneeIds?.length
                 ? ''
                 : isTarget

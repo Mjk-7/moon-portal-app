@@ -34,9 +34,9 @@ const StatTile = ({
   <Tip content={hint}>
     <div
       tabIndex={0}
-      className="flex-1 cursor-help rounded-xl bg-white/[0.03] px-3 py-2 outline-none focus-visible:bg-white/[0.06]"
+      className="flex-1 cursor-help rounded-xl bg-white/[0.03] px-3 py-2 outline-none focus-visible:bg-white/[0.06] auto-light:bg-black/[0.03] auto-light:focus-visible:bg-black/[0.06]"
     >
-      <p className="text-xl font-semibold tabular-nums tracking-tight text-white">
+      <p className="text-xl font-semibold tabular-nums tracking-tight text-white auto-light:text-neutral-950">
         {value}
       </p>
       <p className="truncate text-[11px] text-neutral-500">{label}</p>
@@ -46,7 +46,7 @@ const StatTile = ({
 
 /** A thin bar filled to its share of the largest value. */
 const Bar = ({ share, color }: { share: number; color: string }) => (
-  <span className="relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/[0.05]">
+  <span className="relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/[0.05] auto-light:bg-black/[0.05]">
     <motion.span
       className="absolute inset-y-0 left-0 rounded-full"
       style={{ backgroundColor: color }}
@@ -145,10 +145,10 @@ export const CompanyBar = ({
   }));
 
   return (
-    <div className="mb-3 flex flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.035] to-white/[0.01] lg:flex-row">
+    <div className="mb-3 flex flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.035] to-white/[0.01] auto-light:border-black/[0.075] auto-light:from-black/[0.035] auto-light:to-black/[0.01] lg:flex-row">
       {/* Who the company is */}
       <div
-        className="relative isolate flex shrink-0 flex-col gap-3 overflow-hidden border-b border-white/[0.06] p-5 lg:w-60 lg:border-b-0 lg:border-r"
+        className="relative isolate flex shrink-0 flex-col gap-3 overflow-hidden border-b border-white/[0.06] p-5 auto-light:border-black/[0.075] lg:w-60 lg:border-b-0 lg:border-r"
         style={{
           background: `linear-gradient(160deg, ${color}26, transparent 70%)`,
         }}
@@ -161,7 +161,7 @@ export const CompanyBar = ({
               alt=""
               className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-28 w-full object-cover opacity-60 lg:h-32"
             />
-            <span className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-28 bg-gradient-to-b from-transparent to-neutral-950 lg:h-32" />
+            <span className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-28 bg-gradient-to-b from-transparent to-neutral-950 auto-light:to-neutral-50 lg:h-32" />
           </>
         )}
         <div
@@ -176,16 +176,16 @@ export const CompanyBar = ({
             logo={company.logo}
             size={72}
           />
-          <h2 className="text-xl font-bold leading-tight tracking-tight text-white">
+          <h2 className="text-xl font-bold leading-tight tracking-tight text-white auto-light:text-neutral-950">
             {company.name}
           </h2>
         </div>
         {company.description && (
-          <p className="line-clamp-3 text-xs leading-relaxed text-neutral-400">
+          <p className="line-clamp-3 text-xs leading-relaxed text-neutral-400 auto-light:text-neutral-600">
             {company.description}
           </p>
         )}
-        <div className="mt-auto flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-neutral-400">
+        <div className="mt-auto flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-neutral-400 auto-light:text-neutral-600">
           {company.isPersonal ? (
             <span className="flex items-center gap-1.5">
               <Icon name="lock" className="text-[15px] text-neutral-500" />
@@ -209,7 +209,7 @@ export const CompanyBar = ({
             <Link
               href={`${APP_ROUTES.projects}/${core.id}`}
               title={`Open ${company.name}'s core project`}
-              className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg bg-white px-3 text-xs font-semibold text-neutral-950 transition-opacity hover:opacity-90"
+              className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg bg-white px-3 text-xs font-semibold text-neutral-950 transition-opacity hover:opacity-90 auto-light:bg-neutral-900 auto-light:text-white"
             >
               <Icon name="hub" className="text-[16px]" />
               Core
@@ -219,7 +219,7 @@ export const CompanyBar = ({
             <Link
               href={editHref}
               title={`Edit ${company.name}: name, logo, banner, colour, members`}
-              className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg bg-white/[0.06] px-3 text-xs font-semibold text-neutral-200 transition-colors hover:bg-white/[0.1] hover:text-white"
+              className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg bg-white/[0.06] px-3 text-xs font-semibold text-neutral-200 transition-colors hover:bg-white/[0.1] hover:text-white auto-light:bg-black/[0.06] auto-light:text-neutral-800 auto-light:hover:bg-black/[0.1] auto-light:hover:text-neutral-950"
             >
               <Icon name="edit" className="text-[16px]" />
               Edit
@@ -286,8 +286,11 @@ export const CompanyBar = ({
                     <motion.span
                       className={cn(
                         'w-full rounded-t-[3px]',
-                        future || !n ? 'bg-white/[0.06]' : '',
-                        i + 1 === today && 'ring-1 ring-white/30',
+                        future || !n
+                          ? 'bg-white/[0.06] auto-light:bg-black/[0.06]'
+                          : '',
+                        i + 1 === today &&
+                          'ring-1 ring-white/30 auto-light:ring-black/[0.375]',
                       )}
                       style={
                         !future && n
@@ -311,7 +314,7 @@ export const CompanyBar = ({
               );
             })}
           </div>
-          <div className="-mt-2 flex justify-between text-[10px] text-neutral-600">
+          <div className="-mt-2 flex justify-between text-[10px] text-neutral-600 auto-light:text-neutral-400">
             <span>1</span>
             <span>{daysInMonth}</span>
           </div>
@@ -329,7 +332,7 @@ export const CompanyBar = ({
                     <TipTitle>{PULSES[key].label}</TipTitle>
                     <p>{PULSES[key].hint}</p>
                     {list.length > 0 && (
-                      <p className="mt-1.5 text-neutral-400">
+                      <p className="mt-1.5 text-neutral-400 auto-light:text-neutral-600">
                         {list.map((p) => p.name).join(', ')}
                       </p>
                     )}
@@ -339,11 +342,11 @@ export const CompanyBar = ({
                 <div
                   tabIndex={0}
                   className={cn(
-                    'cursor-help rounded-xl bg-white/[0.03] px-3 py-2 outline-none focus-visible:bg-white/[0.06]',
+                    'cursor-help rounded-xl bg-white/[0.03] px-3 py-2 outline-none focus-visible:bg-white/[0.06] auto-light:bg-black/[0.03] auto-light:focus-visible:bg-black/[0.06]',
                     !list.length && 'opacity-50',
                   )}
                 >
-                  <p className="flex items-center gap-2 text-xl font-semibold tabular-nums tracking-tight text-white">
+                  <p className="flex items-center gap-2 text-xl font-semibold tabular-nums tracking-tight text-white auto-light:text-neutral-950">
                     {list.length}
                     <span
                       className={cn('size-1.5 rounded-full', PULSES[key].dot)}
@@ -357,7 +360,7 @@ export const CompanyBar = ({
             ))}
           </div>
           {totals.overdue > 0 && (
-            <p className="mt-2 flex items-center gap-1.5 text-[11px] text-rose-300/90">
+            <p className="mt-2 flex items-center gap-1.5 text-[11px] text-rose-300/90 auto-light:text-rose-700/90">
               <Icon name="schedule" className="text-[14px]" />
               {totals.overdue} overdue task{totals.overdue === 1 ? '' : 's'}{' '}
               across its projects
@@ -385,18 +388,18 @@ export const CompanyBar = ({
                 >
                   <span
                     tabIndex={0}
-                    className="-mx-1.5 flex cursor-help items-center gap-2.5 rounded-lg px-1.5 py-0.5 text-xs outline-none transition-colors hover:bg-white/[0.04] focus-visible:bg-white/[0.06]"
+                    className="-mx-1.5 flex cursor-help items-center gap-2.5 rounded-lg px-1.5 py-0.5 text-xs outline-none transition-colors hover:bg-white/[0.04] focus-visible:bg-white/[0.06] auto-light:hover:bg-black/[0.04] auto-light:focus-visible:bg-black/[0.06]"
                   >
                     <UserAvatar
                       src={m.person.avatar}
                       name={m.person.name}
                       size={20}
                     />
-                    <span className="w-[74px] shrink-0 truncate text-neutral-300">
+                    <span className="w-[74px] shrink-0 truncate text-neutral-300 auto-light:text-neutral-700">
                       {m.person.name?.split(' ')[0]}
                     </span>
                     <Bar share={m.logged / maxMember} color="#a3a3a3" />
-                    <span className="w-12 shrink-0 text-right text-[11px] tabular-nums text-neutral-400">
+                    <span className="w-12 shrink-0 text-right text-[11px] tabular-nums text-neutral-400 auto-light:text-neutral-600">
                       {m.done} done
                     </span>
                   </span>

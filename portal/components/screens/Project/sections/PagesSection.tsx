@@ -37,9 +37,9 @@ const PageCards = ({
         type="button"
         onClick={onCreate}
         disabled={creating}
-        className="group flex min-h-[156px] flex-col items-center justify-center gap-2 rounded-3xl border border-dashed border-white/10 text-neutral-500 transition-colors hover:border-white/25 hover:text-neutral-200"
+        className="group flex min-h-[156px] flex-col items-center justify-center gap-2 rounded-3xl border border-dashed border-white/10 text-neutral-500 transition-colors hover:border-white/25 hover:text-neutral-200 auto-light:border-black/[0.125] auto-light:hover:border-black/[0.313] auto-light:hover:text-neutral-800"
       >
-        <span className="flex size-10 items-center justify-center rounded-full bg-white/[0.04] text-[22px] transition-transform group-hover:scale-110">
+        <span className="flex size-10 items-center justify-center rounded-full bg-white/[0.04] text-[22px] transition-transform group-hover:scale-110 auto-light:bg-black/[0.04]">
           {creating ? <Spin className="size-4" /> : <Icon name="add" />}
         </span>
         <span className="text-sm">{newLabel}</span>
@@ -57,19 +57,19 @@ const PageCards = ({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: Math.min(i, 9) * 0.03 }}
           whileHover={{ y: -2 }}
-          className="flex min-h-[156px] flex-col gap-2 rounded-3xl border border-white/[0.07] bg-white/[0.02] p-5 text-left transition-colors hover:border-white/15 hover:bg-white/[0.04]"
+          className="flex min-h-[156px] flex-col gap-2 rounded-3xl border border-white/[0.07] bg-white/[0.02] p-5 text-left transition-colors hover:border-white/15 hover:bg-white/[0.04] auto-light:border-black/[0.088] auto-light:bg-black/[0.02] auto-light:hover:border-black/[0.188] auto-light:hover:bg-black/[0.04]"
         >
           <span className="text-2xl leading-none">{page.emoji || '📄'}</span>
-          <span className="line-clamp-2 text-base font-semibold text-white">
+          <span className="line-clamp-2 text-base font-semibold text-white auto-light:text-neutral-950">
             {pageTitle(page)}
           </span>
           <span className="line-clamp-3 flex-1 text-xs leading-relaxed text-neutral-500">
             {preview || 'Empty page'}
           </span>
-          <span className="flex items-center gap-3 text-[11px] text-neutral-600">
+          <span className="flex items-center gap-3 text-[11px] text-neutral-600 auto-light:text-neutral-400">
             <span>Edited {ago(page.updatedAt)}</span>
             {isRestricted(page) && (
-              <span className="flex items-center gap-1 text-amber-200/70">
+              <span className="flex items-center gap-1 text-amber-200/70 auto-light:text-amber-700/70">
                 <Icon name="lock" className="text-[13px]" />
                 Restricted
               </span>
@@ -85,7 +85,7 @@ const PageCards = ({
       );
     })}
     {!canEdit && pages.length === 0 && (
-      <p className="col-span-full rounded-3xl border border-dashed border-white/10 px-6 py-12 text-center text-sm text-neutral-500">
+      <p className="col-span-full rounded-3xl border border-dashed border-white/10 px-6 py-12 text-center text-sm text-neutral-500 auto-light:border-black/[0.125]">
         {emptyLabel}
       </p>
     )}
@@ -156,7 +156,7 @@ export const PagesInside = ({
   const inside = childPages(pages, parent.id);
   if (!canEdit && !inside.length) return null;
   return (
-    <section className="mt-12 border-t border-white/[0.06] pb-16 pt-6">
+    <section className="mt-12 border-t border-white/[0.06] pb-16 pt-6 auto-light:border-black/[0.075]">
       <h2 className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-neutral-500">
         <Icon name="description" className="text-[15px]" />
         Pages inside

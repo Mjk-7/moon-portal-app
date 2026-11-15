@@ -34,10 +34,10 @@ export const SectionShell = ({
   >
     <header className="mb-6 flex flex-wrap items-end gap-4">
       <div className="min-w-0 flex-1">
-        <p className="mb-2 flex size-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-[22px] text-neutral-300">
+        <p className="mb-2 flex size-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-[22px] text-neutral-300 auto-light:border-black/[0.125] auto-light:bg-black/[0.04] auto-light:text-neutral-700">
           <Icon name={icon} />
         </p>
-        <h2 className="text-2xl font-bold tracking-tight text-white md:text-3xl">
+        <h2 className="text-2xl font-bold tracking-tight text-white auto-light:text-neutral-950 md:text-3xl">
           {title}
         </h2>
         {description && (
@@ -64,11 +64,13 @@ export const Stat = ({
   value: ReactNode;
   hint?: string;
 }) => (
-  <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
+  <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-4 py-3 auto-light:border-black/[0.088] auto-light:bg-black/[0.02]">
     <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">
       {label}
     </p>
-    <p className="mt-1 text-2xl font-semibold text-white">{value}</p>
+    <p className="mt-1 text-2xl font-semibold text-white auto-light:text-neutral-950">
+      {value}
+    </p>
     {hint && <p className="text-[11px] text-neutral-500">{hint}</p>}
   </div>
 );

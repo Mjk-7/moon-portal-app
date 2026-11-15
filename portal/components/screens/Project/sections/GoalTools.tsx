@@ -23,7 +23,7 @@ const SET_ASIDE = ['ARCHIVED', 'IGNORED'];
 const OPEN = ['TODO', 'IN_PROGRESS', 'IN_REVIEW'];
 
 const chip =
-  'flex h-7 items-center gap-1 rounded-full border border-white/10 px-2 text-[11px] text-neutral-400 transition-colors hover:bg-white/[0.06] hover:text-white';
+  'flex h-7 items-center gap-1 rounded-full border border-white/10 auto-light:border-black/[0.125] px-2 text-[11px] text-neutral-400 auto-light:text-neutral-600 transition-colors hover:bg-white/[0.06] auto-light:hover:bg-black/[0.06] hover:text-white auto-light:hover:text-neutral-950';
 
 export const GoalIdChip = ({ goal }: { goal: ProjectGoal }) => (
   <Tip content="Copy this goal's ID. Tell Claude “<ID> is done until Nov 14” to tick it off up to a day.">

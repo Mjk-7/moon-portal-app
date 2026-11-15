@@ -256,11 +256,11 @@ const EmbedView = ({ node, selected }: NodeViewProps) => {
           rel="noopener noreferrer"
           className="doc-bookmark"
         >
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-[18px] text-neutral-400">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-[18px] text-neutral-400 auto-light:bg-black/[0.06] auto-light:text-neutral-600">
             <Icon name="language" />
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-sm text-neutral-100">
+            <span className="block truncate text-sm text-neutral-100 auto-light:text-neutral-900">
               {url.hostname.replace(/^www\./, '')}
             </span>
             <span className="block truncate text-xs text-neutral-500">
@@ -321,7 +321,9 @@ const PageLinkView = ({ node, selected }: NodeViewProps) => {
         onClick={() => links?.open(id)}
         className={cn(
           'flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left transition-colors',
-          !gone && links && 'hover:bg-white/[0.05]',
+          !gone &&
+            links &&
+            'hover:bg-white/[0.05] auto-light:hover:bg-black/[0.05]',
         )}
       >
         <span className="text-[1.1em] leading-none">
@@ -329,13 +331,19 @@ const PageLinkView = ({ node, selected }: NodeViewProps) => {
         </span>
         <span
           className={cn(
-            'truncate font-medium underline decoration-white/20 underline-offset-4',
-            gone ? 'text-neutral-500 line-through' : 'text-neutral-100',
+            'truncate font-medium underline decoration-white/20 underline-offset-4 auto-light:decoration-neutral-950/20',
+            gone
+              ? 'text-neutral-500 line-through'
+              : 'text-neutral-100 auto-light:text-neutral-900',
           )}
         >
           {title}
         </span>
-        {gone && <span className="text-xs text-neutral-600">Deleted</span>}
+        {gone && (
+          <span className="text-xs text-neutral-600 auto-light:text-neutral-400">
+            Deleted
+          </span>
+        )}
       </button>
     </NodeViewWrapper>
   );
@@ -411,13 +419,13 @@ const TocView = ({ editor, selected }: NodeViewProps) => {
                 dom.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }}
             style={{ paddingLeft: `${(h.level - 1) * 16 + 6}px` }}
-            className="block w-full truncate rounded-md py-0.5 pr-2 text-left text-sm text-neutral-400 underline decoration-white/15 underline-offset-4 hover:bg-white/[0.04] hover:text-neutral-100"
+            className="block w-full truncate rounded-md py-0.5 pr-2 text-left text-sm text-neutral-400 underline decoration-white/15 underline-offset-4 hover:bg-white/[0.04] hover:text-neutral-100 auto-light:text-neutral-600 auto-light:decoration-neutral-950/15 auto-light:hover:bg-black/[0.04] auto-light:hover:text-neutral-900"
           >
             {h.text}
           </button>
         ))
       ) : (
-        <p className="px-1.5 text-sm text-neutral-600">
+        <p className="px-1.5 text-sm text-neutral-600 auto-light:text-neutral-400">
           Add headings to fill the table of contents.
         </p>
       )}

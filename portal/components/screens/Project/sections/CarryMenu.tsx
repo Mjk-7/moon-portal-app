@@ -21,7 +21,7 @@ import { DatePanel, quickDays } from '../../Worklogs/DayLog/DatePopover';
  */
 
 const item =
-  'flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-white/[0.06] disabled:opacity-40';
+  'flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-white/[0.06] auto-light:hover:bg-black/[0.06] disabled:opacity-40';
 
 export const CarryMenu = ({
   task,
@@ -71,7 +71,7 @@ export const CarryMenu = ({
           type="button"
           title="Its day went by: move it to another day, or merge it into a later one"
           className={cn(
-            'flex shrink-0 items-center gap-1 rounded-full border border-rose-400/30 px-2 py-0.5 text-[11px] text-rose-200 transition-colors hover:bg-rose-400/10',
+            'flex shrink-0 items-center gap-1 rounded-full border border-rose-400/30 px-2 py-0.5 text-[11px] text-rose-200 transition-colors hover:bg-rose-400/10 auto-light:text-rose-700',
             open && 'bg-rose-400/10',
           )}
         >
@@ -88,7 +88,7 @@ export const CarryMenu = ({
           align="end"
           sideOffset={6}
           collisionPadding={12}
-          className="z-[1300] w-64 rounded-xl border border-white/10 bg-neutral-900 p-1.5 text-neutral-200 shadow-2xl shadow-black/50"
+          className="z-[1300] w-64 rounded-xl border border-white/10 bg-neutral-900 p-1.5 text-neutral-200 shadow-2xl shadow-black/50 auto-light:border-black/[0.125] auto-light:bg-white auto-light:text-neutral-800 auto-light:shadow-black/10"
         >
           {picking ? (
             <DatePanel
@@ -101,7 +101,7 @@ export const CarryMenu = ({
             />
           ) : (
             <>
-              <p className="px-2.5 pb-1 pt-1 text-[11px] leading-snug text-neutral-500">
+              <p className="px-2.5 py-1 text-[11px] leading-snug text-neutral-500">
                 The goal missed {day(task.forDate!)}. Do it on another day:
               </p>
               <p className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
@@ -137,12 +137,12 @@ export const CarryMenu = ({
               >
                 <Icon
                   name="calendar_month"
-                  className="text-[16px] text-neutral-400"
+                  className="text-[16px] text-neutral-400 auto-light:text-neutral-600"
                 />
                 <span className="flex-1">Pick a day…</span>
               </button>
-              <div className="my-1 border-t border-white/[0.07]" />
-              <p className="px-2.5 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+              <div className="my-1 border-t border-white/[0.07] auto-light:border-black/[0.088]" />
+              <p className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
                 Merge into
               </p>
               {later.length ? (
@@ -162,7 +162,7 @@ export const CarryMenu = ({
                   >
                     <Icon
                       name="merge"
-                      className="text-[16px] text-neutral-400"
+                      className="text-[16px] text-neutral-400 auto-light:text-neutral-600"
                     />
                     <span className="min-w-0 flex-1 truncate">{t.title}</span>
                     <span className="shrink-0 text-xs tabular-nums text-neutral-500">
@@ -171,7 +171,7 @@ export const CarryMenu = ({
                   </button>
                 ))
               ) : (
-                <p className="px-2.5 py-1.5 text-xs text-neutral-600">
+                <p className="px-2.5 py-1.5 text-xs text-neutral-600 auto-light:text-neutral-400">
                   No later task of this goal yet
                 </p>
               )}

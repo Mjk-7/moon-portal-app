@@ -43,7 +43,7 @@ export const ShareButton = ({
       <span
         title="Only the people it is shared with can open this"
         className={cn(
-          'flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-amber-200/80',
+          'flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-amber-200/80 auto-light:text-amber-700/80',
           className,
         )}
       >
@@ -63,8 +63,8 @@ export const ShareButton = ({
       className={cn(
         'flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition-colors',
         restricted
-          ? 'bg-amber-400/10 text-amber-200 hover:bg-amber-400/15'
-          : 'text-neutral-300 hover:bg-white/[0.06] hover:text-white',
+          ? 'bg-amber-400/10 text-amber-200 hover:bg-amber-400/15 auto-light:text-amber-700'
+          : 'text-neutral-300 hover:bg-white/[0.06] hover:text-white auto-light:text-neutral-700 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-950',
         className,
       )}
     >
@@ -97,21 +97,23 @@ const AccessOption = ({
     className={cn(
       'flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors',
       active
-        ? 'border-white/25 bg-white/[0.06]'
-        : 'border-white/[0.07] hover:border-white/15 hover:bg-white/[0.03]',
+        ? 'border-white/25 bg-white/[0.06] auto-light:border-black/[0.313] auto-light:bg-black/[0.06]'
+        : 'border-white/[0.07] hover:border-white/15 hover:bg-white/[0.03] auto-light:border-black/[0.088] auto-light:hover:border-black/[0.188] auto-light:hover:bg-black/[0.03]',
       disabled && 'pointer-events-none opacity-60',
     )}
   >
     <span
       className={cn(
         'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg text-[18px]',
-        active ? 'bg-white/10 text-white' : 'bg-white/[0.04] text-neutral-400',
+        active
+          ? 'bg-white/10 text-white auto-light:bg-black/10 auto-light:text-neutral-950'
+          : 'bg-white/[0.04] text-neutral-400 auto-light:bg-black/[0.04] auto-light:text-neutral-600',
       )}
     >
       <Icon name={icon} />
     </span>
     <span className="min-w-0 flex-1">
-      <span className="block text-sm font-medium text-neutral-100">
+      <span className="block text-sm font-medium text-neutral-100 auto-light:text-neutral-900">
         {title}
       </span>
       <span className="block text-xs leading-relaxed text-neutral-500">
@@ -121,10 +123,14 @@ const AccessOption = ({
     <span
       className={cn(
         'mt-2 flex size-4 shrink-0 items-center justify-center rounded-full border',
-        active ? 'border-sky-300 bg-sky-300' : 'border-white/25',
+        active
+          ? 'border-sky-300 bg-sky-300'
+          : 'border-white/25 auto-light:border-black/[0.313]',
       )}
     >
-      {active && <span className="size-1.5 rounded-full bg-neutral-950" />}
+      {active && (
+        <span className="size-1.5 rounded-full bg-neutral-950 auto-light:bg-neutral-50" />
+      )}
     </span>
   </button>
 );
@@ -246,14 +252,17 @@ export const ShareDialog = ({
     >
       <div className="flex flex-col gap-4">
         {limitedBy && (
-          <div className="flex items-start gap-2.5 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-3 py-2.5 text-xs leading-relaxed text-amber-100/90">
-            <Icon name="lock" className="mt-0.5 text-[15px] text-amber-200" />
+          <div className="flex items-start gap-2.5 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-3 py-2.5 text-xs leading-relaxed text-amber-100/90 auto-light:text-amber-700/90">
+            <Icon
+              name="lock"
+              className="mt-0.5 text-[15px] text-amber-200 auto-light:text-amber-700"
+            />
             <span className="min-w-0 flex-1">
               It sits inside{' '}
               <button
                 type="button"
                 onClick={limitedBy.onOpen}
-                className="font-medium text-amber-100 underline decoration-amber-200/40 underline-offset-2 hover:decoration-amber-100"
+                className="font-medium text-amber-100 underline decoration-amber-200/40 underline-offset-2 hover:decoration-amber-100 auto-light:text-amber-700"
               >
                 {limitedBy.emoji ? `${limitedBy.emoji} ` : ''}
                 {limitedBy.title}
@@ -301,17 +310,17 @@ export const ShareDialog = ({
                 placeholder="Add people by name or email…"
               />
               {matches.length > 0 && (
-                <div className="absolute inset-x-0 top-11 z-10 overflow-hidden rounded-xl border border-white/10 bg-neutral-900 shadow-2xl">
+                <div className="absolute inset-x-0 top-11 z-10 overflow-hidden rounded-xl border border-white/10 bg-neutral-900 shadow-2xl auto-light:border-black/[0.125] auto-light:bg-white">
                   {matches.map((p) => (
                     <button
                       key={p.id}
                       type="button"
                       onClick={() => add(p.id)}
-                      className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-white/[0.06]"
+                      className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-white/[0.06] auto-light:hover:bg-black/[0.06]"
                     >
                       <UserAvatar src={p.avatar} name={p.name} size={26} />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm text-neutral-200">
+                        <span className="block truncate text-sm text-neutral-200 auto-light:text-neutral-800">
                           {p.name || 'Unnamed'}
                         </span>
                         <span className="block truncate text-[11px] text-neutral-500">
@@ -343,7 +352,7 @@ export const ShareDialog = ({
                   >
                     <UserAvatar src={p.avatar} name={p.name} size={30} />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm text-neutral-200">
+                      <span className="block truncate text-sm text-neutral-200 auto-light:text-neutral-800">
                         {p.name || 'Unnamed'}
                         {isMe && (
                           <span className="ml-1.5 text-xs text-neutral-500">
@@ -356,11 +365,11 @@ export const ShareDialog = ({
                       </span>
                     </span>
                     {reason ? (
-                      <span className="text-[11px] text-neutral-600">
+                      <span className="text-[11px] text-neutral-600 auto-light:text-neutral-400">
                         Always
                       </span>
                     ) : isMe ? (
-                      <span className="text-[11px] text-neutral-600">
+                      <span className="text-[11px] text-neutral-600 auto-light:text-neutral-400">
                         Stays while you share
                       </span>
                     ) : (
@@ -369,7 +378,7 @@ export const ShareDialog = ({
                         onClick={() => remove(p.id)}
                         aria-label={`Remove ${p.name || 'them'}`}
                         title="Remove access"
-                        className="flex size-7 items-center justify-center rounded-lg text-neutral-500 hover:bg-white/[0.06] hover:text-rose-300"
+                        className="flex size-7 items-center justify-center rounded-lg text-neutral-500 hover:bg-white/[0.06] hover:text-rose-300 auto-light:hover:bg-black/[0.06] auto-light:hover:text-rose-700"
                       >
                         <Icon name="close" className="text-[16px]" />
                       </button>

@@ -91,7 +91,7 @@ export const AdminButton = forwardRef<HTMLButtonElement, AdminButtonProps>(
       disabled={disabled || loading}
       className={cn(
         'inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg font-medium transition-all',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 auto-light:focus-visible:ring-black/[0.375]',
         'disabled:pointer-events-none disabled:opacity-40',
         buttonTones[tone],
         buttonSizes[size],
@@ -133,9 +133,9 @@ export const IconAction = ({
     disabled={loading || props.disabled}
     className={cn(
       'inline-flex size-8 items-center justify-center rounded-lg text-[18px] transition-colors',
-      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 disabled:opacity-40',
+      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 disabled:opacity-40 auto-light:focus-visible:ring-black/[0.375]',
       tone === 'danger'
-        ? 'text-neutral-400 hover:bg-rose-500/15 hover:text-rose-300'
+        ? 'text-neutral-400 hover:bg-rose-500/15 hover:text-rose-300 auto-light:text-neutral-600 auto-light:hover:text-rose-700'
         : 'text-neutral-400 hover:bg-white/10 hover:text-white auto-light:text-neutral-500 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-950',
       className,
     )}
@@ -191,18 +191,18 @@ export const PanelHeader = ({
 }) => (
   <div
     className={cn(
-      'flex flex-wrap items-start justify-between gap-3 border-b border-white/[0.07] px-5 py-4',
+      'flex flex-wrap items-start justify-between gap-3 border-b border-white/[0.07] px-5 py-4 auto-light:border-black/[0.088]',
       className,
     )}
   >
     <div className="flex min-w-0 items-start gap-3">
       {icon && (
-        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-[18px] text-neutral-300">
+        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-[18px] text-neutral-300 auto-light:bg-black/[0.06] auto-light:text-neutral-700">
           <Icon name={icon} />
         </span>
       )}
       <div className="min-w-0">
-        <h3 className="truncate text-sm font-semibold text-neutral-100">
+        <h3 className="truncate text-sm font-semibold text-neutral-100 auto-light:text-neutral-900">
           {title}
         </h3>
         {description && (
@@ -236,11 +236,12 @@ export const StatCard = ({
   onClick?: () => void;
 }) => {
   const tones = {
-    neutral: 'text-neutral-300 bg-white/[0.06]',
-    positive: 'text-emerald-300 bg-emerald-500/10',
-    warning: 'text-amber-300 bg-amber-500/10',
-    danger: 'text-rose-300 bg-rose-500/10',
-    info: 'text-sky-300 bg-sky-500/10',
+    neutral:
+      'text-neutral-300 auto-light:text-neutral-700 bg-white/[0.06] auto-light:bg-black/[0.06]',
+    positive: 'text-emerald-300 auto-light:text-emerald-700 bg-emerald-500/10',
+    warning: 'text-amber-300 auto-light:text-amber-700 bg-amber-500/10',
+    danger: 'text-rose-300 auto-light:text-rose-700 bg-rose-500/10',
+    info: 'text-sky-300 auto-light:text-sky-700 bg-sky-500/10',
   } as const;
 
   const Wrapper = onClick ? 'button' : 'div';
@@ -249,8 +250,9 @@ export const StatCard = ({
     <Wrapper
       onClick={onClick}
       className={cn(
-        'group flex items-center gap-4 rounded-2xl border border-white/[0.07] bg-neutral-900/40 p-4 text-left transition-colors',
-        onClick && 'hover:border-white/15 hover:bg-neutral-900/70',
+        'group flex items-center gap-4 rounded-2xl border border-white/[0.07] bg-neutral-900/40 p-4 text-left transition-colors auto-light:border-black/[0.088] auto-light:bg-white/40',
+        onClick &&
+          'hover:border-white/15 hover:bg-neutral-900/70 auto-light:hover:border-black/[0.188] auto-light:hover:bg-white/70',
       )}
     >
       <span
@@ -266,9 +268,9 @@ export const StatCard = ({
           {label}
         </p>
         {loading ? (
-          <div className="mt-1.5 h-6 w-12 animate-pulse rounded bg-white/10" />
+          <div className="mt-1.5 h-6 w-12 animate-pulse rounded bg-white/10 auto-light:bg-black/10" />
         ) : (
-          <p className="text-2xl font-semibold leading-tight text-white">
+          <p className="text-2xl font-semibold leading-tight text-white auto-light:text-neutral-950">
             {value}
           </p>
         )}
@@ -285,8 +287,8 @@ export const StatCard = ({
 /* -------------------------------------------------------------------------- */
 
 export const inputBase =
-  'w-full rounded-lg border border-white/10 bg-neutral-900/80 px-3 text-sm text-neutral-100 placeholder:text-neutral-600 transition-colors ' +
-  'focus:border-white/25 focus:outline-none focus:ring-2 focus:ring-white/10 disabled:cursor-not-allowed disabled:opacity-50 ' +
+  'w-full rounded-lg border border-white/10 auto-light:border-black/[0.125] bg-neutral-900/80 auto-light:bg-white/80 px-3 text-sm text-neutral-100 auto-light:text-neutral-900 placeholder:text-neutral-600 auto-light:placeholder:text-neutral-400 transition-colors ' +
+  'focus:border-white/25 auto-light:focus:border-black/[0.313] focus:outline-none focus:ring-2 focus:ring-white/10 auto-light:focus:ring-black/[0.125] disabled:cursor-not-allowed disabled:opacity-50 ' +
   // Only inside an `.auto-theme` screen (see tailwind.config); admin stays dark.
   'auto-light:border-black/10 auto-light:bg-white auto-light:text-neutral-900 auto-light:placeholder:text-neutral-400 auto-light:focus:border-black/25 auto-light:focus:ring-black/5 auto-light:[color-scheme:light]';
 
@@ -375,12 +377,14 @@ export const Field = ({
         className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-neutral-400 auto-light:text-neutral-500"
       >
         {label}
-        {required && <span className="text-rose-400">*</span>}
+        {required && (
+          <span className="text-rose-400 auto-light:text-rose-600">*</span>
+        )}
       </label>
     )}
     {children}
     {error ? (
-      <p className="flex items-center gap-1 text-xs text-rose-400">
+      <p className="flex items-center gap-1 text-xs text-rose-400 auto-light:text-rose-600">
         <Icon name="error" className="text-[14px]" />
         {error}
       </p>
@@ -416,8 +420,8 @@ export const ToggleSwitch = ({
     disabled={disabled}
     onClick={() => onChange(!checked)}
     className={cn(
-      'flex w-full items-center justify-between gap-4 rounded-lg border border-white/10 bg-neutral-900/60 px-3 py-2.5 text-left transition-colors',
-      'hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 disabled:opacity-50',
+      'flex w-full items-center justify-between gap-4 rounded-lg border border-white/10 bg-neutral-900/60 px-3 py-2.5 text-left transition-colors auto-light:border-black/[0.125] auto-light:bg-white/60',
+      'hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 disabled:opacity-50 auto-light:hover:border-black/25 auto-light:focus-visible:ring-black/25',
       'auto-light:border-black/10 auto-light:bg-neutral-50 auto-light:hover:border-black/20',
       className,
     )}
@@ -440,7 +444,7 @@ export const ToggleSwitch = ({
     >
       <span
         className={cn(
-          'absolute size-3.5 rounded-full bg-white shadow transition-transform',
+          'absolute size-3.5 rounded-full bg-white shadow transition-transform auto-light:bg-neutral-900',
           checked ? 'translate-x-[18px]' : 'translate-x-[3px]',
         )}
       />
@@ -463,8 +467,8 @@ export const CheckBox = ({
       'flex shrink-0 items-center justify-center rounded border transition-colors',
       size === 'sm' ? 'size-4 text-[12px]' : 'size-5 text-[14px]',
       checked
-        ? 'border-white bg-white text-neutral-950'
-        : 'border-white/20 text-transparent',
+        ? 'border-white bg-white text-neutral-950 auto-light:bg-neutral-900 auto-light:text-white'
+        : 'border-white/20 text-transparent auto-light:border-black/25',
       className,
     )}
   >
@@ -503,7 +507,7 @@ export const SearchInput = ({
         type="button"
         aria-label="Clear search"
         onClick={() => onChange('')}
-        className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-[16px] text-neutral-500 hover:bg-white/10 hover:text-neutral-200"
+        className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-[16px] text-neutral-500 hover:bg-white/10 hover:text-neutral-200 auto-light:hover:bg-black/10 auto-light:hover:text-neutral-800"
       >
         <Icon name="close" />
       </button>
@@ -532,7 +536,7 @@ export function Segmented<T extends string>({
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-1 rounded-lg border border-white/[0.07] bg-neutral-900/60 p-1',
+        'inline-flex items-center gap-1 rounded-lg border border-white/[0.07] bg-neutral-900/60 p-1 auto-light:border-black/[0.088] auto-light:bg-white/60',
         className,
       )}
     >
@@ -544,8 +548,8 @@ export function Segmented<T extends string>({
           className={cn(
             'inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-md px-3 text-xs font-medium transition-colors',
             value === option.value
-              ? 'bg-white/[0.12] text-white'
-              : 'text-neutral-400 hover:bg-white/[0.05] hover:text-neutral-200',
+              ? 'bg-white/[0.12] text-white auto-light:bg-black/[0.12] auto-light:text-neutral-950'
+              : 'text-neutral-400 hover:bg-white/[0.05] hover:text-neutral-200 auto-light:text-neutral-600 auto-light:hover:bg-black/[0.05] auto-light:hover:text-neutral-800',
           )}
         >
           {option.icon && <Icon name={option.icon} className="text-[16px]" />}
@@ -555,8 +559,8 @@ export function Segmented<T extends string>({
               className={cn(
                 'rounded px-1.5 py-px text-[10px] font-semibold',
                 value === option.value
-                  ? 'bg-white/15 text-neutral-200'
-                  : 'bg-white/[0.07] text-neutral-500',
+                  ? 'bg-white/15 text-neutral-200 auto-light:bg-black/15 auto-light:text-neutral-800'
+                  : 'bg-white/[0.07] text-neutral-500 auto-light:bg-black/[0.07]',
               )}
             >
               {option.count}
@@ -645,7 +649,7 @@ export const UserAvatar = ({
     <span
       style={{ width: size, height: size, fontSize: Math.max(10, size / 2.8) }}
       className={cn(
-        'relative flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-neutral-800 font-semibold text-neutral-400',
+        'relative flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-neutral-800 font-semibold text-neutral-400 auto-light:border-black/[0.125] auto-light:bg-neutral-100 auto-light:text-neutral-600',
         className,
       )}
     >
@@ -714,14 +718,14 @@ export const SkeletonRows = ({
     {Array.from({ length: rows }).map((_, index) => (
       <div
         key={index}
-        className="flex items-center gap-3 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3"
+        className="flex items-center gap-3 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3 auto-light:border-black/[0.063] auto-light:bg-black/[0.02]"
       >
-        <div className="size-10 shrink-0 animate-pulse rounded-full bg-white/[0.06]" />
+        <div className="size-10 shrink-0 animate-pulse rounded-full bg-white/[0.06] auto-light:bg-black/[0.06]" />
         <div className="flex-1 space-y-2">
-          <div className="h-3 w-1/3 animate-pulse rounded bg-white/[0.06]" />
-          <div className="h-2.5 w-1/2 animate-pulse rounded bg-white/[0.04]" />
+          <div className="h-3 w-1/3 animate-pulse rounded bg-white/[0.06] auto-light:bg-black/[0.06]" />
+          <div className="h-2.5 w-1/2 animate-pulse rounded bg-white/[0.04] auto-light:bg-black/[0.04]" />
         </div>
-        <div className="h-6 w-16 animate-pulse rounded-full bg-white/[0.04]" />
+        <div className="h-6 w-16 animate-pulse rounded-full bg-white/[0.04] auto-light:bg-black/[0.04]" />
       </div>
     ))}
   </div>
@@ -732,7 +736,7 @@ export const CardSkeletons = ({ count = 6 }: { count?: number }) => (
     {Array.from({ length: count }).map((_, index) => (
       <div
         key={index}
-        className="h-32 animate-pulse rounded-2xl border border-white/[0.05] bg-white/[0.02]"
+        className="h-32 animate-pulse rounded-2xl border border-white/[0.05] bg-white/[0.02] auto-light:border-black/[0.063] auto-light:bg-black/[0.02]"
       />
     ))}
   </div>
@@ -778,7 +782,7 @@ export const AdminModal = ({
         <DialogPrimitive.Content
           className={cn(
             'fixed left-1/2 top-1/2 z-[61] flex max-h-[90vh] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden',
-            'rounded-2xl border border-white/10 bg-neutral-950 shadow-2xl shadow-black/60',
+            'rounded-2xl border border-white/10 bg-neutral-950 shadow-2xl shadow-black/60 auto-light:border-black/[0.125] auto-light:bg-neutral-50 auto-light:shadow-black/10',
             autoTheme &&
               'auto-theme auto-light:border-black/10 auto-light:bg-white auto-light:shadow-black/15',
             'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
@@ -916,7 +920,10 @@ export const CopyButton = ({
       icon={copied ? 'check' : 'content_copy'}
       label={copied ? 'Copied' : label}
       onClick={copy}
-      className={cn(copied && 'text-emerald-400', className)}
+      className={cn(
+        copied && 'text-emerald-400 auto-light:text-emerald-600',
+        className,
+      )}
     />
   );
 };

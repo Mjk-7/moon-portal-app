@@ -14,6 +14,8 @@ export const dynamic = 'force-dynamic';
 
 /** At most this many projects are read in one call. */
 const MAX_PROJECTS = 24;
+/** How far ahead "+X more" looks for upcoming tasks. */
+const UPCOMING_DAYS = 14;
 
 /**
  * Who is working on what in the projects of the caller's day:
@@ -60,6 +62,13 @@ export async function GET(request: Request) {
   ];
   if (date === today)
     ors.push({ forDate: { lt: date }, status: { in: OPEN_TASK_STATUSES } });
+  // What comes next, behind "+X more": open tasks of the next two weeks.
+  const until = new Date(`${date}T00:00:00Z`);
+  until.setUTCDate(until.getUTCDate() + UPCOMING_DAYS);
+  ors.push({
+    forDate: { gt: date, lte: until.toISOString().slice(0, 10) },
+    status: { in: OPEN_TASK_STATUSES },
+  });
   const tasks: Task[] = await db.task.findMany({
     where: {
       AND: [
@@ -94,8 +103,19 @@ export async function GET(request: Request) {
     id: string;
     name: string;
     avatar: string | null;
-    tasks: Pick<Task, 'id' | 'title' | 'status' | 'flag' | 'forDate'>[];
+    tasks: (Pick<Task, 'id' | 'title' | 'status' | 'flag' | 'forDate'> & {
+      upcoming?: boolean;
+    })[];
   };
+  // A task is the day's unless it is for a later day and not finished on it.
+  const isUpcoming = (t: Task) =>
+    !!t.forDate &&
+    t.forDate > date &&
+    !(
+      t.completedAt &&
+      new Date(t.completedAt as unknown as string) >= new Date(range.start) &&
+      new Date(t.completedAt as unknown as string) <= new Date(range.end)
+    );
   const out: Record<string, { mine: number; total: number; people: Person[] }> =
     {};
   for (const project of readable) {
@@ -116,18 +136,21 @@ export async function GET(request: Request) {
           status: t.status,
           flag: t.flag ?? null,
           forDate: t.forDate ?? null,
+          ...(isUpcoming(t) ? { upcoming: true } : {}),
         });
         people.set(id, person);
       }
     }
+    const onDay = list.filter((t) => !isUpcoming(t));
     out[project.id] = {
-      mine: list.filter((t) => workersOf(t).includes(user.id)).length,
-      total: list.length,
+      mine: onDay.filter((t) => workersOf(t).includes(user.id)).length,
+      total: onDay.length,
       // The caller first, then whoever has the most on.
       people: Array.from(people.values()).sort(
         (a, b) =>
           Number(b.id === user.id) - Number(a.id === user.id) ||
-          b.tasks.length - a.tasks.length,
+          b.tasks.filter((t) => !t.upcoming).length -
+            a.tasks.filter((t) => !t.upcoming).length,
       ),
     };
   }

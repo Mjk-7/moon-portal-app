@@ -27,6 +27,7 @@ import {
 import { AvatarStack, errorText } from '../../Admin/Workspace/shared';
 import { DatePopover, shortDay } from '../../Worklogs/DayLog/DatePopover';
 import type { Person } from '../types';
+import { ActivityChart, mondayOf } from './ActivityChart';
 
 type Point = {
   id: string;
@@ -104,10 +105,13 @@ const NewTask = ({
   projectId,
   me,
   people,
+  defaultDay,
   onAdded,
 }: {
   projectId: string;
   me: Who;
+  /** The day being looked at, when it isn't today: new tasks go on it. */
+  defaultDay?: string | null;
   /** The project's people first, then the rest of the company. */
   people: Who[];
   onAdded: (task: Task) => void;
@@ -121,6 +125,7 @@ const NewTask = ({
   const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => setAssignee(me), [me]);
+  useEffect(() => setForDate(defaultDay ?? null), [defaultDay]);
 
   const matches = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -157,7 +162,7 @@ const NewTask = ({
   const forSomeoneElse = assignee.id !== me.id;
 
   return (
-    <div className="mb-6 flex items-center gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.03] py-1.5 pl-4 pr-1.5 focus-within:border-white/20">
+    <div className="mb-6 flex items-center gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.03] py-1.5 pl-4 pr-1.5 focus-within:border-white/20 auto-light:border-black/10 auto-light:bg-black/[0.03] auto-light:focus-within:border-black/25">
       {saving ? (
         <Spin className="size-4" />
       ) : (
@@ -176,12 +181,11 @@ const NewTask = ({
             ? `Add a task for ${assignee.name?.split(' ')[0] || 'them'}…`
             : 'Add a task for yourself…'
         }
-        className="h-9 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-neutral-500"
+        className="h-9 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-neutral-500 auto-light:text-neutral-950"
       />
       <DatePopover
         value={forDate}
         onPick={setForDate}
-        autoTheme={false}
         trigger={
           <button
             type="button"
@@ -189,8 +193,8 @@ const NewTask = ({
             className={cn(
               'flex h-9 shrink-0 items-center gap-1 whitespace-nowrap rounded-xl px-2 text-xs transition-colors',
               forDate
-                ? 'bg-white/[0.06] text-neutral-200 hover:bg-white/[0.1]'
-                : 'text-neutral-500 hover:bg-white/[0.06] hover:text-white',
+                ? 'bg-white/[0.06] text-neutral-200 hover:bg-white/[0.1] auto-light:bg-black/[0.06] auto-light:text-neutral-800 auto-light:hover:bg-black/[0.1]'
+                : 'text-neutral-500 hover:bg-white/[0.06] hover:text-white auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-950',
             )}
           >
             <Icon name="event" className="text-[16px]" />
@@ -212,8 +216,8 @@ const NewTask = ({
             className={cn(
               'flex h-9 shrink-0 items-center gap-1.5 rounded-xl px-2 text-xs transition-colors',
               forSomeoneElse
-                ? 'bg-sky-500/15 text-sky-200 hover:bg-sky-500/20'
-                : 'text-neutral-400 hover:bg-white/[0.06] hover:text-white',
+                ? 'bg-sky-500/15 text-sky-200 hover:bg-sky-500/20 auto-light:text-sky-700'
+                : 'text-neutral-400 hover:bg-white/[0.06] hover:text-white auto-light:text-neutral-600 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-950',
             )}
           >
             <UserAvatar src={assignee.avatar} name={assignee.name} size={22} />
@@ -225,14 +229,14 @@ const NewTask = ({
         </PopoverTrigger>
         <PopoverContent
           align="end"
-          className="w-64 border-white/10 bg-neutral-900 p-1.5 text-neutral-200"
+          className="w-64 border-white/10 bg-neutral-900 p-1.5 text-neutral-200 auto-light:border-black/[0.125] auto-light:bg-white auto-light:text-neutral-800"
         >
           <input
             autoFocus
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Assign to…"
-            className="mb-1 h-8 w-full rounded-lg bg-white/[0.05] px-2.5 text-sm outline-none placeholder:text-neutral-500"
+            className="mb-1 h-8 w-full rounded-lg bg-white/[0.05] px-2.5 text-sm outline-none placeholder:text-neutral-500 auto-light:bg-black/[0.05]"
           />
           <div className="custom-scrollbar max-h-64 overflow-y-auto">
             {matches.map((p) => (
@@ -246,8 +250,9 @@ const NewTask = ({
                   input.current?.focus();
                 }}
                 className={cn(
-                  'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-white/[0.06]',
-                  p.id === assignee.id && 'bg-white/[0.06]',
+                  'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-white/[0.06] auto-light:hover:bg-black/[0.06]',
+                  p.id === assignee.id &&
+                    'bg-white/[0.06] auto-light:bg-black/[0.06]',
                 )}
               >
                 <UserAvatar src={p.avatar} name={p.name} size={22} />
@@ -258,7 +263,10 @@ const NewTask = ({
                   )}
                 </span>
                 {p.id === assignee.id && (
-                  <Icon name="check" className="text-[16px] text-sky-300" />
+                  <Icon
+                    name="check"
+                    className="text-[16px] text-sky-300 auto-light:text-sky-700"
+                  />
                 )}
               </button>
             ))}
@@ -279,7 +287,7 @@ const NewTask = ({
 /* -------------------------------------------------------------------------- */
 
 const chip =
-  'flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-white/[0.04] px-2.5 text-xs text-neutral-300 transition-colors hover:bg-white/[0.08] hover:text-white';
+  'flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-white/[0.04] auto-light:bg-black/[0.04] px-2.5 text-xs text-neutral-300 auto-light:text-neutral-700 transition-colors hover:bg-white/[0.08] auto-light:hover:bg-black/[0.08] hover:text-white auto-light:hover:text-neutral-950';
 
 /** Who a task is for: any number of people, picked from a list. */
 const AssigneePicker = ({
@@ -333,14 +341,14 @@ const AssigneePicker = ({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-64 border-white/10 bg-neutral-900 p-1.5 text-neutral-200"
+        className="w-64 border-white/10 bg-neutral-900 p-1.5 text-neutral-200 auto-light:border-black/[0.125] auto-light:bg-white auto-light:text-neutral-800"
       >
         <input
           autoFocus
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Assign to…"
-          className="mb-1 h-8 w-full rounded-lg bg-white/[0.05] px-2.5 text-sm outline-none placeholder:text-neutral-500"
+          className="mb-1 h-8 w-full rounded-lg bg-white/[0.05] px-2.5 text-sm outline-none placeholder:text-neutral-500 auto-light:bg-black/[0.05]"
         />
         <div className="custom-scrollbar max-h-64 overflow-y-auto">
           {matches.map((p) => {
@@ -351,8 +359,8 @@ const AssigneePicker = ({
                 type="button"
                 onClick={() => toggle(p.id)}
                 className={cn(
-                  'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-white/[0.06]',
-                  on && 'bg-white/[0.06]',
+                  'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-white/[0.06] auto-light:hover:bg-black/[0.06]',
+                  on && 'bg-white/[0.06] auto-light:bg-black/[0.06]',
                 )}
               >
                 <UserAvatar src={p.avatar} name={p.name} size={22} />
@@ -360,7 +368,10 @@ const AssigneePicker = ({
                   {p.name || 'Unnamed'}
                 </span>
                 {on && (
-                  <Icon name="check" className="text-[16px] text-sky-300" />
+                  <Icon
+                    name="check"
+                    className="text-[16px] text-sky-300 auto-light:text-sky-700"
+                  />
                 )}
               </button>
             );
@@ -429,7 +440,7 @@ const TaskEditor = ({
         }}
         maxLength={200}
         aria-label="Task title"
-        className="h-9 w-full rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 text-sm font-medium text-white outline-none focus:border-white/20"
+        className="h-9 w-full rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 text-sm font-medium text-white outline-none focus:border-white/20 auto-light:border-black/[0.075] auto-light:bg-black/[0.03] auto-light:text-neutral-950 auto-light:focus:border-black/25"
       />
       <div className="flex flex-wrap items-center gap-2">
         <label className={cn(chip, 'relative cursor-pointer')}>
@@ -442,7 +453,7 @@ const TaskEditor = ({
               onUpdate({ status: e.target.value as Task['status'] })
             }
             aria-label="Status"
-            className="absolute inset-0 cursor-pointer opacity-0 [&>option]:bg-neutral-900"
+            className="absolute inset-0 cursor-pointer opacity-0 [&>option]:bg-neutral-900 auto-light:[&>option]:bg-white"
           >
             {STATUS_CHOICES.map((s) => (
               <option key={s.value} value={s.value}>
@@ -455,7 +466,6 @@ const TaskEditor = ({
           value={task.forDate ?? null}
           onPick={(forDate) => onUpdate({ forDate })}
           clearable
-          autoTheme={false}
           align="start"
           trigger={
             <button
@@ -481,7 +491,7 @@ const TaskEditor = ({
             onClick={onDelete}
             className={cn(
               chip,
-              'bg-transparent text-neutral-500 hover:bg-rose-500/10 hover:text-rose-300',
+              'bg-transparent text-neutral-500 hover:bg-rose-500/10 hover:text-rose-300 auto-light:hover:text-rose-700',
             )}
           >
             <Icon name="delete" className="text-[16px]" />
@@ -496,7 +506,7 @@ const TaskEditor = ({
         rows={notes ? 3 : 1}
         placeholder="Add notes…"
         aria-label="Notes"
-        className="w-full resize-y rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-neutral-300 outline-none placeholder:text-neutral-600 focus:border-white/20"
+        className="w-full resize-y rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-neutral-300 outline-none placeholder:text-neutral-600 focus:border-white/20 auto-light:border-black/[0.075] auto-light:bg-black/[0.03] auto-light:text-neutral-700 auto-light:placeholder:text-neutral-400 auto-light:focus:border-black/25"
       />
     </div>
   );
@@ -514,6 +524,8 @@ const TaskRow = ({
   canTick,
   canEdit,
   canDelete,
+  showPeople,
+  fullInfo,
   onTick,
   onUpdate,
   onDelete,
@@ -526,6 +538,10 @@ const TaskRow = ({
   canTick: boolean;
   canEdit: boolean;
   canDelete: boolean;
+  /** Show who is on it. */
+  showPeople: boolean;
+  /** Show its points and latest note under the title. */
+  fullInfo: boolean;
   onTick: (task: Task) => void;
   onUpdate: (task: Task, fields: TaskFields) => void;
   onDelete: (task: Task) => void;
@@ -537,18 +553,37 @@ const TaskRow = ({
   const last = [...points].reverse().find((p) => p.text);
   const today = dayjs().format('YYYY-MM-DD');
   const late = !done && !!task.forDate && task.forDate < today;
+  const when =
+    done && task.completedAt
+      ? dayLabel(task.completedAt as unknown as string)
+      : task.forDate
+        ? dayLabel(task.forDate)
+        : '';
 
   return (
-    <li className="rounded-2xl border border-white/[0.06] bg-white/[0.02] transition-colors hover:border-white/[0.1]">
-      <div className="flex items-start gap-3 px-3 py-2.5">
+    <li
+      className={cn(
+        'border-b border-white/[0.05] last:border-b-0 auto-light:border-black/[0.063]',
+        open && 'bg-white/[0.02] auto-light:bg-black/[0.02]',
+      )}
+    >
+      <div
+        className={cn(
+          'flex gap-2.5 px-2',
+          fullInfo ? 'items-start py-2' : 'items-center py-1.5',
+        )}
+      >
         <button
           type="button"
           disabled={!canTick || done || task.status === 'IGNORED'}
           onClick={() => onTick(task)}
           title={done ? 'Done' : canTick ? 'Mark done' : undefined}
           className={cn(
-            'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full',
-            canTick && !done && 'hover:text-emerald-300',
+            'flex size-5 shrink-0 items-center justify-center rounded-full',
+            fullInfo && 'mt-px',
+            canTick &&
+              !done &&
+              'hover:text-emerald-300 auto-light:hover:text-emerald-700',
           )}
         >
           <Icon
@@ -561,68 +596,95 @@ const TaskRow = ({
             }
             filled={done}
             className={cn(
-              'text-[20px]',
+              'text-[18px]',
               done
-                ? 'text-emerald-400'
+                ? 'text-emerald-400 auto-light:text-emerald-600'
                 : underWay
-                  ? 'text-sky-400'
-                  : 'text-neutral-600',
+                  ? 'text-sky-400 auto-light:text-sky-600'
+                  : 'text-neutral-600 auto-light:text-neutral-400',
             )}
           />
         </button>
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
+          title={task.title}
           className="min-w-0 flex-1 text-left"
         >
           <p
             className={cn(
-              'flex items-center gap-2 text-sm font-medium',
-              done ? 'text-neutral-400' : 'text-neutral-100',
+              'flex items-center gap-2 text-[13px] leading-5',
+              done
+                ? 'text-neutral-500 line-through decoration-neutral-600 auto-light:decoration-neutral-400'
+                : 'text-neutral-100 auto-light:text-neutral-900',
             )}
           >
             {underWay && (
-              <span className="relative flex size-2 shrink-0">
+              <span className="relative flex size-1.5 shrink-0">
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-sky-400 opacity-60" />
-                <span className="relative inline-flex size-2 rounded-full bg-sky-400" />
+                <span className="relative inline-flex size-1.5 rounded-full bg-sky-400" />
               </span>
             )}
-            <span className="min-w-0">{task.title}</span>
+            <span className={cn('min-w-0', !fullInfo && 'truncate')}>
+              {task.title}
+            </span>
+            {task.flag && !fullInfo && (
+              <span
+                title={task.flag === 'blocked' ? 'Blocked' : 'Waiting'}
+                className={cn(
+                  'size-1.5 shrink-0 rounded-full',
+                  task.flag === 'blocked' ? 'bg-rose-400' : 'bg-amber-400',
+                )}
+              />
+            )}
           </p>
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-neutral-500">
-            {done && task.completedAt ? (
-              <span>
-                Done {dayLabel(task.completedAt as unknown as string)}
-              </span>
-            ) : (
-              task.forDate && (
-                <span className={cn(late && 'text-amber-300/80')}>
-                  for {dayLabel(task.forDate)}
+          {fullInfo && (
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-neutral-500">
+              {when && (
+                <span
+                  className={cn(
+                    late && 'text-amber-300/80 auto-light:text-amber-700/80',
+                  )}
+                >
+                  {done ? 'Done' : 'for'} {when}
                 </span>
-              )
-            )}
-            {task.flag && (
-              <Pill tone={task.flag === 'blocked' ? 'danger' : 'warning'}>
-                {task.flag === 'blocked' ? 'Blocked' : 'Waiting'}
-              </Pill>
-            )}
-            {points.length > 0 && (
-              <span>
-                {points.length} {points.length === 1 ? 'point' : 'points'}
-              </span>
-            )}
-            {last && !open && (
-              <span className="min-w-0 max-w-full truncate text-neutral-400">
-                · {last.text}
-              </span>
-            )}
-          </p>
+              )}
+              {task.flag && (
+                <Pill tone={task.flag === 'blocked' ? 'danger' : 'warning'}>
+                  {task.flag === 'blocked' ? 'Blocked' : 'Waiting'}
+                </Pill>
+              )}
+              {points.length > 0 && (
+                <span>
+                  {points.length} {points.length === 1 ? 'point' : 'points'}
+                </span>
+              )}
+              {last && !open && (
+                <span className="min-w-0 max-w-full truncate text-neutral-400 auto-light:text-neutral-600">
+                  · {last.text}
+                </span>
+              )}
+            </p>
+          )}
         </button>
-        {people.length > 0 ? (
-          <AvatarStack users={people} max={3} />
-        ) : (
-          <span className="text-[11px] text-neutral-600">Nobody</span>
+        {!fullInfo && when && (
+          <span
+            className={cn(
+              'shrink-0 text-[11px] tabular-nums text-neutral-500',
+              late && 'text-amber-300/80 auto-light:text-amber-700/80',
+            )}
+          >
+            {when}
+          </span>
         )}
+        {showPeople &&
+          (people.length > 0 ? (
+            <AvatarStack users={people} max={3} />
+          ) : (
+            <span className="text-[11px] text-neutral-600 auto-light:text-neutral-400">
+              Nobody
+            </span>
+          ))}
       </div>
 
       <AnimatePresence initial={false}>
@@ -634,7 +696,7 @@ const TaskRow = ({
             transition={{ duration: 0.18, ease: 'easeOut' }}
             className="overflow-hidden"
           >
-            <div className="border-t border-white/[0.05] px-4 py-3 pl-11">
+            <div className="px-3 pb-3 pl-9 pt-1">
               {canEdit && (
                 <TaskEditor
                   task={task}
@@ -646,7 +708,7 @@ const TaskRow = ({
                 />
               )}
               {!canEdit && task.description && (
-                <p className="mb-3 whitespace-pre-wrap text-sm text-neutral-400">
+                <p className="mb-3 whitespace-pre-wrap text-sm text-neutral-400 auto-light:text-neutral-600">
                   {task.description}
                 </p>
               )}
@@ -667,7 +729,7 @@ const TaskRow = ({
                           size={20}
                         />
                         <div className="min-w-0 flex-1">
-                          <p className="flex flex-wrap items-center gap-1.5 text-neutral-200">
+                          <p className="flex flex-wrap items-center gap-1.5 text-neutral-200 auto-light:text-neutral-800">
                             {p.text && <span>{p.text}</span>}
                             {meta && <Pill tone={meta.tone}>{meta.label}</Pill>}
                           </p>
@@ -708,6 +770,34 @@ export const TASK_LAYOUTS: {
 ];
 
 const LAYOUT_KEY = 'portal:project-home-view';
+const SPAN_KEY = 'portal:project-tasks-span';
+const SHOW_KEY = 'portal:project-tasks-show';
+
+/** A setting kept on this device. */
+function useStored<T>(key: string, initial: T, valid: (v: unknown) => boolean) {
+  const [value, setValue] = useState<T>(initial);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (raw === null) return;
+      const saved = JSON.parse(raw);
+      if (valid(saved)) setValue(saved);
+    } catch {
+      /* storage unavailable */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  const pick = (next: T) => {
+    setValue(next);
+    try {
+      window.localStorage.setItem(key, JSON.stringify(next));
+    } catch {
+      /* storage unavailable */
+    }
+  };
+  // `setValue` changes it for now only, without keeping it.
+  return [value, pick, setValue] as const;
+}
 
 /** The view picked last time, on this device. */
 export const useTaskLayout = () => {
@@ -731,17 +821,62 @@ export const useTaskLayout = () => {
   return [layout, pick] as const;
 };
 
+/** How much time the tasks cover: one day, a week (Monday to Sunday) or a month. */
+export type Span = 'day' | 'week' | 'month';
+
+const SPANS: { value: Span; label: string }[] = [
+  { value: 'day', label: 'Day' },
+  { value: 'week', label: 'Week' },
+  { value: 'month', label: 'Month' },
+];
+
+const key = (d: dayjs.Dayjs) => d.format('YYYY-MM-DD');
+
+/** The first and last day of the span around a day. */
+const rangeOf = (span: Span, anchor: string) => {
+  const a = dayjs(anchor).startOf('day');
+  if (span === 'day') return { from: a, to: a };
+  if (span === 'week') {
+    const from = mondayOf(a);
+    return { from, to: from.add(6, 'day') };
+  }
+  return { from: a.startOf('month'), to: a.endOf('month').startOf('day') };
+};
+
+const rangeLabel = (span: Span, from: dayjs.Dayjs, to: dayjs.Dayjs) => {
+  const thisYear = from.isSame(dayjs(), 'year');
+  if (span === 'day') return dayLabel(key(from));
+  if (span === 'month') return from.format(thisYear ? 'MMMM' : 'MMMM YYYY');
+  const sameMonth = from.isSame(to, 'month');
+  return `${from.format(sameMonth ? 'D' : 'D MMM')} – ${to.format(
+    thisYear ? 'D MMM' : 'D MMM YYYY',
+  )}`;
+};
+
+/** "This week", "Last week", "Next month"… for the span around today. */
+const rangeHint = (span: Span, from: dayjs.Dayjs) => {
+  const now = rangeOf(span, key(dayjs())).from;
+  const diff = from.diff(now, span);
+  if (span === 'day') return '';
+  const unit = span === 'week' ? 'week' : 'month';
+  if (diff === 0) return `This ${unit}`;
+  if (diff === -1) return `Last ${unit}`;
+  if (diff === 1) return `Next ${unit}`;
+  return '';
+};
+
 /** The day a task is for: its day on the worklog, else when it is due. */
 const dayOf = (t: Task) =>
   t.forDate ?? (t.dueDate ? String(t.dueDate).slice(0, 10) : null);
 
-const doneSince = (t: Task, since: dayjs.Dayjs) =>
-  t.status === 'DONE' &&
-  !!t.completedAt &&
-  dayjs(t.completedAt as unknown as string).isAfter(since);
+/** The day a finished task was finished. */
+const doneDayOf = (t: Task) =>
+  t.completedAt
+    ? dayjs(t.completedAt as unknown as string).format('YYYY-MM-DD')
+    : dayOf(t);
 
 const Empty = ({ children }: { children: React.ReactNode }) => (
-  <p className="rounded-xl border border-dashed border-white/[0.08] px-3 py-4 text-center text-xs text-neutral-600">
+  <p className="rounded-xl border border-dashed border-white/[0.08] px-3 py-4 text-center text-xs text-neutral-600 auto-light:border-black/10 auto-light:text-neutral-400">
     {children}
   </p>
 );
@@ -759,42 +894,90 @@ const ColumnTitle = ({
 }) => (
   <h3
     className={cn(
-      'mb-2.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-500',
+      'mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-500',
       tone,
     )}
   >
     <Icon name={icon} className="text-[16px]" />
     {title}
-    <span className="text-neutral-600">{count}</span>
+    <span className="text-neutral-600 auto-light:text-neutral-400">
+      {count}
+    </span>
   </h3>
 );
 
-/** A small chip for a task on the timeline. */
+/** A small chip for a task on the timeline, dragged to move it to a day. */
 const TaskChip = ({
   task,
   userOf,
+  showPeople,
+  draggable,
+  dragging,
+  onDragStart,
+  onDragEnd,
+  onPickDay,
 }: {
   task: Task;
   userOf: (id: string) => Who | undefined;
+  showPeople: boolean;
+  draggable: boolean;
+  dragging: boolean;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  /** Without a mouse: pick its day instead of dragging. */
+  onPickDay: (day: string | null) => void;
 }) => {
   const done = task.status === 'DONE';
   const underWay = UNDER_WAY.includes(task.status);
   const who = (task.assigneeIds ?? []).map(userOf).filter(Boolean) as Who[];
+  const body = (
+    <>
+      <span className="line-clamp-2 min-w-0 flex-1 text-left">
+        {task.title}
+      </span>
+      {showPeople && who[0] && (
+        <UserAvatar src={who[0].avatar} name={who[0].name} size={16} />
+      )}
+    </>
+  );
   return (
     <li
-      title={task.title}
+      title={draggable ? `${task.title}\nDrag to a day to move it` : task.title}
+      draggable={draggable}
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/plain', task.id);
+        e.dataTransfer.effectAllowed = 'move';
+        onDragStart();
+      }}
+      onDragEnd={onDragEnd}
       className={cn(
         'flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] leading-tight',
+        draggable && 'cursor-grab active:cursor-grabbing',
+        dragging && 'opacity-40',
         done
-          ? 'border-emerald-400/15 bg-emerald-400/[0.06] text-neutral-400 line-through decoration-neutral-600'
+          ? 'border-emerald-400/15 bg-emerald-400/[0.06] text-neutral-400 line-through decoration-neutral-600 auto-light:text-neutral-600 auto-light:decoration-neutral-400'
           : underWay
-            ? 'border-sky-400/20 bg-sky-400/[0.07] text-neutral-100'
-            : 'border-white/[0.07] bg-white/[0.03] text-neutral-200',
+            ? 'border-sky-400/20 bg-sky-400/[0.07] text-neutral-100 auto-light:text-neutral-900'
+            : 'border-white/[0.07] bg-white/[0.03] text-neutral-200 auto-light:border-black/[0.088] auto-light:bg-black/[0.03] auto-light:text-neutral-800',
       )}
     >
-      <span className="line-clamp-2 min-w-0 flex-1">{task.title}</span>
-      {who[0] && (
-        <UserAvatar src={who[0].avatar} name={who[0].name} size={16} />
+      {draggable ? (
+        <DatePopover
+          value={task.forDate ?? null}
+          onPick={onPickDay}
+          clearable
+          align="start"
+          trigger={
+            <button
+              type="button"
+              className="flex min-w-0 flex-1 cursor-[inherit] items-center gap-1.5"
+            >
+              {body}
+            </button>
+          }
+        />
+      ) : (
+        body
       )}
     </li>
   );
@@ -805,16 +988,17 @@ const TaskChip = ({
 /* -------------------------------------------------------------------------- */
 
 /**
- * The project's tasks and the work logged on them, in one of four views:
- * a board by status, a list by when they are for, the next two weeks, or
- * each person's work. Worklogs and tasks are one thing: what people log are
- * work points under a task.
+ * The project's tasks and the work logged on them, for one day, a week
+ * (Monday to Sunday) or a month, in one of four views: a board by status, a
+ * list by day, a timeline to plan days on, or each person's work. Worklogs
+ * and tasks are one thing: what people log are work points under a task.
  */
 export const ProjectTasks = ({
   projectId,
   tasks,
   people,
   companyUsers,
+  color,
   canAdd,
   canTick,
   canDelete,
@@ -829,6 +1013,8 @@ export const ProjectTasks = ({
   people: Person[];
   /** Everyone in the company, to give a task to. */
   companyUsers: Person[];
+  /** The project's color, for the activity chart. */
+  color?: string | null;
   canAdd: boolean;
   /** Tick off and change tasks. */
   canTick: boolean;
@@ -846,6 +1032,17 @@ export const ProjectTasks = ({
   const [removing, setRemoving] = useState<Task | null>(null);
   const [busy, setBusy] = useState(false);
   const [showDone, setShowDone] = useState(false);
+  const [span, setSpan, peekSpan] = useStored<Span>(SPAN_KEY, 'week', (v) =>
+    SPANS.some((s) => s.value === v),
+  );
+  const [anchor, setAnchor] = useState(() => key(dayjs()));
+  const [show, setShow] = useStored<{ people: boolean; info: boolean }>(
+    SHOW_KEY,
+    { people: false, info: false },
+    (v) => !!v && typeof v === 'object',
+  );
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [over, setOver] = useState<string | null>(null);
 
   useEffect(() => setLocal(tasks), [tasks]);
 
@@ -914,8 +1111,39 @@ export const ProjectTasks = ({
     ((t.assigneeIds ?? []).includes(user.id) || t.ownerId === user.id);
   const scoped = whose === 'mine' ? live.filter(mine) : live;
   const open = scoped.filter(isOpen);
-  const weekAgo = dayjs().subtract(7, 'day');
-  const doneThisWeek = scoped.filter((t) => doneSince(t, weekAgo));
+
+  const today = key(dayjs());
+  // The timeline plans weeks and months; a day is a week there.
+  const viewSpan: Span =
+    layout === 'timeline' && span === 'day' ? 'week' : span;
+  const range = rangeOf(viewSpan, anchor);
+  const from = key(range.from);
+  const to = key(range.to);
+  const isNow = today >= from && today <= to;
+
+  /**
+   * Whether a task belongs to the days shown: open ones for a day in them,
+   * finished ones finished in them. Work under way with no day, or a day
+   * gone by, is the current week's (or day's, or month's) work.
+   */
+  const inRange = (t: Task) => {
+    if (t.status === 'DONE') {
+      const d = doneDayOf(t);
+      return !!d && d >= from && d <= to;
+    }
+    if (!isOpen(t)) return false;
+    const d = dayOf(t);
+    if (d && d >= from && d <= to) return true;
+    return isNow && UNDER_WAY.includes(t.status) && (!d || d < from);
+  };
+  const shown = scoped.filter(inRange);
+  const shownOpen = shown.filter(isOpen);
+  const shownDone = shown.filter((t) => t.status === 'DONE');
+  const overdue = open.filter((t) => {
+    const d = dayOf(t);
+    return !!d && d < today;
+  });
+  const unplanned = open.filter((t) => !dayOf(t));
 
   const byRecent = (a: Task, b: Task) =>
     lastActive(b, pointsOf.get(b.id) ?? []).localeCompare(
@@ -963,6 +1191,19 @@ export const ProjectTasks = ({
     }
   };
 
+  /** Moves a task to a day on the timeline, or off it (null). */
+  const moveTo = (task: Task | undefined, day: string | null) => {
+    setDragId(null);
+    setOver(null);
+    if (!task || (task.forDate ?? null) === day) return;
+    update(task, { forDate: day });
+    toast.success(
+      day
+        ? `Moved to ${dayLabel(day)}`
+        : 'Moved to Unplanned: it has no day now',
+    );
+  };
+
   const remove = async () => {
     if (!removing) return;
     setBusy(true);
@@ -981,7 +1222,7 @@ export const ProjectTasks = ({
 
   const rows = (list: Task[], empty: string) =>
     list.length ? (
-      <ul className="flex flex-col gap-2">
+      <ul className="overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.015] auto-light:border-black/[0.075] auto-light:bg-black/[0.015]">
         {list.map((task) => (
           <TaskRow
             key={task.id}
@@ -992,6 +1233,8 @@ export const ProjectTasks = ({
             canTick={canTick}
             canEdit={canTick}
             canDelete={canDelete}
+            showPeople={show.people}
+            fullInfo={show.info}
             onTick={tick}
             onUpdate={update}
             onDelete={setRemoving}
@@ -1002,8 +1245,179 @@ export const ProjectTasks = ({
       <Empty>{empty}</Empty>
     );
 
-  const today = dayjs().format('YYYY-MM-DD');
-  const weekEnd = dayjs().add(6, 'day').format('YYYY-MM-DD');
+  /** Where a dragged task can be dropped: a day, or Unplanned (null). */
+  const dropZone = (zone: string | null) => {
+    const id = zone ?? 'unplanned';
+    return {
+      onDragOver: (e: React.DragEvent) => {
+        if (!dragId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (over !== id) setOver(id);
+      },
+      onDragLeave: (e: React.DragEvent) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node))
+          setOver((o) => (o === id ? null : o));
+      },
+      onDrop: (e: React.DragEvent) => {
+        e.preventDefault();
+        const taskId = e.dataTransfer.getData('text/plain') || dragId;
+        moveTo(
+          live.find((t) => t.id === taskId),
+          zone,
+        );
+      },
+    };
+  };
+
+  const chips = (list: Task[]) =>
+    list.map((t) => (
+      <TaskChip
+        key={t.id}
+        task={t}
+        userOf={userOf}
+        showPeople={show.people}
+        draggable={canTick && isOpen(t)}
+        dragging={dragId === t.id}
+        onDragStart={() => setDragId(t.id)}
+        onDragEnd={() => {
+          setDragId(null);
+          setOver(null);
+        }}
+        onPickDay={(day) => moveTo(t, day)}
+      />
+    ));
+
+  /** The open tasks on a day, and the ones finished on it. */
+  const onDay = (day: string) =>
+    scoped.filter(
+      (t) =>
+        (isOpen(t) && dayOf(t) === day) ||
+        (t.status === 'DONE' && doneDayOf(t) === day),
+    );
+
+  /** Unplanned and overdue work, at the end of the timeline. */
+  const tray = (
+    <div className="flex min-w-0 flex-col gap-2">
+      <div
+        {...dropZone(null)}
+        className={cn(
+          'min-w-0 rounded-xl border border-dashed border-white/[0.1] p-1.5 transition-colors auto-light:border-black/[0.125]',
+          over === 'unplanned' && 'border-sky-400/60 bg-sky-400/[0.06]',
+        )}
+      >
+        <p className="mb-1.5 flex items-center gap-1 px-1 text-[11px] font-semibold text-neutral-400 auto-light:text-neutral-600">
+          <Icon name="inbox" className="text-[14px]" />
+          Unplanned
+          <span className="font-normal text-neutral-600 auto-light:text-neutral-400">
+            {unplanned.length}
+          </span>
+        </p>
+        <ul className="flex flex-col gap-1">
+          {chips([...unplanned].sort(byRecent))}
+        </ul>
+        {!unplanned.length && (
+          <p className="px-1 pb-1 text-[11px] text-neutral-600 auto-light:text-neutral-400">
+            Tasks with no day. Drop one here to take its day off.
+          </p>
+        )}
+      </div>
+      <div className="min-w-0 rounded-xl border border-dashed border-rose-400/20 p-1.5">
+        <p className="mb-1.5 flex items-center gap-1 px-1 text-[11px] font-semibold text-rose-300/80 auto-light:text-rose-700/80">
+          <Icon name="schedule" className="text-[14px]" />
+          Overdue
+          <span className="font-normal text-neutral-600 auto-light:text-neutral-400">
+            {overdue.length}
+          </span>
+        </p>
+        <ul className="flex flex-col gap-1">
+          {chips([...overdue].sort(byDay))}
+        </ul>
+        {!overdue.length && (
+          <p className="px-1 pb-1 text-[11px] text-neutral-600 auto-light:text-neutral-400">
+            Nothing late.
+          </p>
+        )}
+      </div>
+      {canTick && (unplanned.length > 0 || overdue.length > 0) && (
+        <p className="px-1 text-[10px] leading-snug text-neutral-600 auto-light:text-neutral-400">
+          Drag a task onto a day to plan it, or tap it to pick one.
+        </p>
+      )}
+    </div>
+  );
+
+  const dayCell = (
+    d: dayjs.Dayjs,
+    opts: { inMonth?: boolean; cap?: number },
+  ) => {
+    const k = key(d);
+    const isToday = k === today;
+    const weekend = d.day() === 0 || d.day() === 6;
+    const list = onDay(k).sort(
+      (a, b) =>
+        Number(a.status === 'DONE') - Number(b.status === 'DONE') ||
+        byRecent(a, b),
+    );
+    const cap = opts.cap ?? Infinity;
+    return (
+      <div
+        key={k}
+        {...dropZone(k)}
+        className={cn(
+          'min-w-0 rounded-xl p-1 transition-colors',
+          opts.cap ? 'min-h-[96px]' : 'min-h-[160px]',
+          isToday &&
+            'bg-white/[0.04] ring-1 ring-white/10 auto-light:bg-black/[0.04] auto-light:ring-black/[0.125]',
+          weekend && !isToday && 'bg-white/[0.015] auto-light:bg-black/[0.015]',
+          opts.inMonth === false && 'opacity-40',
+          over === k && 'bg-sky-400/[0.08] ring-1 ring-sky-400/50',
+        )}
+      >
+        <p
+          className={cn(
+            'mb-1.5 px-1 text-[11px]',
+            isToday
+              ? 'font-semibold text-white auto-light:text-neutral-950'
+              : 'text-neutral-500',
+          )}
+        >
+          {opts.cap ? (
+            <>
+              {isToday ? 'Today ' : ''}
+              <span
+                className={cn(
+                  !isToday && 'text-neutral-400 auto-light:text-neutral-600',
+                )}
+              >
+                {d.format('D')}
+              </span>
+            </>
+          ) : (
+            <>
+              {isToday ? 'Today' : d.format('ddd')}{' '}
+              <span className="text-neutral-600 auto-light:text-neutral-400">
+                {d.format('D')}
+              </span>
+            </>
+          )}
+        </p>
+        <ul className="flex flex-col gap-1">{chips(list.slice(0, cap))}</ul>
+        {list.length > cap && (
+          <button
+            type="button"
+            onClick={() => {
+              setAnchor(k);
+              peekSpan('week');
+            }}
+            className="mt-1 px-1 text-[10px] text-neutral-500 hover:text-neutral-200 auto-light:hover:text-neutral-800"
+          >
+            +{list.length - cap} more
+          </button>
+        )}
+      </div>
+    );
+  };
 
   const view = (() => {
     switch (layout) {
@@ -1013,83 +1427,122 @@ export const ProjectTasks = ({
             key: 'todo',
             title: 'To do',
             icon: 'radio_button_unchecked',
-            tasks: open.filter((t) => t.status === 'TODO').sort(byDay),
+            tasks: shownOpen.filter((t) => t.status === 'TODO').sort(byDay),
             empty: 'Nothing waiting',
           },
           {
             key: 'doing',
             title: 'Doing',
             icon: 'progress_activity',
-            tasks: open
+            tasks: shownOpen
               .filter((t) => UNDER_WAY.includes(t.status))
               .sort(byRecent),
             empty: 'Nothing under way',
           },
           {
             key: 'done',
-            title: 'Done this week',
+            title: 'Done',
             icon: 'check_circle',
-            tasks: [...doneThisWeek].sort(byRecent),
-            empty: 'Nothing finished this week',
+            tasks: [...shownDone].sort(byRecent),
+            empty: 'Nothing finished yet',
           },
         ];
+        const outside = isNow
+          ? open.filter(
+              (t) =>
+                t.status === 'TODO' && (!dayOf(t) || (dayOf(t) ?? '') < from),
+            )
+          : [];
         return (
-          <div className="grid gap-5 lg:grid-cols-3">
-            {columns.map((c) => (
-              <div key={c.key} className="min-w-0">
-                <ColumnTitle
-                  icon={c.icon}
-                  title={c.title}
-                  count={c.tasks.length}
-                />
-                {rows(c.tasks, c.empty)}
-              </div>
-            ))}
+          <div>
+            <div className="grid gap-4 lg:grid-cols-3">
+              {columns.map((c) => (
+                <div key={c.key} className="min-w-0">
+                  <ColumnTitle
+                    icon={c.icon}
+                    title={c.title}
+                    count={c.tasks.length}
+                  />
+                  {rows(c.tasks, c.empty)}
+                </div>
+              ))}
+            </div>
+            {outside.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onLayout('timeline')}
+                className="mt-3 flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-200 auto-light:hover:text-neutral-800"
+              >
+                <Icon name="inbox" className="text-[15px]" />
+                {outside.length} more{' '}
+                {outside.length === 1 ? 'task is' : 'tasks are'} overdue or have
+                no day. Plan them on the timeline
+                <Icon name="chevron_right" className="text-[15px]" />
+              </button>
+            )}
           </div>
         );
       }
       case 'list': {
-        const sorted = [...open].sort(byDay);
-        const groups = [
-          {
-            key: 'late',
-            title: 'Overdue',
-            icon: 'schedule',
-            tone: 'text-rose-300/80',
-            tasks: sorted.filter((t) => (dayOf(t) ?? '9999') < today),
-          },
-          {
-            key: 'today',
-            title: 'Today',
-            icon: 'today',
-            tasks: sorted.filter((t) => dayOf(t) === today),
-          },
-          {
-            key: 'week',
-            title: 'Next 7 days',
-            icon: 'date_range',
-            tasks: sorted.filter((t) => {
-              const d = dayOf(t);
-              return !!d && d > today && d <= weekEnd;
-            }),
-          },
-          {
-            key: 'later',
-            title: 'Later',
-            icon: 'event_upcoming',
-            tasks: sorted.filter((t) => (dayOf(t) ?? '') > weekEnd),
-          },
-          {
-            key: 'none',
-            title: 'No date',
-            icon: 'event_busy',
-            tasks: sorted.filter((t) => !dayOf(t)),
-          },
+        const sorted = [...shownOpen].sort(byDay);
+        // A day's tasks for a day or a week; a week's for a month.
+        const groupKey = (t: Task) => {
+          const d = dayOf(t);
+          if (!d || d < from) return 'now';
+          return viewSpan === 'month' ? key(mondayOf(dayjs(d))) : d;
+        };
+        const groups = new Map<string, Task[]>();
+        for (const t of sorted)
+          groups.set(groupKey(t), [...(groups.get(groupKey(t)) ?? []), t]);
+        const titleOf = (k: string) =>
+          k === 'now'
+            ? 'Under way'
+            : viewSpan === 'month'
+              ? `Week of ${dayjs(k).format('D MMM')}`
+              : dayLabel(k);
+        const extra = isNow
+          ? [
+              {
+                key: 'late',
+                title: 'Overdue',
+                icon: 'schedule',
+                tone: 'text-rose-300/80 auto-light:text-rose-700/80',
+                tasks: open
+                  .filter(
+                    (t) => t.status === 'TODO' && (dayOf(t) ?? '9999') < from,
+                  )
+                  .sort(byDay),
+              },
+            ]
+          : [];
+        const all = [
+          ...extra,
+          ...Array.from(groups.entries()).map(([k, list]) => ({
+            key: k,
+            title: titleOf(k),
+            icon: k === 'now' ? 'progress_activity' : 'today',
+            tone:
+              k === today
+                ? 'text-neutral-200 auto-light:text-neutral-800'
+                : undefined,
+            tasks: list,
+          })),
+          ...(isNow
+            ? [
+                {
+                  key: 'none',
+                  title: 'No date',
+                  icon: 'event_busy',
+                  tone: undefined,
+                  tasks: open.filter((t) => t.status === 'TODO' && !dayOf(t)),
+                },
+              ]
+            : []),
         ].filter((g) => g.tasks.length);
         return (
-          <div className="flex flex-col gap-7">
-            {!groups.length && <Empty>No open tasks</Empty>}
-            {groups.map((g) => (
+          <div className="flex flex-col gap-6">
+            {!all.length && <Empty>No open tasks in these days</Empty>}
+            {all.map((g) => (
               <div key={g.key}>
                 <ColumnTitle
                   icon={g.icon}
@@ -1104,7 +1557,7 @@ export const ProjectTasks = ({
               <button
                 type="button"
                 onClick={() => setShowDone((v) => !v)}
-                className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-500 hover:text-neutral-300"
+                className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-500 hover:text-neutral-300 auto-light:hover:text-neutral-700"
               >
                 <Icon
                   name="chevron_right"
@@ -1113,15 +1566,14 @@ export const ProjectTasks = ({
                     showDone && 'rotate-90',
                   )}
                 />
-                Done this week
-                <span className="text-neutral-600">{doneThisWeek.length}</span>
+                Done
+                <span className="text-neutral-600 auto-light:text-neutral-400">
+                  {shownDone.length}
+                </span>
               </button>
               {showDone && (
                 <div className="mt-2.5">
-                  {rows(
-                    [...doneThisWeek].sort(byRecent),
-                    'Nothing finished this week',
-                  )}
+                  {rows([...shownDone].sort(byRecent), 'Nothing finished yet')}
                 </div>
               )}
             </div>
@@ -1129,89 +1581,45 @@ export const ProjectTasks = ({
         );
       }
       case 'timeline': {
-        const start = dayjs().startOf('day');
-        const days = Array.from({ length: 7 }, (_, i) => start.add(i, 'day'));
-        const last = days[days.length - 1].format('YYYY-MM-DD');
-        const earlier = open
-          .filter((t) => (dayOf(t) ?? '9999') < today)
-          .sort(byDay);
-        const undated = open.filter((t) => !dayOf(t));
-        const later = open.filter((t) => (dayOf(t) ?? '') > last);
-        const on = (day: string) =>
-          scoped.filter(
-            (t) =>
-              (isOpen(t) && dayOf(t) === day) ||
-              (t.status === 'DONE' &&
-                !!t.completedAt &&
-                dayjs(t.completedAt as unknown as string).format(
-                  'YYYY-MM-DD',
-                ) === day &&
-                day === today),
-          );
-        return (
-          <div>
-            <div className="custom-scrollbar -mx-1 overflow-x-auto px-1 pb-2">
-              <div className="grid min-w-[760px] grid-cols-[repeat(8,minmax(0,1fr))] gap-1.5">
-                <div className="min-w-0">
-                  <p className="mb-2 text-[11px] font-semibold text-rose-300/80">
-                    Overdue
-                  </p>
-                  <ul className="flex flex-col gap-1">
-                    {earlier.map((t) => (
-                      <TaskChip key={t.id} task={t} userOf={userOf} />
-                    ))}
-                  </ul>
-                </div>
-                {days.map((d) => {
-                  const key = d.format('YYYY-MM-DD');
-                  const isToday = key === today;
-                  const weekend = d.day() === 0 || d.day() === 6;
-                  const list = on(key);
-                  return (
-                    <div
-                      key={key}
-                      className={cn(
-                        'min-w-0 rounded-xl p-1',
-                        isToday && 'bg-white/[0.04] ring-1 ring-white/10',
-                        weekend && !isToday && 'bg-white/[0.015]',
-                      )}
-                    >
+        if (viewSpan === 'month') {
+          const start = mondayOf(range.from);
+          const weeks = Math.ceil((range.to.diff(start, 'day') + 1) / 7);
+          return (
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
+              <div className="custom-scrollbar -mx-1 overflow-x-auto px-1 pb-2">
+                <div className="grid min-w-[700px] grid-cols-7 gap-1">
+                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(
+                    (d) => (
                       <p
-                        className={cn(
-                          'mb-2 px-1 text-[11px]',
-                          isToday
-                            ? 'font-semibold text-white'
-                            : 'text-neutral-500',
-                        )}
+                        key={d}
+                        className="px-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-600 auto-light:text-neutral-400"
                       >
-                        {isToday ? 'Today' : d.format('ddd')}{' '}
-                        <span className="text-neutral-600">
-                          {d.format('D')}
-                        </span>
+                        {d}
                       </p>
-                      <ul className="flex flex-col gap-1">
-                        {list.map((t) => (
-                          <TaskChip key={t.id} task={t} userOf={userOf} />
-                        ))}
-                      </ul>
-                    </div>
-                  );
-                })}
+                    ),
+                  )}
+                  {Array.from({ length: weeks * 7 }, (_, i) => {
+                    const d = start.add(i, 'day');
+                    return dayCell(d, {
+                      inMonth: d.isSame(range.from, 'month'),
+                      cap: 3,
+                    });
+                  })}
+                </div>
               </div>
+              {tray}
             </div>
-            {(undated.length > 0 || later.length > 0) && (
-              <p className="mt-3 text-xs text-neutral-500">
-                {[
-                  undated.length &&
-                    `${undated.length} open task${undated.length === 1 ? ' has' : 's have'} no date`,
-                  later.length &&
-                    `${later.length} ${later.length === 1 ? 'is' : 'are'} for after this week`,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-                . The List view shows them.
-              </p>
-            )}
+          );
+        }
+        const days = Array.from({ length: 7 }, (_, i) =>
+          range.from.add(i, 'day'),
+        );
+        return (
+          <div className="custom-scrollbar -mx-1 overflow-x-auto px-1 pb-2">
+            <div className="grid min-w-[900px] grid-cols-[repeat(7,minmax(0,1fr))_minmax(0,1.25fr)] gap-1.5">
+              {days.map((d) => dayCell(d, {}))}
+              {tray}
+            </div>
           </div>
         );
       }
@@ -1219,7 +1627,7 @@ export const ProjectTasks = ({
         const ids = Array.from(
           new Set([
             ...people.map((p) => p.id),
-            ...open.flatMap((t) => t.assigneeIds ?? []),
+            ...shownOpen.flatMap((t) => t.assigneeIds ?? []),
           ]),
         );
         const rowsOf = ids
@@ -1228,13 +1636,13 @@ export const ProjectTasks = ({
             return {
               who: userOf(id),
               id,
-              doing: open
+              doing: shownOpen
                 .filter((t) => theirs(t) && UNDER_WAY.includes(t.status))
                 .sort(byRecent),
-              todo: open
+              todo: shownOpen
                 .filter((t) => theirs(t) && t.status === 'TODO')
                 .sort(byDay),
-              done: doneThisWeek.filter(theirs).length,
+              done: shownDone.filter(theirs).length,
             };
           })
           .filter((r) => r.who)
@@ -1244,13 +1652,13 @@ export const ProjectTasks = ({
               b.todo.length - a.todo.length ||
               b.done - a.done,
           );
-        const nobody = open.filter((t) => !(t.assigneeIds ?? []).length);
+        const nobody = shownOpen.filter((t) => !(t.assigneeIds ?? []).length);
         return (
           <div className="grid gap-4 lg:grid-cols-2">
             {rowsOf.map((r) => (
               <div
                 key={r.id}
-                className="min-w-0 rounded-2xl border border-white/[0.06] bg-white/[0.015] p-3"
+                className="min-w-0 rounded-2xl border border-white/[0.06] bg-white/[0.015] p-3 auto-light:border-black/[0.075] auto-light:bg-black/[0.015]"
               >
                 <div className="mb-3 flex items-center gap-2.5">
                   <UserAvatar
@@ -1258,46 +1666,50 @@ export const ProjectTasks = ({
                     name={r.who!.name}
                     size={28}
                   />
-                  <p className="min-w-0 flex-1 truncate text-sm font-medium text-white">
+                  <p className="min-w-0 flex-1 truncate text-sm font-medium text-white auto-light:text-neutral-950">
                     {r.who!.name}
                   </p>
                   <span className="flex shrink-0 gap-3 text-[11px] tabular-nums text-neutral-500">
                     <span>
-                      <b className="font-semibold text-sky-300">
+                      <b className="font-semibold text-sky-300 auto-light:text-sky-700">
                         {r.doing.length}
                       </b>{' '}
                       doing
                     </span>
                     <span>
-                      <b className="font-semibold text-neutral-200">
+                      <b className="font-semibold text-neutral-200 auto-light:text-neutral-800">
                         {r.todo.length}
                       </b>{' '}
                       to do
                     </span>
                     <span>
-                      <b className="font-semibold text-emerald-300">{r.done}</b>{' '}
+                      <b className="font-semibold text-emerald-300 auto-light:text-emerald-700">
+                        {r.done}
+                      </b>{' '}
                       done
                     </span>
                   </span>
                 </div>
                 {rows(
-                  [...r.doing, ...r.todo].slice(0, 4),
-                  'Nothing open right now',
+                  [...r.doing, ...r.todo].slice(0, 5),
+                  'Nothing open in these days',
                 )}
-                {r.doing.length + r.todo.length > 4 && (
+                {r.doing.length + r.todo.length > 5 && (
                   <p className="mt-2 text-[11px] text-neutral-500">
-                    +{r.doing.length + r.todo.length - 4} more
+                    +{r.doing.length + r.todo.length - 5} more
                   </p>
                 )}
               </div>
             ))}
             {nobody.length > 0 && (
-              <div className="min-w-0 rounded-2xl border border-dashed border-white/[0.08] p-3">
-                <p className="mb-3 text-sm font-medium text-neutral-400">
+              <div className="min-w-0 rounded-2xl border border-dashed border-white/[0.08] p-3 auto-light:border-black/10">
+                <p className="mb-3 text-sm font-medium text-neutral-400 auto-light:text-neutral-600">
                   Nobody on it yet{' '}
-                  <span className="text-neutral-600">{nobody.length}</span>
+                  <span className="text-neutral-600 auto-light:text-neutral-400">
+                    {nobody.length}
+                  </span>
                 </p>
-                {rows(nobody.sort(byDay).slice(0, 4), '')}
+                {rows(nobody.sort(byDay).slice(0, 5), '')}
               </div>
             )}
           </div>
@@ -1306,9 +1718,29 @@ export const ProjectTasks = ({
     }
   })();
 
+  const hint = rangeHint(viewSpan, range.from);
+  const step = (dir: 1 | -1) =>
+    setAnchor(key(dayjs(anchor).add(dir, viewSpan)));
+
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <ActivityChart
+        points={data?.points ?? []}
+        tasks={live}
+        color={color}
+        loading={!data}
+        from={from}
+        to={to}
+        onPick={(day) => {
+          // A look at one day; the kept view stays as it was.
+          setAnchor(day);
+          if (layout === 'timeline') {
+            if (span === 'month') peekSpan('week');
+          } else peekSpan('day');
+        }}
+      />
+
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <Segmented<TaskLayout>
           value={layout}
           onChange={onLayout}
@@ -1323,6 +1755,127 @@ export const ProjectTasks = ({
             { value: 'mine', label: 'Mine' },
           ]}
         />
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              title="What each task shows"
+              className={cn(
+                'flex h-10 items-center gap-1.5 rounded-lg border border-white/[0.07] px-3 text-xs font-medium text-neutral-400 transition-colors hover:bg-white/[0.05] hover:text-neutral-200 auto-light:border-black/[0.088] auto-light:text-neutral-600 auto-light:hover:bg-black/[0.05] auto-light:hover:text-neutral-800',
+                (show.people || show.info) &&
+                  'text-neutral-200 auto-light:text-neutral-800',
+              )}
+            >
+              <Icon name="tune" className="text-[16px]" />
+              Show
+              {(show.people || show.info) && (
+                <span className="rounded bg-white/[0.08] px-1.5 py-px text-[10px] font-semibold auto-light:bg-black/[0.08]">
+                  {Number(show.people) + Number(show.info)}
+                </span>
+              )}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="end"
+            className="w-60 border-white/10 bg-neutral-900 p-1.5 text-neutral-200 auto-light:border-black/[0.125] auto-light:bg-white auto-light:text-neutral-800"
+          >
+            {(
+              [
+                {
+                  k: 'people',
+                  label: 'People',
+                  hint: 'Who is on each task',
+                  icon: 'group',
+                },
+                {
+                  k: 'info',
+                  label: 'Full info',
+                  hint: 'Its day, points and latest note',
+                  icon: 'notes',
+                },
+              ] as const
+            ).map((o) => {
+              const on = show[o.k];
+              return (
+                <button
+                  key={o.k}
+                  type="button"
+                  onClick={() => setShow({ ...show, [o.k]: !on })}
+                  className="flex w-full items-center gap-2.5 rounded-lg p-2 text-left hover:bg-white/[0.06] auto-light:hover:bg-black/[0.06]"
+                >
+                  <Icon
+                    name={o.icon}
+                    className="text-[18px] text-neutral-500"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm">{o.label}</span>
+                    <span className="block text-[11px] text-neutral-500">
+                      {o.hint}
+                    </span>
+                  </span>
+                  <Icon
+                    name={on ? 'check_box' : 'check_box_outline_blank'}
+                    filled={on}
+                    className={cn(
+                      'text-[18px]',
+                      on
+                        ? 'text-sky-300 auto-light:text-sky-700'
+                        : 'text-neutral-600 auto-light:text-neutral-400',
+                    )}
+                  />
+                </button>
+              );
+            })}
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => step(-1)}
+            aria-label={`Previous ${viewSpan}`}
+            className="flex size-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-white/[0.06] hover:text-white auto-light:text-neutral-600 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-950"
+          >
+            <Icon name="chevron_left" className="text-[20px]" />
+          </button>
+          <button
+            type="button"
+            onClick={() => step(1)}
+            aria-label={`Next ${viewSpan}`}
+            className="flex size-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-white/[0.06] hover:text-white auto-light:text-neutral-600 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-950"
+          >
+            <Icon name="chevron_right" className="text-[20px]" />
+          </button>
+        </div>
+        <p className="text-sm font-semibold text-white auto-light:text-neutral-950">
+          {rangeLabel(viewSpan, range.from, range.to)}
+          {hint && (
+            <span className="ml-2 text-xs font-normal text-neutral-500">
+              {hint}
+            </span>
+          )}
+        </p>
+        {!isNow && (
+          <button
+            type="button"
+            onClick={() => setAnchor(today)}
+            className="h-7 rounded-lg border border-white/[0.08] px-2.5 text-xs text-neutral-300 hover:bg-white/[0.06] hover:text-white auto-light:border-black/10 auto-light:text-neutral-700 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-950"
+          >
+            Today
+          </button>
+        )}
+        <div className="flex-1" />
+        <Segmented<Span>
+          value={viewSpan}
+          onChange={setSpan}
+          options={
+            layout === 'timeline'
+              ? SPANS.filter((s) => s.value !== 'day')
+              : SPANS
+          }
+        />
       </div>
 
       {canAdd && me && (
@@ -1330,6 +1883,7 @@ export const ProjectTasks = ({
           projectId={projectId}
           me={me}
           people={assignable}
+          defaultDay={viewSpan === 'day' && from !== today ? from : null}
           onAdded={(task) => {
             if (task) setLocal((all) => [...all, task]);
             onSaved();

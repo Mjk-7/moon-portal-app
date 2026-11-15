@@ -129,7 +129,7 @@ const ForWhom = ({
                 src={p.avatar}
                 name={p.name}
                 size={18}
-                className="ring-2 ring-neutral-950"
+                className="ring-2 ring-neutral-950 auto-light:ring-neutral-100"
               />
             ))}
           </span>
@@ -186,7 +186,7 @@ const Contributors = ({
               src={p?.avatar}
               name={p?.name}
               size={22}
-              className="ring-2 ring-neutral-950"
+              className="ring-2 ring-neutral-950 auto-light:ring-neutral-100"
             />
           );
         })}
@@ -205,7 +205,7 @@ const GoalCover = ({ goal }: { goal: ProjectGoal }) =>
       target="_blank"
       rel="noreferrer"
       aria-label={`Inspiration for ${goal.title}`}
-      className="group relative block h-32 overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.03] sm:h-40"
+      className="group relative block h-32 overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.03] auto-light:border-black/[0.075] auto-light:bg-black/[0.03] sm:h-40"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -215,7 +215,7 @@ const GoalCover = ({ goal }: { goal: ProjectGoal }) =>
         className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
       />
       <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-      <span className="pointer-events-none absolute bottom-2 left-3 flex items-center gap-1 text-[11px] font-medium text-white/80">
+      <span className="pointer-events-none absolute bottom-2 left-3 flex items-center gap-1 text-[11px] font-medium text-white/80 auto-light:text-neutral-950/80">
         <Icon name="auto_awesome" className="text-[13px]" />
         Inspiration
       </span>
@@ -265,7 +265,7 @@ const ScheduledGoal = ({
   const today = dayjs().format('YYYY-MM-DD');
 
   return (
-    <div className="flex flex-col gap-5 rounded-3xl border border-white/[0.07] bg-white/[0.02] p-5 lg:flex-row">
+    <div className="flex flex-col gap-5 rounded-3xl border border-white/[0.07] bg-white/[0.02] p-5 auto-light:border-black/[0.088] auto-light:bg-black/[0.02] lg:flex-row">
       <div className="flex min-w-0 flex-1 flex-col gap-4">
         <GoalCover goal={goal} />
         <div className="flex items-center gap-4">
@@ -288,7 +288,7 @@ const ScheduledGoal = ({
                 percent={percent}
                 color={percent >= 100 ? '#10b981' : color}
               />
-              <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white">
+              <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white auto-light:text-neutral-950">
                 {percent}%
               </span>
             </span>
@@ -297,14 +297,16 @@ const ScheduledGoal = ({
             <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">
               {PERIOD_WORD[goal.period]}
             </p>
-            <p className="truncate text-lg font-semibold text-white">
+            <p className="truncate text-lg font-semibold text-white auto-light:text-neutral-950">
               {goal.title}
             </p>
-            <p className="text-sm text-neutral-400">
+            <p className="text-sm text-neutral-400 auto-light:text-neutral-600">
               <span
                 className={cn(
                   'font-semibold',
-                  percent >= 100 ? 'text-emerald-400' : 'text-white',
+                  percent >= 100
+                    ? 'text-emerald-400 auto-light:text-emerald-600'
+                    : 'text-white auto-light:text-neutral-950',
                 )}
               >
                 {p?.done ?? 0}
@@ -327,7 +329,7 @@ const ScheduledGoal = ({
                 type="button"
                 aria-label="Edit goal"
                 onClick={onEdit}
-                className="flex size-7 items-center justify-center rounded-full text-neutral-500 hover:bg-white/[0.08] hover:text-white"
+                className="flex size-7 items-center justify-center rounded-full text-neutral-500 hover:bg-white/[0.08] hover:text-white auto-light:hover:bg-black/[0.08] auto-light:hover:text-neutral-950"
               >
                 <Icon name="edit" className="text-[16px]" />
               </button>
@@ -350,12 +352,14 @@ const ScheduledGoal = ({
             {p.parts.map((part) => (
               <div key={part.id}>
                 <div className="mb-1 flex items-center justify-between gap-2 text-xs">
-                  <span className="text-neutral-300">{part.label}</span>
+                  <span className="text-neutral-300 auto-light:text-neutral-700">
+                    {part.label}
+                  </span>
                   <span className="text-neutral-500">
                     {part.done}/{part.target}
                   </span>
                 </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06] auto-light:bg-black/[0.06]">
                   <motion.div
                     className="h-full rounded-full"
                     style={{ backgroundColor: color }}
@@ -385,23 +389,23 @@ const ScheduledGoal = ({
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-white/[0.03]"
+                    className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-white/[0.03] auto-light:hover:bg-black/[0.03]"
                   >
                     <button
                       type="button"
                       disabled={!canTick}
                       aria-label="Mark as done"
                       onClick={() => onTick(t)}
-                      className="flex size-[18px] shrink-0 items-center justify-center rounded-full border-2 border-neutral-600 transition-colors enabled:hover:border-emerald-400"
+                      className="flex size-[18px] shrink-0 items-center justify-center rounded-full border-2 border-neutral-600 transition-colors enabled:hover:border-emerald-400 auto-light:border-neutral-300"
                     />
-                    <span className="min-w-0 flex-1 truncate text-sm text-neutral-200">
+                    <span className="min-w-0 flex-1 truncate text-sm text-neutral-200 auto-light:text-neutral-800">
                       {t.title}
                     </span>
                     {t.carriedFrom && (
                       <Tip
                         content={`Moved on from ${forDay(t.carriedFrom)}, when the goal missed its day.`}
                       >
-                        <span className="flex shrink-0 cursor-help items-center text-rose-300/70">
+                        <span className="flex shrink-0 cursor-help items-center text-rose-300/70 auto-light:text-rose-700/70">
                           <Icon name="redo" className="text-[13px]" />
                         </span>
                       </Tip>
@@ -410,7 +414,9 @@ const ScheduledGoal = ({
                       <span
                         className={cn(
                           'shrink-0 text-[11px]',
-                          late ? 'text-rose-300' : 'text-neutral-500',
+                          late
+                            ? 'text-rose-300 auto-light:text-rose-700'
+                            : 'text-neutral-500',
                         )}
                       >
                         for {forDay(t.forDate)}
@@ -436,7 +442,7 @@ const ScheduledGoal = ({
               <button
                 type="button"
                 onClick={() => setAll((v) => !v)}
-                className="self-start px-2 pt-1 text-[11px] text-neutral-500 hover:text-neutral-200"
+                className="self-start px-2 pt-1 text-[11px] text-neutral-500 hover:text-neutral-200 auto-light:hover:text-neutral-800"
               >
                 {all ? 'Show fewer' : `${coming.length - 4} more coming up`}
               </button>
@@ -444,7 +450,7 @@ const ScheduledGoal = ({
           </ul>
         )}
 
-        <div className="mt-auto flex items-center justify-between gap-2 border-t border-white/[0.05] pt-3 text-xs text-neutral-500">
+        <div className="mt-auto flex items-center justify-between gap-2 border-t border-white/[0.05] pt-3 text-xs text-neutral-500 auto-light:border-black/[0.063]">
           <Contributors
             progress={p}
             people={people}
@@ -501,7 +507,7 @@ const ScheduledGoal = ({
         color={color}
         onTick={canTick ? (day, done) => onTickDay(goal, day, done) : undefined}
         onTickUntil={canTick ? (day) => onTickUntil(goal, day) : undefined}
-        className="shrink-0 border-white/[0.06] max-lg:border-t max-lg:pt-4 lg:w-[340px] lg:justify-center lg:border-l lg:pl-5"
+        className="shrink-0 border-white/[0.06] auto-light:border-black/[0.075] max-lg:border-t max-lg:pt-4 lg:w-[340px] lg:justify-center lg:border-l lg:pl-5"
       />
     </div>
   );
@@ -546,7 +552,7 @@ const TargetGoal = ({
         'flex flex-col gap-5 rounded-3xl border p-5 lg:flex-row',
         achieved
           ? 'border-amber-300/25 bg-amber-300/[0.04]'
-          : 'border-white/[0.07] bg-white/[0.02]',
+          : 'border-white/[0.07] bg-white/[0.02] auto-light:border-black/[0.088] auto-light:bg-black/[0.02]',
       )}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-3">
@@ -556,8 +562,8 @@ const TargetGoal = ({
             className={cn(
               'flex size-10 shrink-0 items-center justify-center rounded-xl',
               achieved
-                ? 'bg-amber-300/15 text-amber-300'
-                : 'bg-white/[0.05] text-neutral-400',
+                ? 'bg-amber-300/15 text-amber-300 auto-light:text-amber-700'
+                : 'bg-white/[0.05] text-neutral-400 auto-light:bg-black/[0.05] auto-light:text-neutral-600',
             )}
           >
             <Icon name={achieved ? 'star' : 'emoji_events'} filled={achieved} />
@@ -568,7 +574,7 @@ const TargetGoal = ({
                 ? `Reached ${goal.achievedAt ? dayjs(goal.achievedAt).format('D MMM YYYY') : ''}`
                 : 'Target'}
             </p>
-            <p className="truncate text-lg font-semibold text-white">
+            <p className="truncate text-lg font-semibold text-white auto-light:text-neutral-950">
               {fmt(goal.target)} {goal.title}
             </p>
           </div>
@@ -587,7 +593,7 @@ const TargetGoal = ({
                 type="button"
                 aria-label="Edit goal"
                 onClick={onEdit}
-                className="flex size-7 items-center justify-center rounded-full text-neutral-500 hover:bg-white/[0.08] hover:text-white"
+                className="flex size-7 items-center justify-center rounded-full text-neutral-500 hover:bg-white/[0.08] hover:text-white auto-light:hover:bg-black/[0.08] auto-light:hover:text-neutral-950"
               >
                 <Icon name="edit" className="text-[16px]" />
               </button>
@@ -615,14 +621,14 @@ const TargetGoal = ({
         >
           <div className="cursor-help">
             <div className="mb-1.5 flex items-baseline justify-between gap-2">
-              <span className="text-2xl font-bold tabular-nums text-white">
+              <span className="text-2xl font-bold tabular-nums text-white auto-light:text-neutral-950">
                 {fmt(done)}
               </span>
               <span className="text-xs text-neutral-500">
                 {Math.round(width)}%
               </span>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
+            <div className="h-2 overflow-hidden rounded-full bg-white/[0.06] auto-light:bg-black/[0.06]">
               <motion.div
                 className="h-full rounded-full"
                 style={{ backgroundColor: achieved ? '#fbbf24' : color }}
@@ -714,7 +720,7 @@ const TargetGoal = ({
         goal={goal}
         tasks={tasks}
         color={achieved ? '#fbbf24' : color}
-        className="shrink-0 border-white/[0.06] max-lg:border-t max-lg:pt-4 lg:w-[340px] lg:justify-center lg:border-l lg:pl-5"
+        className="shrink-0 border-white/[0.06] auto-light:border-black/[0.075] max-lg:border-t max-lg:pt-4 lg:w-[340px] lg:justify-center lg:border-l lg:pl-5"
       />
     </div>
   );
@@ -731,18 +737,25 @@ const Record = ({ goals }: { goals: ProjectGoal[] }) => {
   return (
     <div className="mt-10">
       <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-500">
-        <Icon name="military_tech" className="text-[16px] text-amber-300" />
+        <Icon
+          name="military_tech"
+          className="text-[16px] text-amber-300 auto-light:text-amber-700"
+        />
         Record
       </h3>
       <div className="flex flex-wrap gap-2">
         {reached.map((g) => (
           <span
             key={g.id}
-            className="flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-300/[0.06] px-3 py-1.5 text-xs text-amber-100"
+            className="flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-300/[0.06] px-3 py-1.5 text-xs text-amber-100 auto-light:text-amber-700"
           >
-            <Icon name="star" filled className="text-[14px] text-amber-300" />
+            <Icon
+              name="star"
+              filled
+              className="text-[14px] text-amber-300 auto-light:text-amber-700"
+            />
             {fmt(g.target)} {g.title}
-            <span className="text-amber-200/50">
+            <span className="text-amber-200/50 auto-light:text-amber-700/50">
               {dayjs(g.achievedAt).format('D MMM YYYY')}
             </span>
           </span>
@@ -930,7 +943,7 @@ export const GoalsSection = ({
       <Icon name={icon} className="text-[16px]" />
       {title}
       <Tip content={hint}>
-        <span className="cursor-help text-neutral-600 hover:text-neutral-300">
+        <span className="cursor-help text-neutral-600 hover:text-neutral-300 auto-light:text-neutral-400 auto-light:hover:text-neutral-700">
           <Icon name="info" className="text-[14px]" />
         </span>
       </Tip>
@@ -957,7 +970,7 @@ export const GoalsSection = ({
         }
       >
         {goals.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-white/10">
+          <div className="rounded-3xl border border-dashed border-white/10 auto-light:border-black/[0.125]">
             <EmptyState
               icon="track_changes"
               title="No goals yet"

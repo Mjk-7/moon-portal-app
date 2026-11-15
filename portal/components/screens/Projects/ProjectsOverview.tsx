@@ -43,14 +43,14 @@ const withCoreLabels = (data: Overview | null): Overview | null => {
 };
 
 const BarSkeleton = () => (
-  <div className="flex h-[220px] overflow-hidden rounded-2xl border border-white/[0.04] bg-white/[0.02]">
-    <div className="w-60 border-r border-white/[0.04] p-5">
-      <div className="size-[72px] animate-pulse rounded-2xl bg-white/[0.06]" />
-      <div className="mt-3 h-4 w-2/3 animate-pulse rounded bg-white/[0.06]" />
+  <div className="flex h-[220px] overflow-hidden rounded-2xl border border-white/[0.04] bg-white/[0.02] auto-light:border-black/5 auto-light:bg-black/[0.02]">
+    <div className="w-60 border-r border-white/[0.04] p-5 auto-light:border-black/5">
+      <div className="size-[72px] animate-pulse rounded-2xl bg-white/[0.06] auto-light:bg-black/[0.06]" />
+      <div className="mt-3 h-4 w-2/3 animate-pulse rounded bg-white/[0.06] auto-light:bg-black/[0.06]" />
     </div>
     <div className="flex-1 space-y-3 p-5">
-      <div className="h-10 animate-pulse rounded-xl bg-white/[0.04]" />
-      <div className="h-16 animate-pulse rounded-xl bg-white/[0.03]" />
+      <div className="h-10 animate-pulse rounded-xl bg-white/[0.04] auto-light:bg-black/[0.04]" />
+      <div className="h-16 animate-pulse rounded-xl bg-white/[0.03] auto-light:bg-black/[0.03]" />
     </div>
   </div>
 );
@@ -111,7 +111,7 @@ export const ProjectsOverview = () => {
         <div className="mx-auto max-w-6xl px-4 pt-6 md:px-8 md:pt-10">
           <div className="flex items-center gap-2">
             <NavMenuButton />
-            <h1 className="flex-1 text-2xl font-bold tracking-tight text-white md:text-3xl">
+            <h1 className="flex-1 text-2xl font-bold tracking-tight text-white auto-light:text-neutral-950 md:text-3xl">
               Home
             </h1>
             {data && data.companies.length > 0 && (
