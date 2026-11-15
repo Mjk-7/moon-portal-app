@@ -51,6 +51,7 @@ export const ICONS = {
   checklist: { ios: 'checklist', android: 'checklist' },
   chat: { ios: 'bubble.left.and.bubble.right.fill', android: 'chat' },
   chevronDown: { ios: 'chevron.down', android: 'expand_more' },
+  chevronUp: { ios: 'chevron.up', android: 'expand_less' },
   grid: { ios: 'square.grid.2x2', android: 'apps' },
   pin: { ios: 'pin.fill', android: 'push_pin' },
   muted: { ios: 'speaker.slash.fill', android: 'volume_off' },
