@@ -6,6 +6,8 @@ import {
   ApplyPage,
   type PublicOpening,
 } from '@/components/screens/Apply/ApplyPage';
+import { DesignedApplyPage } from '@/components/screens/Apply/DesignedApplyPage';
+import { toPublicOpening } from '@/components/screens/Apply/publicOpening';
 import { db } from '@/lib/mongodb/db-client';
 import type { JobOpening } from '@/models/hiring';
 import { JOB_OPENING_STATUS } from '@/models/hiring';
@@ -30,22 +32,7 @@ const loadOpening = cache(
     const company: Company | null = await db.company.findFirst({
       where: { id: opening.companyId },
     });
-    return {
-      slug: opening.slug,
-      title: opening.title,
-      department: opening.department ?? null,
-      location: opening.location ?? null,
-      employmentType: opening.employmentType ?? null,
-      description: opening.description ?? null,
-      details: opening.details ?? null,
-      isOpen: opening.status === JOB_OPENING_STATUS.OPEN,
-      fields: opening.fields ?? [],
-      company: {
-        name: company?.name ?? 'The Moon Devs',
-        logo: company?.logo ?? null,
-        color: company?.color ?? null,
-      },
-    };
+    return toPublicOpening(opening, company);
   },
 );
 
@@ -66,5 +53,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function Apply({ params }: Props) {
   const opening = await loadOpening(params.slug);
   if (!opening) notFound();
-  return <ApplyPage opening={opening} />;
+  return opening.applyPage ? (
+    <DesignedApplyPage opening={opening} />
+  ) : (
+    <ApplyPage opening={opening} />
+  );
 }

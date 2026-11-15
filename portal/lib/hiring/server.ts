@@ -20,6 +20,7 @@ import type {
 import { APPLICATION_STAGE, JOB_OPENING_STATUS } from '@/models/hiring';
 import { MEMBER_STATUS } from '@/models/workspace';
 
+import { APPLY_PAGES, youtubeId } from './applyPages';
 import {
   ALLOWED_FILE_TYPES,
   MAX_DESCRIPTION_LENGTH,
@@ -257,6 +258,21 @@ export function parseOpeningInput(body: Record<string, unknown>): {
     )
       return { data, error: 'Unknown opening status.' };
     data.status = body.status as JOB_OPENING_STATUS;
+  }
+  if ('applyPage' in body) {
+    const key = typeof body.applyPage === 'string' ? body.applyPage.trim() : '';
+    if (key && !(key in APPLY_PAGES))
+      return { data, error: 'Unknown apply page design.' };
+    data.applyPage = key || null;
+  }
+  if ('showcaseVideo' in body) {
+    const link =
+      typeof body.showcaseVideo === 'string'
+        ? body.showcaseVideo.trim().slice(0, 300)
+        : '';
+    if (link && !youtubeId(link))
+      return { data, error: 'The showcase video has to be a YouTube link.' };
+    data.showcaseVideo = link || null;
   }
   if ('fields' in body) data.fields = sanitizeFields(body.fields);
   if ('task' in body) data.task = sanitizeTask(body.task);

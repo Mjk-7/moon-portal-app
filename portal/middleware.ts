@@ -33,8 +33,9 @@ const PUBLIC_PAGES = [
 // `/meet` itself, where people set up their link, is not.
 const PUBLIC_PREFIXES = ['/meet/'];
 
-// The hiring team's preview of a task page sits under `/task` but needs a login.
-const PRIVATE_PREFIXES = ['/task/preview/'];
+// The hiring team's previews of task and apply pages sit under public paths
+// but need a login.
+const PRIVATE_PREFIXES = ['/task/preview/', '/apply/preview/'];
 
 const isPublicPage = (pathname: string) =>
   (!PRIVATE_PREFIXES.some((prefix) => pathname.startsWith(prefix)) &&
