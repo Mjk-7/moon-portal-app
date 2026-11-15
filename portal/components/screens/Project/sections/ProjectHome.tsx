@@ -12,6 +12,7 @@ import { APP_ROUTES } from '@/utils/constants/appInfo';
 import { Icon, UserAvatar } from '../../Admin/shared/AdminUI';
 import type { ProjectRow } from '../../Admin/Workspace/AdminProjects';
 import { docText, type Person, type ProjectData, type ViewKey } from '../types';
+import { mondayOf } from './ActivityChart';
 import {
   ProjectTasks,
   type TaskPointsData,
@@ -187,12 +188,13 @@ export const ProjectHome = ({
     t.forDate ?? (t.dueDate ? String(t.dueDate).slice(0, 10) : null);
   const open = live.filter((t) => OPEN.includes(t.status));
   const overdue = open.filter((t) => (dayOf(t) ?? '9999') < today);
-  const weekAgo = dayjs().subtract(7, 'day');
+  // This week runs Monday to Sunday, as the tasks below do.
+  const monday = mondayOf(dayjs()).format('YYYY-MM-DD');
   const doneWeek = live.filter(
     (t) =>
       t.status === 'DONE' &&
       t.completedAt &&
-      dayjs(t.completedAt as unknown as string).isAfter(weekAgo),
+      dayjs(t.completedAt as unknown as string).format('YYYY-MM-DD') >= monday,
   );
   const goals = goalBars(project);
   const met = goals.filter((g) => g.met).length;
@@ -239,7 +241,7 @@ export const ProjectHome = ({
               ? 'text-emerald-300 auto-light:text-emerald-700'
               : undefined
           }
-          hint="Tasks finished in the last 7 days"
+          hint="Tasks finished since Monday"
         />
         <Tile
           label="Overdue"
@@ -249,8 +251,8 @@ export const ProjectHome = ({
               ? 'text-rose-300 auto-light:text-rose-700'
               : undefined
           }
-          hint="Open tasks whose day has passed"
-          onClick={overdue.length ? () => setLayout('list') : undefined}
+          hint="Open tasks whose day has passed: plan them on the timeline"
+          onClick={overdue.length ? () => setLayout('timeline') : undefined}
         />
         <Tile
           label="Goals met"

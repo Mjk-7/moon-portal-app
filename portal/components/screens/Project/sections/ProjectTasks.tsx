@@ -105,10 +105,13 @@ const NewTask = ({
   projectId,
   me,
   people,
+  defaultDay,
   onAdded,
 }: {
   projectId: string;
   me: Who;
+  /** The day being looked at, when it isn't today: new tasks go on it. */
+  defaultDay?: string | null;
   /** The project's people first, then the rest of the company. */
   people: Who[];
   onAdded: (task: Task) => void;
@@ -122,6 +125,7 @@ const NewTask = ({
   const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => setAssignee(me), [me]);
+  useEffect(() => setForDate(defaultDay ?? null), [defaultDay]);
 
   const matches = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -791,7 +795,8 @@ function useStored<T>(key: string, initial: T, valid: (v: unknown) => boolean) {
       /* storage unavailable */
     }
   };
-  return [value, pick] as const;
+  // `setValue` changes it for now only, without keeping it.
+  return [value, pick, setValue] as const;
 }
 
 /** The view picked last time, on this device. */
@@ -1027,7 +1032,7 @@ export const ProjectTasks = ({
   const [removing, setRemoving] = useState<Task | null>(null);
   const [busy, setBusy] = useState(false);
   const [showDone, setShowDone] = useState(false);
-  const [span, setSpan] = useStored<Span>(SPAN_KEY, 'week', (v) =>
+  const [span, setSpan, peekSpan] = useStored<Span>(SPAN_KEY, 'week', (v) =>
     SPANS.some((s) => s.value === v),
   );
   const [anchor, setAnchor] = useState(() => key(dayjs()));
@@ -1403,7 +1408,7 @@ export const ProjectTasks = ({
             type="button"
             onClick={() => {
               setAnchor(k);
-              setSpan('week');
+              peekSpan('week');
             }}
             className="mt-1 px-1 text-[10px] text-neutral-500 hover:text-neutral-200 auto-light:hover:text-neutral-800"
           >
@@ -1722,15 +1727,17 @@ export const ProjectTasks = ({
       <ActivityChart
         points={data?.points ?? []}
         tasks={live}
+        users={Array.from(everyone.values())}
         color={color}
         loading={!data}
         from={from}
         to={to}
         onPick={(day) => {
+          // A look at one day; the kept view stays as it was.
           setAnchor(day);
           if (layout === 'timeline') {
-            if (span === 'month') setSpan('week');
-          } else setSpan('day');
+            if (span === 'month') peekSpan('week');
+          } else peekSpan('day');
         }}
       />
 
@@ -1877,6 +1884,7 @@ export const ProjectTasks = ({
           projectId={projectId}
           me={me}
           people={assignable}
+          defaultDay={viewSpan === 'day' && from !== today ? from : null}
           onAdded={(task) => {
             if (task) setLocal((all) => [...all, task]);
             onSaved();
