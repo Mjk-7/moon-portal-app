@@ -1,15 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
-import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, BackHandler, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CompanyMark } from '@/components/company-mark';
 import { Icon } from '@/components/icon';
 import { MeetingCard } from '@/components/meeting-card';
 import { MonthGrid } from '@/components/month-grid';
-import { MenuItem, Popover, useAnchor } from '@/components/popover';
+import { MenuItem } from '@/components/popover';
 import { ProjectPicker } from '@/components/project-picker';
 import { StatusDot } from '@/components/status-dot';
 import { ThemedText } from '@/components/themed-text';
@@ -26,10 +27,11 @@ import { POINT_LABEL, useChangeTask } from '@/lib/tasks';
 import type { TaskDetail } from '@/lib/types';
 
 /**
- * One task, read top down: its status and project as two dropdowns, the
- * title large, one quiet line with the exact day it is planned for and when
- * it is due, then its history. Done, at the bottom, finishes it and goes
- * back to the Work tab. Archiving sits at the end and asks first.
+ * One task, read top down: its project as a dropdown, the title large, one
+ * quiet line with the exact day it is planned for and when it is due, then
+ * its history. The bar at the bottom has Go back, and the task's status as
+ * a button whose menu opens upward. Archiving sits at the end and asks
+ * first.
  */
 export default function TaskScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -38,7 +40,7 @@ export default function TaskScreen() {
   const { profile } = useAuth();
   const change = useChangeTask();
   const label = useProjectLabel();
-  const { anchor: statusAnchor, rect: statusRect, open: openStatus, close: closeStatus } = useAnchor();
+  const [statusOpen, setStatusOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState('');
   const [moving, setMoving] = useState(false);
@@ -58,11 +60,33 @@ export default function TaskScreen() {
   const goal = task?.goalId ? data?.project?.goals?.find((g) => g.id === task.goalId) : null;
   const project = data?.project ? { ...label(data.project), personal: !!data.project.isPersonal } : null;
 
+  // Android's back button closes the status menu first.
+  useEffect(() => {
+    if (!statusOpen) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      setStatusOpen(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [statusOpen]);
+
   const setStatus = (status: StatusPick) => {
+    setStatusOpen(false);
     if (!task || status === current) return;
-    void Haptics.selectionAsync().catch(() => null);
-    change.mutate({ taskId: task.id, status });
+    if (status === 'done')
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => null);
+    else void Haptics.selectionAsync().catch(() => null);
+    change.mutate(
+      { taskId: task.id, status },
+      {
+        // Offline it waits and is sent later; a refusal from the portal says why.
+        onError: (error) =>
+          Alert.alert('The status didn’t change', error.message || 'Please try again.'),
+      },
+    );
   };
+
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/work'));
 
   const setDay = (forDate: string | null) => {
     if (task && forDate !== (task.forDate ?? null)) change.mutate({ taskId: task.id, forDate });
@@ -74,16 +98,6 @@ export default function TaskScreen() {
     if (!task) return;
     setTitle(task.title);
     setEditing(true);
-  };
-
-  // Finishes the task (when it is not yet) and goes back to the day.
-  const finish = () => {
-    if (!task) return;
-    if (current !== 'done') {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => null);
-      change.mutate({ taskId: task.id, status: 'done' });
-    }
-    router.dismissTo('/work');
   };
 
   const archive = () => {
@@ -133,7 +147,7 @@ export default function TaskScreen() {
         />
         {task && current ? (
           <>
-            {/* Status and project: two dropdowns, side by side. */}
+            {/* The project as a dropdown; the status is in the bar below. */}
             {archived ? (
               <View style={[styles.archived, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
                 <Icon name="trash" size={16} color={theme.textSecondary} />
@@ -149,19 +163,6 @@ export default function TaskScreen() {
               </View>
             ) : (
               <View style={styles.controls}>
-                <Pressable
-                  ref={statusAnchor}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Status: ${pickOf(current).label}. Change it`}
-                  onPress={openStatus}
-                  style={({ pressed }) => [
-                    styles.dropdown,
-                    { backgroundColor: theme.backgroundElement, borderColor: theme.border, opacity: pressed ? 0.7 : 1 },
-                  ]}>
-                  <StatusDot status={current} size={12} />
-                  <ThemedText type="smallBold">{pickOf(current).label}</ThemedText>
-                  <Icon name="chevronDown" size={11} color={theme.textSecondary} />
-                </Pressable>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`Project: ${project?.name ?? 'none'}. Move it`}
@@ -363,6 +364,17 @@ export default function TaskScreen() {
         ) : null}
       </Screen>
 
+      {/* A tap anywhere outside the open status menu closes it. */}
+      {statusOpen && task && current && !archived ? (
+        <Animated.View entering={FadeIn.duration(120)} style={StyleSheet.absoluteFill}>
+          <Pressable
+            style={[StyleSheet.absoluteFill, styles.scrim]}
+            onPress={() => setStatusOpen(false)}
+            accessibilityLabel="Close the status menu"
+          />
+        </Animated.View>
+      ) : null}
+
       {task && current && !archived ? (
         <View
           onLayout={(e) => setBarHeight(e.nativeEvent.layout.height)}
@@ -371,37 +383,41 @@ export default function TaskScreen() {
             { backgroundColor: theme.background, borderColor: theme.border, paddingBottom: insets.bottom + Spacing.two },
           ]}>
           {/* As wide as the page above it (an iPad). */}
-          <View style={styles.barInner}>
+          <View style={[styles.barInner, styles.barRow]}>
             <Button
-              title={current === 'done' ? 'Back to Work' : 'Done'}
-              accessibilityLabel={current === 'done' ? 'Back to Work' : 'Mark done and go back to Work'}
-              kind={current === 'done' ? 'secondary' : 'primary'}
-              icon={
-                current === 'done' ? null : <Icon name="check" size={16} color={theme.onAccent} />
-              }
-              onPress={finish}
-              style={styles.done}
+              title="Go back"
+              kind="secondary"
+              icon={<Icon name="back" size={15} color={theme.text} />}
+              onPress={goBack}
+              style={[styles.barButton, styles.flex]}
             />
+            <StatusButton status={current} open={statusOpen} onPress={() => setStatusOpen((v) => !v)} />
           </View>
         </View>
       ) : null}
 
-      {/* The status menu, dropped from its button. */}
-      <Popover rect={statusRect} onClose={closeStatus} width={250}>
-        {STATUS_PICKS.map((s) => (
-          <MenuItem
-            key={s.value}
-            label={s.label}
-            hint={s.hint}
-            leading={<StatusDot status={s.value} size={12} />}
-            selected={s.value === current}
-            onPress={() => {
-              closeStatus();
-              setStatus(s.value);
-            }}
-          />
-        ))}
-      </Popover>
+      {/* The status menu opens upward from its button, right above the bar. */}
+      {statusOpen && task && current && !archived ? (
+        <View pointerEvents="box-none" style={[styles.menuLayer, { bottom: barHeight + Spacing.two }]}>
+          <View pointerEvents="box-none" style={styles.menuRow}>
+            <Animated.View
+              entering={FadeInDown.duration(160)}
+              accessibilityRole="menu"
+              style={[styles.menu, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+              {STATUS_PICKS.map((s) => (
+                <MenuItem
+                  key={s.value}
+                  label={s.label}
+                  hint={s.hint}
+                  leading={<StatusDot status={s.value} size={12} />}
+                  selected={s.value === current}
+                  onPress={() => setStatus(s.value)}
+                />
+              ))}
+            </Animated.View>
+          </View>
+        </View>
+      ) : null}
 
       <Modal
         visible={picking}
@@ -457,6 +473,37 @@ export default function TaskScreen() {
         </View>
       </Modal>
     </View>
+  );
+}
+
+/**
+ * The task's status in the bottom bar, tinted with its colour; a tap opens
+ * the menu of statuses above it.
+ */
+function StatusButton({ status, open, onPress }: { status: StatusPick; open: boolean; onPress: () => void }) {
+  const theme = useTheme();
+  const pick = pickOf(status);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Status: ${pick.label}. Change it`}
+      accessibilityState={{ expanded: open }}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.barButton,
+        styles.statusButton,
+        {
+          backgroundColor: pick.color ? `${pick.color}26` : theme.backgroundElement,
+          borderColor: pick.color ?? theme.border,
+          opacity: pressed ? 0.8 : 1,
+        },
+      ]}>
+      <StatusDot status={status} size={12} />
+      <ThemedText type="smallBold" numberOfLines={1} style={styles.shrink}>
+        {pick.label}
+      </ThemedText>
+      <Icon name={open ? 'chevronDown' : 'chevronUp'} size={12} color={theme.textSecondary} />
+    </Pressable>
   );
 }
 
@@ -602,7 +649,32 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   barInner: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center' },
-  done: { height: 52, borderRadius: Radius.large },
+  barRow: { flexDirection: 'row', gap: Spacing.two },
+  barButton: { height: 52, borderRadius: Radius.large },
+  statusButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    borderWidth: 1,
+  },
+  scrim: { backgroundColor: 'rgba(0,0,0,0.12)' },
+  menuLayer: { position: 'absolute', left: 0, right: 0, paddingHorizontal: Spacing.three },
+  menuRow: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', alignItems: 'flex-end' },
+  menu: {
+    width: 260,
+    maxWidth: '100%',
+    paddingVertical: Spacing.one,
+    borderRadius: Radius.medium,
+    borderWidth: StyleSheet.hairlineWidth,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 12,
+  },
   chips: { flexDirection: 'row', gap: Spacing.two },
   sheet: { padding: Spacing.three, gap: Spacing.three },
   sheetHead: { flexDirection: 'row', alignItems: 'center' },
