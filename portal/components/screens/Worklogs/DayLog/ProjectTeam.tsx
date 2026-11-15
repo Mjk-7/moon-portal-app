@@ -15,8 +15,8 @@ import { PersonAvatar } from './TaskActions';
 /*
  * Who else is working in a project on the open day. A project worked on by
  * more than one person shows "3 mine / 7 total" at the end of its heading;
- * clicking it opens a panel on the right with all of the project's tasks
- * on that day, by who is on them.
+ * clicking it opens a panel on the right with the project's tasks on that
+ * day, by who is on them, and "+X more" for what each has coming up.
  */
 
 export type TeamTask = {
@@ -25,6 +25,8 @@ export type TeamTask = {
   status: string;
   flag?: string | null;
   forDate?: string | null;
+  /** For a later day: shown behind "+X more". */
+  upcoming?: boolean;
 };
 
 export type ProjectTeam = {
@@ -78,7 +80,8 @@ export const TeamCount = ({
   team: ProjectTeam | undefined;
   onOpen: () => void;
 }) =>
-  team && team.people.length > 1 ? (
+  team &&
+  team.people.filter((p) => p.tasks.some((t) => !t.upcoming)).length > 1 ? (
     <button
       type="button"
       onClick={onOpen}
@@ -150,55 +153,14 @@ export const ProjectTeamSheet = ({
               </Dialog.Close>
             </div>
             <div className="quiet-scrollbar flex-1 overflow-y-auto px-3 py-3">
-              {(team?.people ?? []).map((person) => {
-                const done = person.tasks.filter(
-                  (t) => t.status === 'DONE',
-                ).length;
-                return (
-                  <section key={person.id} className="mb-4">
-                    <div className="mb-1 flex items-center gap-2 px-1">
-                      <PersonAvatar
-                        name={person.name}
-                        avatar={person.avatar}
-                        className="size-6"
-                      />
-                      <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-white auto-light:text-neutral-950">
-                        {person.id === myId ? 'You' : person.name}
-                      </h3>
-                      <span className="text-[11px] tabular-nums text-neutral-500">
-                        {done}/{person.tasks.length} done
-                      </span>
-                    </div>
-                    <ul className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-1 auto-light:border-black/10 auto-light:bg-white">
-                      {person.tasks.map((t) => (
-                        <li
-                          key={t.id}
-                          className="flex items-start gap-2 rounded-lg px-2 py-1.5"
-                        >
-                          <StatusIcon
-                            status={statusOf(t)}
-                            className="mt-[3px] text-[16px]"
-                          />
-                          <span
-                            className={cn(
-                              'min-w-0 flex-1 text-[13px] leading-5 text-neutral-200 auto-light:text-neutral-800',
-                              t.status === 'DONE' &&
-                                'text-neutral-500 auto-light:text-neutral-500',
-                            )}
-                          >
-                            {t.title}
-                          </span>
-                          {t.forDate && t.forDate !== date && (
-                            <span className="mt-0.5 shrink-0 text-[11px] tabular-nums text-neutral-500">
-                              {dayjs(t.forDate).format('D MMM')}
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                );
-              })}
+              {(team?.people ?? []).map((person) => (
+                <PersonTasks
+                  key={person.id}
+                  person={person}
+                  date={date}
+                  isMe={person.id === myId}
+                />
+              ))}
             </div>
           </>
         )}
@@ -206,3 +168,92 @@ export const ProjectTeamSheet = ({
     </Dialog.Portal>
   </Dialog.Root>
 );
+
+const TaskLine = ({ t, date }: { t: TeamTask; date: string }) => (
+  <li className="flex items-start gap-2 rounded-lg px-2 py-1.5">
+    <StatusIcon status={statusOf(t)} className="mt-[3px] text-[16px]" />
+    <span
+      className={cn(
+        'min-w-0 flex-1 text-[13px] leading-5 text-neutral-200 auto-light:text-neutral-800',
+        t.status === 'DONE' && 'text-neutral-500 auto-light:text-neutral-500',
+      )}
+    >
+      {t.title}
+    </span>
+    {t.forDate && t.forDate !== date && (
+      <span className="mt-0.5 shrink-0 text-[11px] tabular-nums text-neutral-500">
+        {dayjs(t.forDate).format('ddd D MMM')}
+      </span>
+    )}
+  </li>
+);
+
+/** One person's tasks on the day, and what they have coming up. */
+const PersonTasks = ({
+  person,
+  date,
+  isMe,
+}: {
+  person: ProjectTeam['people'][number];
+  date: string;
+  isMe: boolean;
+}) => {
+  const [more, setMore] = useState(false);
+  const onDay = person.tasks.filter((t) => !t.upcoming);
+  const upcoming = person.tasks
+    .filter((t) => t.upcoming)
+    .sort((a, b) => (a.forDate ?? '').localeCompare(b.forDate ?? ''));
+  const done = onDay.filter((t) => t.status === 'DONE').length;
+  return (
+    <section className="mb-4">
+      <div className="mb-1 flex items-center gap-2 px-1">
+        <PersonAvatar
+          name={person.name}
+          avatar={person.avatar}
+          className="size-6"
+        />
+        <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-white auto-light:text-neutral-950">
+          {isMe ? 'You' : person.name}
+        </h3>
+        <span className="text-[11px] tabular-nums text-neutral-500">
+          {done}/{onDay.length} done
+        </span>
+      </div>
+      <ul className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-1 auto-light:border-black/10 auto-light:bg-white">
+        {onDay.map((t) => (
+          <TaskLine key={t.id} t={t} date={date} />
+        ))}
+        {!onDay.length && (
+          <li className="px-2 py-1.5 text-[12px] text-neutral-500">
+            Nothing on this day.
+          </li>
+        )}
+        {more && upcoming.length > 0 && (
+          <>
+            <li className="mx-2 mt-1 border-t border-white/[0.06] pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-500 auto-light:border-black/[0.06]">
+              Coming up
+            </li>
+            {upcoming.map((t) => (
+              <TaskLine key={t.id} t={t} date={date} />
+            ))}
+          </>
+        )}
+        {upcoming.length > 0 && (
+          <li>
+            <button
+              type="button"
+              onClick={() => setMore((m) => !m)}
+              className="flex w-full items-center gap-1 rounded-lg px-2 py-1.5 text-left text-[12px] text-neutral-500 hover:bg-white/[0.04] hover:text-neutral-200 auto-light:hover:bg-black/[0.04] auto-light:hover:text-neutral-800"
+            >
+              <Icon
+                name={more ? 'expand_less' : 'expand_more'}
+                className="text-[16px]"
+              />
+              {more ? 'Hide upcoming' : `+${upcoming.length} more coming up`}
+            </button>
+          </li>
+        )}
+      </ul>
+    </section>
+  );
+};

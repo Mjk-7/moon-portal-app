@@ -154,6 +154,7 @@ export const ProjectHome = ({
   objective,
   companyUsers,
   canEdit,
+  canTeam,
   canAdd,
   canTick,
   canDelete,
@@ -164,6 +165,8 @@ export const ProjectHome = ({
   objective: ProjectPage | null;
   companyUsers: Person[];
   canEdit: boolean;
+  /** Add and remove people on its team: company editors and its leads. */
+  canTeam: boolean;
   canAdd: boolean;
   canTick: boolean;
   canDelete: boolean;
@@ -329,7 +332,7 @@ export const ProjectHome = ({
           title={`Team · ${team.length}`}
           action={
             <CardLink onClick={() => onOpen('members')}>
-              {canEdit ? 'Manage' : 'See all'}
+              {canTeam ? (team.length ? 'Manage' : 'Add people') : 'See all'}
             </CardLink>
           }
         >
@@ -363,7 +366,11 @@ export const ProjectHome = ({
               )}
             </ul>
           ) : (
-            <p className="text-xs text-neutral-500">Nobody on the team yet.</p>
+            <p className="text-xs text-neutral-500">
+              {data.tree?.find((p) => p.id === project.id)?.isCore
+                ? 'Everyone in the company can work here. Add people to make them its team and leads.'
+                : 'Nobody on the team yet.'}
+            </p>
           )}
         </Card>
 
@@ -417,6 +424,7 @@ export const ProjectHome = ({
           tasks={tasks}
           people={people}
           companyUsers={companyUsers}
+          color={project.color}
           canAdd={canAdd}
           canTick={canTick}
           canDelete={canDelete}

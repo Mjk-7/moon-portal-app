@@ -91,16 +91,34 @@ export async function GET(_request: Request, { params }: Params) {
   });
 }
 
-export async function PATCH(request: Request, { params }: Params) {
-  const { response, project, user } = await requireProjectPermission(
-    params.projectId,
-    'projects:edit',
-  );
-  if (response || !project || !user)
-    return response ?? fail(401, 'Authentication required.');
+/** What a project's lead may change without the company's projects:edit. */
+const TEAM_FIELDS = ['leadIds', 'memberIds'];
 
+export async function PATCH(request: Request, { params }: Params) {
   const body = await request.json().catch(() => ({}));
   const data: Record<string, unknown> = pick(body, EDITABLE);
+
+  // A project's lead runs its team (CORE's too), even without the
+  // company's right to edit projects.
+  const teamOnly =
+    Object.keys(data).length > 0 &&
+    Object.keys(data).every((k) => TEAM_FIELDS.includes(k));
+  let guard = await requireProjectPermission(params.projectId, 'projects:edit');
+  if (guard.response && teamOnly && guard.user) {
+    const read = await requireProjectPermission(
+      params.projectId,
+      'projects:read',
+    );
+    if (
+      !read.response &&
+      read.project &&
+      (read.project.leadIds ?? []).includes(read.user!.id)
+    )
+      guard = read;
+  }
+  const { response, project, user } = guard;
+  if (response || !project || !user)
+    return response ?? fail(401, 'Authentication required.');
 
   if ('name' in data) {
     const name = typeof data.name === 'string' ? data.name.trim() : '';

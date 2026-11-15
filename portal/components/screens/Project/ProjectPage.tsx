@@ -989,6 +989,9 @@ export const ProjectPage = ({ projectId }: { projectId: string }) => {
     companyName,
   );
   const canEdit = can(project.companyId, 'projects:edit');
+  // Its leads run its team too, CORE's included.
+  const canTeam =
+    !personal && (canEdit || (!!me && (project.leadIds ?? []).includes(me)));
   // The project's group chat is for its team (everyone, for CORE).
   const onTeam =
     !!data.tree?.find((p) => p.id === project.id)?.isCore ||
@@ -1080,7 +1083,7 @@ export const ProjectPage = ({ projectId }: { projectId: string }) => {
               tasks={tasks}
               people={people}
               companyUsers={companyUsers}
-              canEdit={canEdit}
+              canEdit={canTeam}
               onSaved={load}
             />
           </div>
@@ -1092,6 +1095,7 @@ export const ProjectPage = ({ projectId }: { projectId: string }) => {
             objective={pages?.objective ?? null}
             companyUsers={companyUsers}
             canEdit={canEdit}
+            canTeam={canTeam}
             canAdd={canInProject(project, 'tasks:create')}
             canTick={canInProject(project, 'tasks:edit')}
             canDelete={canInProject(project, 'tasks:delete')}
@@ -1383,7 +1387,7 @@ export const ProjectPage = ({ projectId }: { projectId: string }) => {
           )
         )}
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-neutral-500">
-          {people.length > 0 && (
+          {people.length > 0 ? (
             <button
               type="button"
               onClick={() => select('members')}
@@ -1392,6 +1396,17 @@ export const ProjectPage = ({ projectId }: { projectId: string }) => {
               <AvatarStack users={people} max={5} />
               {people.length} {people.length === 1 ? 'person' : 'people'}
             </button>
+          ) : (
+            canTeam && (
+              <button
+                type="button"
+                onClick={() => select('members')}
+                className="flex items-center gap-1 hover:text-neutral-200"
+              >
+                <Icon name="person_add" className="text-[15px]" />
+                Add people
+              </button>
+            )
           )}
           <span>
             {openCount} open {openCount === 1 ? 'task' : 'tasks'}
