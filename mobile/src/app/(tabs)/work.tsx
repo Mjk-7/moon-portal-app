@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { type ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Modal,
@@ -40,8 +40,8 @@ import type { Day, Days, MonthScore, Task } from '@/lib/types';
 import { clearWorkReminders, linkOf, useMyTasks, useNeedsYou, useWorkNotifications } from '@/lib/work-badge';
 
 const DAY_KEY = /^\d{4}-\d{2}-\d{2}$/;
-/** Days either side of the anchor the pager holds. */
-const SPAN = 180;
+/** Weeks either side of the one shown that the week strip can swipe to. */
+const WEEKS = 26;
 
 /** The company tab that shows every company. */
 const ALL = 'all';
@@ -57,13 +57,14 @@ type Team = GroupTeam & {
 };
 
 /**
- * The day's worklog, as on the website now: the day by project, with a tab
- * per company (All first) and a bar of what is finished. Each project shows
- * "N mine / M total" when others work there too, and a line to add its next
- * task; Personal is always there. Tasks waiting on the person or blocked
- * show first. Swipe for the day before or after; the date opens a calendar;
- * the month's badge sits top right; + adds a task or goal. At midnight the
- * page moves on to the new day by itself.
+ * The day's worklog, as on the website now: the day by project, a page per
+ * company (All first, Personal last) with a bar of what is finished. Swipe
+ * to go from one company to the next; the day changes only from the top:
+ * tap a day in the week strip (swipe the strip for another week) or tap the
+ * date for a calendar. Each project shows "N mine / M total" when others
+ * work there too, and a line to add its next task. Tasks waiting on the
+ * person or blocked show first. The month's badge sits top right; + adds a
+ * task or goal. At midnight the page moves on to the new day by itself.
  */
 export default function WorkScreen() {
   const theme = useTheme();
@@ -74,28 +75,19 @@ export default function WorkScreen() {
   const [date, setDate] = useState(today);
   const [tab, setTab] = useState(ALL);
   const [calendar, setCalendar] = useState(false);
-  // The pager holds a year around this day; a day further away moves it.
-  const [anchor, setAnchor] = useState(today);
 
   // Past midnight the open day was "today": move on with it.
   const [lastToday, setLastToday] = useState(today);
   if (today !== lastToday) {
     setLastToday(today);
-    if (date === lastToday) {
-      setDate(today);
-      setAnchor(today);
-    }
+    if (date === lastToday) setDate(today);
   }
 
   // A link to a day (a reminder, a notification) opens it.
   const [lastParam, setLastParam] = useState<string | undefined>(undefined);
   if (params.date !== lastParam) {
     setLastParam(params.date);
-    if (params.date && DAY_KEY.test(params.date)) {
-      setDate(params.date);
-      if (Math.abs(fromKey(params.date).getTime() - fromKey(anchor).getTime()) > (SPAN - 7) * 86400000)
-        setAnchor(params.date);
-    }
+    if (params.date && DAY_KEY.test(params.date)) setDate(params.date);
   }
 
   // Opening the tab clears the work reminders it counts.
@@ -105,22 +97,30 @@ export default function WorkScreen() {
     }, []),
   );
 
-  const days = useMemo(
-    () => Array.from({ length: SPAN * 2 + 1 }, (_, i) => addDays(anchor, i - SPAN)),
-    [anchor],
-  );
-  const index = days.indexOf(date);
-  const list = useRef<FlatList<string>>(null);
+  const day = useQuery({
+    queryKey: ['day', date],
+    queryFn: () => api<Day>(withQuery('/api/me/day', { date })),
+  });
+  const { groups, companies } = useCompanyGroups(day.data, date);
 
-  const go = (next: string) => {
-    if (next === date) return;
-    const i = days.indexOf(next);
-    setDate(next);
-    if (i < 0) {
-      setAnchor(next);
-      return;
-    }
-    list.current?.scrollToIndex({ index: i, animated: Math.abs(i - index) <= 7 });
+  // A page per company of the day, All first. While a day loads, the
+  // company picked keeps its page; a day without it goes back to All.
+  const keys = companies.map((c) => c.key).join('|');
+  const pages = useMemo(() => [ALL, ...(keys ? keys.split('|') : [])], [keys]);
+  if (day.data && !pages.includes(tab)) setTab(ALL);
+  const shown = day.data || tab === ALL ? pages : [ALL, tab];
+  const index = Math.max(0, shown.indexOf(tab));
+  const pager = useRef<FlatList<string>>(null);
+  // A tap on a tab glides there; a new day or a swipe just lands.
+  const glide = useRef(false);
+  const shownKey = shown.join('|');
+  useEffect(() => {
+    pager.current?.scrollToOffset({ offset: index * width, animated: glide.current });
+    glide.current = false;
+  }, [index, width, shownKey]);
+  const pick = (key: string) => {
+    glide.current = true;
+    setTab(key);
   };
 
   const month = monthOf(date);
@@ -138,54 +138,79 @@ export default function WorkScreen() {
     <View style={[styles.flex, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <View style={styles.header}>
         <View style={styles.top}>
-          <Pressable
-            onPress={() => setCalendar(true)}
-            accessibilityRole="button"
-            accessibilityHint="Pick a day"
-            style={({ pressed }) => [styles.flex, { opacity: pressed ? 0.7 : 1 }]}>
-            <ThemedText type="title" numberOfLines={1}>
-              {dayTitle(date, today)}
-            </ThemedText>
-            <View style={styles.dateLine}>
-              <ThemedText type="small" themeColor="textSecondary">
-                {fromKey(date).toLocaleDateString(undefined, {
-                  weekday: 'long',
-                  day: 'numeric',
-                  month: 'long',
-                })}
+          <View style={styles.flex}>
+            <Pressable
+              onPress={() => setCalendar(true)}
+              accessibilityRole="button"
+              accessibilityHint="Pick a day"
+              style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+              <ThemedText type="title" numberOfLines={1}>
+                {dayTitle(date, today)}
               </ThemedText>
-              <Icon name="chevronDown" size={12} color={theme.textSecondary} />
+            </Pressable>
+            <View style={styles.dateLine}>
+              <Pressable
+                onPress={() => setCalendar(true)}
+                accessibilityRole="button"
+                accessibilityHint="Pick a day"
+                style={({ pressed }) => [styles.dateWords, { opacity: pressed ? 0.7 : 1 }]}>
+                {/* The full date under "Today" and its neighbours; the month under any other day. */}
+                <ThemedText type="small" themeColor="textSecondary" numberOfLines={1} style={styles.shrink}>
+                  {Math.abs(fromKey(date).getTime() - fromKey(today).getTime()) <= 86400000
+                    ? fromKey(date).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })
+                    : fromKey(date).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+                </ThemedText>
+                <Icon name="chevronDown" size={12} color={theme.textSecondary} />
+              </Pressable>
+              {date !== today ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Go to today"
+                  onPress={() => setDate(today)}
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.todayPill, { borderColor: theme.border, opacity: pressed ? 0.6 : 1 }]}>
+                  <ThemedText type="smallBold" style={styles.todayText}>
+                    Today
+                  </ThemedText>
+                </Pressable>
+              ) : null}
             </View>
-          </Pressable>
+          </View>
           <MonthBadge score={score.data} onPress={() => setCalendar(true)} />
         </View>
-        <WeekStrip date={date} today={today} days={monthDays.data} onPick={go} />
-        <CompanyTabs date={date} value={tab} onChange={setTab} />
+        <WeekStrip date={date} today={today} days={monthDays.data} onPick={setDate} />
+        <CompanyTabs
+          day={day.data}
+          date={date}
+          groups={groups}
+          companies={companies}
+          value={tab}
+          onChange={pick}
+        />
       </View>
 
       {/* Ends above the tab bar, so the last task and the + clear it. */}
       <SafeAreaView edges={{ bottom: true }} style={styles.flex}>
         <FlatList
-          key={anchor}
-          ref={list}
+          ref={pager}
           style={styles.flex}
-          data={days}
-          // The pages show the picked company: draw them again when it changes.
-          extraData={tab}
-          keyExtractor={(d) => d}
+          data={shown}
+          // Every page shows the picked day: draw them again when it changes.
+          extraData={date}
+          keyExtractor={(key) => `${date}:${key}`}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
-          initialScrollIndex={Math.max(0, index)}
+          initialScrollIndex={index}
           getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
           initialNumToRender={1}
           maxToRenderPerBatch={2}
           windowSize={3}
           onMomentumScrollEnd={(e) => {
             const i = Math.round(e.nativeEvent.contentOffset.x / width);
-            if (days[i] && days[i] !== date) setDate(days[i]);
+            if (shown[i] && shown[i] !== tab) setTab(shown[i]);
           }}
-          renderItem={({ item }) => <DayPage date={item} today={today} tab={tab} width={width} />}
+          renderItem={({ item }) => <DayPage date={date} today={today} tab={item} width={width} />}
         />
         <Fab label="Add a task, goal or idea" onPress={() => router.push('/new-task')} />
       </SafeAreaView>
@@ -196,7 +221,7 @@ export default function WorkScreen() {
         onClose={() => setCalendar(false)}
         onPick={(d) => {
           setCalendar(false);
-          go(d);
+          setDate(d);
         }}
       />
     </View>
@@ -204,6 +229,8 @@ export default function WorkScreen() {
 }
 
 /* ------------------------------ Company tabs ------------------------------ */
+
+type CompanyTab = ReturnType<typeof useCompanyGroups>['companies'][number];
 
 /** The day's groups by company, in the order the tabs show them. */
 function useCompanyGroups(day: Day | undefined, date: string) {
@@ -233,23 +260,47 @@ function useCompanyGroups(day: Day | undefined, date: string) {
   return { groups, companies };
 }
 
-function CompanyTabs({ date, value, onChange }: { date: string; value: string; onChange: (tab: string) => void }) {
+function CompanyTabs({
+  day,
+  date,
+  groups,
+  companies,
+  value,
+  onChange,
+}: {
+  day?: Day;
+  date: string;
+  groups: DayGroup[];
+  companies: CompanyTab[];
+  value: string;
+  onChange: (tab: string) => void;
+}) {
   const theme = useTheme();
-  const day = useQuery({
-    queryKey: ['day', date],
-    queryFn: () => api<Day>(withQuery('/api/me/day', { date })),
-  });
-  const { groups, companies } = useCompanyGroups(day.data, date);
-  if (!day.data) return <View style={styles.tabsPlaceholder} />;
-  const all = groupTally(groups, day.data, date);
-  const colorOf = (c: (typeof companies)[number]) => (c.personal ? theme.success : (c.color ?? theme.accent));
+  const scroller = useRef<ComponentRef<typeof ScrollView>>(null);
+  const spots = useRef<Record<string, number>>({});
+  // A swipe to a company out of view brings its tab into view.
+  useEffect(() => {
+    const x = spots.current[value];
+    if (x !== undefined) scroller.current?.scrollTo({ x: Math.max(0, x - Spacing.six), animated: true });
+  }, [value]);
+  if (!day) return <View style={styles.tabsPlaceholder} />;
+  const all = groupTally(groups, day, date);
+  const picked = companies.find((c) => c.key === value);
+  const colorOf = (c: CompanyTab) => (c.personal ? theme.success : (c.color ?? theme.accent));
 
   return (
     <View style={styles.tabsWrap}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
+      <ScrollView
+        ref={scroller}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.tabs}>
         <Pressable
           accessibilityRole="tab"
           accessibilityState={{ selected: value === ALL }}
+          onLayout={(e) => {
+            spots.current[ALL] = e.nativeEvent.layout.x;
+          }}
           onPress={() => onChange(ALL)}
           style={({ pressed }) => [
             styles.tab,
@@ -275,7 +326,10 @@ function CompanyTabs({ date, value, onChange }: { date: string; value: string; o
               accessibilityRole="tab"
               accessibilityState={{ selected: on }}
               accessibilityLabel={`${c.name}, ${c.done} of ${c.total} done`}
-              onPress={() => onChange(on ? ALL : c.key)}
+              onLayout={(e) => {
+                spots.current[c.key] = e.nativeEvent.layout.x;
+              }}
+              onPress={() => onChange(c.key)}
               style={({ pressed }) => [
                 styles.tab,
                 on ? [styles.tabOpen, { backgroundColor: theme.accent }] : styles.tabShut,
@@ -318,7 +372,7 @@ function CompanyTabs({ date, value, onChange }: { date: string; value: string; o
               ))}
           </View>
           <ThemedText type="small" themeColor="textSecondary">
-            {all.done}/{all.total} done
+            {picked ? `${picked.done}/${picked.total}` : `${all.done}/${all.total}`} done
           </ThemedText>
         </View>
       ) : null}
@@ -357,6 +411,10 @@ function MonthBadge({ score, onPress }: { score?: MonthScore; onPress: () => voi
 
 const LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
+/**
+ * The week of the day shown: tap a day to open it, swipe the strip for the
+ * week before or after (the same weekday opens there).
+ */
 function WeekStrip({
   date,
   today,
@@ -369,15 +427,42 @@ function WeekStrip({
   onPick: (day: string) => void;
 }) {
   const theme = useTheme();
+  const [width, setWidth] = useState(0);
   const monday = addDays(date, -((fromKey(date).getDay() + 6) % 7));
-  return (
-    <View style={styles.week}>
+  // The strip holds half a year either side of this week; further moves it.
+  const [base, setBase] = useState(monday);
+  const weeks = useMemo(
+    () => Array.from({ length: WEEKS * 2 + 1 }, (_, i) => addDays(base, (i - WEEKS) * 7)),
+    [base],
+  );
+  let index = weeks.indexOf(monday);
+  if (index < 0) {
+    setBase(monday);
+    index = WEEKS;
+  }
+  const list = useRef<FlatList<string>>(null);
+  const last = useRef(index);
+  // A picked day in another week (the calendar, Today) brings its week in.
+  useEffect(() => {
+    if (!width) return;
+    list.current?.scrollToOffset({ offset: index * width, animated: Math.abs(index - last.current) === 1 });
+    last.current = index;
+  }, [index, width]);
+
+  const week = (start: string) => (
+    <View style={[styles.week, width ? { width } : null]}>
       {LETTERS.map((letter, i) => {
-        const day = addDays(monday, i);
+        const day = addDays(start, i);
         const on = day === date;
         const worked = (days?.days[day] ?? []).length > 0;
         return (
-          <Pressable key={day} onPress={() => onPick(day)} style={styles.weekDay}>
+          <Pressable
+            key={day}
+            onPress={() => onPick(day)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
+            accessibilityLabel={dayTitle(day, today)}
+            style={styles.weekDay}>
             <ThemedText type="small" themeColor="textSecondary">
               {letter}
             </ThemedText>
@@ -397,6 +482,37 @@ function WeekStrip({
           </Pressable>
         );
       })}
+    </View>
+  );
+
+  return (
+    <View onLayout={(e) => setWidth(Math.round(e.nativeEvent.layout.width))}>
+      {width ? (
+        <FlatList
+          key={`${base}:${width}`}
+          ref={list}
+          data={weeks}
+          extraData={`${date}|${today}|${days ? days.from : ''}`}
+          keyExtractor={(w) => w}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          initialScrollIndex={index}
+          getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
+          initialNumToRender={1}
+          windowSize={3}
+          onMomentumScrollEnd={(e) => {
+            const i = Math.round(e.nativeEvent.contentOffset.x / width);
+            if (weeks[i] && i !== index) {
+              last.current = i;
+              onPick(addDays(date, (i - index) * 7));
+            }
+          }}
+          renderItem={({ item }) => week(item)}
+        />
+      ) : (
+        week(monday)
+      )}
     </View>
   );
 }
@@ -456,8 +572,8 @@ function DayPage({
         />
       }>
       {date === today ? <OfflineBanner /> : null}
-      {date === today ? <NeedsYou day={day.data} /> : null}
-      {date === today ? <WorkUpdates /> : null}
+      {date === today && tab === ALL ? <NeedsYou day={day.data} /> : null}
+      {date === today && tab === ALL ? <WorkUpdates /> : null}
       <QueryState
         loading={day.isPending}
         error={day.data ? null : day.error}
@@ -738,7 +854,16 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   top: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  dateLine: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+  shrink: { flexShrink: 1 },
+  dateLine: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  dateWords: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, flexShrink: 1 },
+  todayPill: {
+    paddingHorizontal: Spacing.two + 2,
+    paddingVertical: 1,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  todayText: { fontSize: 12, lineHeight: 17 },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',

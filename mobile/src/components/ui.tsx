@@ -15,6 +15,7 @@ import {
   type ViewProps,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-screens/experimental';
 
 import { Icon, type IconName } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
@@ -57,18 +58,50 @@ export function Screen({
   contentContainerStyle,
   edgeTop = true,
   wide = false,
+  tab = false,
+  style,
   ...rest
-}: ScrollViewProps & { edgeTop?: boolean; wide?: boolean }) {
+}: ScrollViewProps & {
+  edgeTop?: boolean;
+  wide?: boolean;
+  /** The page of a tab: it keeps clear of the status bar and the tab bar itself. */
+  tab?: boolean;
+}) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  // iOS insets the scroll view for the status bar, header and tab bar itself
-  // (native tabs turn this on for a tab's first scroll view whatever it
-  // asks), so padding for them as well would leave a gap. Elsewhere the
-  // screen pads for them.
+  if (tab) {
+    // The tabs leave the insets to the page (`disableAutomaticContentInsets`
+    // in the tab layout): iOS would otherwise inset a tab's scroll view by
+    // itself, and get it wrong the first time a tab opens, a band of empty
+    // space at the top until the page is scrolled.
+    const background = StyleSheet.flatten(style)?.backgroundColor ?? theme.background;
+    return (
+      <View style={[styles.flex, { backgroundColor: background, paddingTop: insets.top }]}>
+        <SafeAreaView edges={{ bottom: true }} style={styles.flex}>
+          <ScrollView
+            style={[{ backgroundColor: background }, style]}
+            contentInsetAdjustmentBehavior="never"
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={[
+              styles.screen,
+              { paddingTop: Spacing.three, paddingBottom: Spacing.five },
+              wide && styles.wide,
+              contentContainerStyle,
+            ]}
+            {...rest}>
+            {children}
+          </ScrollView>
+        </SafeAreaView>
+      </View>
+    );
+  }
+  // iOS insets the scroll view for the status bar and header itself, so
+  // padding for them as well would leave a gap. Elsewhere the screen pads
+  // for them.
   const ios = Platform.OS === 'ios';
   return (
     <ScrollView
-      style={{ backgroundColor: theme.background }}
+      style={[{ backgroundColor: theme.background }, style]}
       contentInsetAdjustmentBehavior={ios || !edgeTop ? 'automatic' : 'never'}
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={[

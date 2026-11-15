@@ -47,6 +47,7 @@ export default function ChatsScreen() {
 
   return (
     <Screen
+      tab
       contentContainerStyle={styles.screen}
       refreshControl={
         <RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} />

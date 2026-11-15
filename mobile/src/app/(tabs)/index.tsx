@@ -57,7 +57,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <Screen wide refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} />}>
+    <Screen tab wide refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} />}>
       <View style={styles.top}>
         <PortalMark size={26} />
         <ThemedText type="label" style={styles.brand}>

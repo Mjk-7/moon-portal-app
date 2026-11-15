@@ -143,7 +143,7 @@ export default function ShortcutsScreen() {
     .filter((g) => g.items.length);
 
   return (
-    <Screen style={{ backgroundColor: theme.grouped }} contentContainerStyle={styles.screen}>
+    <Screen tab style={{ backgroundColor: theme.grouped }} contentContainerStyle={styles.screen}>
       <ThemedText type="title" style={styles.title}>
         Shortcuts
       </ThemedText>
