@@ -5,7 +5,7 @@ import { FlatList, type LayoutChangeEvent, Pressable, ScrollView, StyleSheet, Vi
 import { CompanyMark } from '@/components/company-mark';
 import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
-import { QueryState } from '@/components/ui';
+import { QueryState, Screen } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useToday } from '@/hooks/use-now';
 import { useTheme } from '@/hooks/use-theme';
@@ -247,7 +247,14 @@ const FLAT_LIMIT = 5;
  * the picked company's projects. Personal is always there, for your own
  * work.
  */
-export function PlacePicker({ onPick }: { onPick: (place: PlaceInput, project: ProjectRef | null) => void }) {
+export function PlacePicker({
+  onPick,
+  footer,
+}: {
+  onPick: (place: PlaceInput, project: ProjectRef | null) => void;
+  /** Shown under the list, e.g. "let the portal place it". */
+  footer?: ReactNode;
+}) {
   const theme = useTheme();
   const { tabs, projects, query } = usePlaces();
   const [companyKey, setCompanyKey] = useState<string | null>(null);
@@ -280,17 +287,20 @@ export function PlacePicker({ onPick }: { onPick: (place: PlaceInput, project: P
     />
   );
 
+  // Each step is the sheet's own scroll view, as the first and only view: an
+  // iOS form sheet sizes its content to fit, so a view that only stretches
+  // (flex) would have no height there and the sheet would look empty.
   if (!query.data)
     return (
-      <View style={[styles.flex, styles.pad]}>
+      <Screen edgeTop={false} contentContainerStyle={styles.page}>
         <QueryState loading={query.isPending} error={query.error} onRetry={() => void query.refetch()} what="your projects" />
-      </View>
+      </Screen>
     );
 
   const picked = companies.find((t) => t.key === companyKey);
   if (picked)
     return (
-      <ScrollView style={styles.flex} contentContainerStyle={styles.page}>
+      <Screen edgeTop={false} contentContainerStyle={styles.page}>
         <Pressable
           onPress={() => setCompanyKey(null)}
           style={({ pressed }) => [styles.back, { opacity: pressed ? 0.6 : 1 }]}>
@@ -303,11 +313,11 @@ export function PlacePicker({ onPick }: { onPick: (place: PlaceInput, project: P
           {picked.name} · {picked.projects.length} projects
         </ThemedText>
         {picked.projects.map((p) => projectRow(picked, p, false))}
-      </ScrollView>
+      </Screen>
     );
 
   return (
-    <ScrollView style={styles.flex} contentContainerStyle={styles.page}>
+    <Screen edgeTop={false} contentContainerStyle={styles.page}>
       {count > FLAT_LIMIT ? (
         <>
           <ThemedText type="label" themeColor="textSecondary">
@@ -339,7 +349,8 @@ export function PlacePicker({ onPick }: { onPick: (place: PlaceInput, project: P
         Just for you
       </ThemedText>
       {personal}
-    </ScrollView>
+      {footer}
+    </Screen>
   );
 }
 
