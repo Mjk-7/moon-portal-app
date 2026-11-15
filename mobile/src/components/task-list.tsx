@@ -6,6 +6,7 @@ import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
 import { Card, Dot } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
+import { dayTitle } from '@/lib/dates';
 import { useTheme } from '@/hooks/use-theme';
 import { statusLabel, useChangeTask } from '@/lib/tasks';
 import type { ProjectRef, Task } from '@/lib/types';
@@ -46,7 +47,7 @@ export function TaskRow({ task, showDay }: { task: Task; showDay?: boolean }) {
         </ThemedText>
         <ThemedText type="small" themeColor={flagged ? 'danger' : 'textSecondary'}>
           {task.meeting ? `${task.meeting.time} · with ${task.meeting.with}` : statusLabel(task)}
-          {showDay && task.forDate ? ` · ${task.forDate}` : ''}
+          {showDay && task.forDate ? ` · ${dayTitle(task.forDate)}` : ''}
         </ThemedText>
       </View>
     </Pressable>

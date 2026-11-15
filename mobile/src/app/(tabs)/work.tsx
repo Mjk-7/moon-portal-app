@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SafeAreaView } from 'react-native-screens/experimental';
 
 import { CompanyMark } from '@/components/company-mark';
-import { DaySheet, type GroupTeam } from '@/components/day-sheet';
+import { DaySheet, type GroupTeam, StatusMark } from '@/components/day-sheet';
 import { Fab } from '@/components/fab';
 import { Icon } from '@/components/icon';
 import { MonthGrid } from '@/components/month-grid';
@@ -31,6 +31,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { api, portalUrl, withQuery } from '@/lib/api';
 import { companyKeyOf, type DayGroup, groupTally, placeOf, projectGroups } from '@/lib/day';
 import { addDays, dayTitle, fromKey, monthOf, monthRange, monthTitle } from '@/lib/dates';
+import { useAuth } from '@/lib/auth';
 import { openLink } from '@/lib/links';
 import { useMarkNotifications } from '@/lib/notifications';
 import { useCompanyLookup } from '@/lib/project-name';
@@ -247,44 +248,47 @@ function CompanyTabs({ date, value, onChange }: { date: string; value: string; o
     <View style={styles.tabsWrap}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
         <Pressable
+          accessibilityRole="tab"
+          accessibilityState={{ selected: value === ALL }}
           onPress={() => onChange(ALL)}
           style={({ pressed }) => [
             styles.tab,
-            {
-              borderColor: value === ALL ? theme.text : theme.border,
-              backgroundColor: value === ALL ? theme.backgroundSelected : theme.backgroundElement,
-              opacity: pressed ? 0.7 : 1,
-            },
+            styles.tabAll,
+            value === ALL
+              ? { backgroundColor: theme.accent }
+              : { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1 },
+            { opacity: pressed ? 0.7 : 1 },
           ]}>
-          <ThemedText type="smallBold">All</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
+          <ThemedText type="smallBold" style={value === ALL && { color: theme.onAccent }}>
+            All
+          </ThemedText>
+          <ThemedText type="small" style={[styles.tabCount, { color: value === ALL ? theme.onAccent : theme.textSecondary }]}>
             {all.done}/{all.total}
           </ThemedText>
         </Pressable>
+        <View style={[styles.tabRule, { backgroundColor: theme.border }]} />
         {companies.map((c) => {
           const on = value === c.key;
           return (
             <Pressable
               key={c.key}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}
               accessibilityLabel={`${c.name}, ${c.done} of ${c.total} done`}
               onPress={() => onChange(on ? ALL : c.key)}
               style={({ pressed }) => [
                 styles.tab,
-                styles.tabMark,
-                {
-                  borderColor: on ? theme.text : theme.border,
-                  backgroundColor: on ? theme.backgroundSelected : theme.backgroundElement,
-                  opacity: pressed ? 0.7 : 1,
-                },
+                on ? [styles.tabOpen, { backgroundColor: theme.accent }] : styles.tabShut,
+                { opacity: pressed ? 0.7 : 1 },
               ]}>
-              <CompanyMark id={c.key} name={c.name} color={c.color} logo={c.logo} personal={c.personal} size={24} />
+              <CompanyMark id={c.key} name={c.name} color={c.color} logo={c.logo} personal={c.personal} size={28} />
               {/* Only the picked company shows its name, as on the website. */}
               {on ? (
                 <>
-                  <ThemedText type="smallBold" numberOfLines={1} style={styles.tabName}>
+                  <ThemedText type="smallBold" numberOfLines={1} style={[styles.tabName, { color: theme.onAccent }]}>
                     {c.name}
                   </ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary">
+                  <ThemedText type="small" style={[styles.tabCount, { color: theme.onAccent }]}>
                     {c.done}/{c.total}
                   </ThemedText>
                 </>
@@ -503,6 +507,7 @@ function TeamSheet({
   onClose: () => void;
 }) {
   const theme = useTheme();
+  const { profile } = useAuth();
   return (
     <Modal visible={!!team} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <ScrollView style={{ backgroundColor: theme.background }} contentContainerStyle={styles.sheet}>
@@ -512,7 +517,7 @@ function TeamSheet({
               {name}
             </ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              {dayTitle(date)} · {team?.mine ?? 0} mine / {team?.total ?? 0} total
+              {dayTitle(date)} · {team?.mine ?? 0} yours of {team?.total ?? 0}
             </ThemedText>
           </View>
           <IconButton name="close" label="Close" onPress={onClose} />
@@ -522,7 +527,7 @@ function TeamSheet({
             <View style={styles.teamWho}>
               <Avatar uri={person.avatar} name={person.name} size={28} />
               <ThemedText type="smallBold" style={styles.flex} numberOfLines={1}>
-                {person.name}
+                {person.id === profile?.id ? 'You' : person.name}
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
                 {person.tasks.length}
@@ -530,6 +535,7 @@ function TeamSheet({
             </View>
             {person.tasks.map((t) => {
               const status = currentPick(t);
+              const finished = status === 'done' || status === 'archived';
               return (
                 <Pressable
                   key={t.id}
@@ -538,19 +544,17 @@ function TeamSheet({
                     router.push({ pathname: '/task/[id]', params: { id: t.id } });
                   }}
                   style={({ pressed }) => [styles.teamTask, { borderColor: theme.border, opacity: pressed ? 0.6 : 1 }]}>
-                  {status === 'done' ? (
-                    <Icon name="checkCircle" size={16} color={theme.success} />
-                  ) : status !== 'archived' ? (
-                    <StatusDot status={status} size={10} />
-                  ) : null}
+                  <StatusMark status={status === 'todo' ? null : status} />
                   <ThemedText
-                    style={[styles.flex, status === 'done' && { color: theme.textSecondary }]}
+                    style={[styles.flex, finished && { color: theme.textSecondary }]}
                     numberOfLines={2}>
                     {t.title}
                   </ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {status === 'archived' ? 'Archived' : pickOf(status).label}
-                  </ThemedText>
+                  {status !== 'todo' && status !== 'done' && status !== 'archived' ? (
+                    <ThemedText type="small" style={{ color: pickOf(status).color ?? theme.textSecondary }}>
+                      {pickOf(status).label}
+                    </ThemedText>
+                  ) : null}
                 </Pressable>
               );
             })}
@@ -768,18 +772,20 @@ const styles = StyleSheet.create({
   },
   needDot: { paddingTop: 5 },
   tabsWrap: { gap: Spacing.two },
-  tabsPlaceholder: { height: 40 },
+  tabsPlaceholder: { height: 38 },
   tabs: { gap: Spacing.two, alignItems: 'center' },
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.one + 2,
-    height: 40,
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.three,
+    gap: Spacing.two,
+    height: 38,
+    borderRadius: 19,
   },
-  tabMark: { paddingHorizontal: 7 },
+  tabAll: { paddingHorizontal: Spacing.three + 2 },
+  tabShut: { paddingHorizontal: 1 },
+  tabOpen: { paddingLeft: 5, paddingRight: Spacing.three },
+  tabRule: { width: StyleSheet.hairlineWidth, height: 22, marginHorizontal: 2 },
+  tabCount: { opacity: 0.75, fontVariant: ['tabular-nums'] },
   tabName: { maxWidth: 140 },
   barRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   bar: { flex: 1, flexDirection: 'row', gap: 4 },
@@ -800,7 +806,7 @@ const styles = StyleSheet.create({
   teamWho: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingBottom: Spacing.two },
   teamTask: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: Spacing.two,
     paddingVertical: Spacing.two,
     borderTopWidth: StyleSheet.hairlineWidth,

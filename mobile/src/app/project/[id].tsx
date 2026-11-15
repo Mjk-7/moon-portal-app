@@ -302,9 +302,6 @@ export default function ProjectScreen() {
 
           {tab === 'tasks' ? (
             <View style={styles.group}>
-              <ThemedText type="label" themeColor="textSecondary">
-                Tasks
-              </ThemedText>
               <Segmented
                 value={view}
                 onChange={setView}
@@ -339,9 +336,6 @@ export default function ProjectScreen() {
 
           {tab === 'goals' ? (
             <View style={styles.group}>
-              <ThemedText type="label" themeColor="textSecondary">
-                Goals
-              </ThemedText>
               <Segmented
                 value={goalView}
                 onChange={setGoalView}
@@ -632,13 +626,14 @@ const styles = StyleSheet.create({
   tile: {
     flexGrow: 1,
     flexBasis: '45%',
-    gap: Spacing.one,
-    padding: Spacing.three,
-    borderRadius: Radius.large,
+    gap: 2,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two + Spacing.one,
+    borderRadius: Radius.medium,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  tileValue: { fontSize: 30, lineHeight: 36, fontWeight: 700 },
-  tileOf: { fontSize: 18 },
+  tileValue: { fontSize: 26, lineHeight: 32, fontWeight: 700, fontVariant: ['tabular-nums'] },
+  tileOf: { fontSize: 16 },
   goalLine: { gap: Spacing.one },
   tree: { gap: 0, paddingVertical: Spacing.one, paddingHorizontal: 0 },
   treeEmpty: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },

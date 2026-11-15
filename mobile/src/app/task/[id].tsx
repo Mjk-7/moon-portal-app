@@ -2,12 +2,13 @@ import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Modal, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CompanyMark } from '@/components/company-mark';
 import { Icon } from '@/components/icon';
 import { MeetingCard } from '@/components/meeting-card';
+import { MonthGrid } from '@/components/month-grid';
 import { ProjectPicker } from '@/components/project-picker';
 import { StatusDot } from '@/components/status-dot';
 import { ThemedText } from '@/components/themed-text';
@@ -17,7 +18,7 @@ import { useToday } from '@/hooks/use-now';
 import { useTheme } from '@/hooks/use-theme';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { addDays, clock, dayTitle, fromKey } from '@/lib/dates';
+import { addDays, clock, dayTitle, fromKey, monthOf } from '@/lib/dates';
 import { useProjectLabel } from '@/lib/project-name';
 import { currentPick, pickOf, STATUS_PICKS, type StatusPick } from '@/lib/status';
 import { POINT_LABEL, useChangeTask } from '@/lib/tasks';
@@ -39,6 +40,8 @@ export default function TaskScreen() {
   const [title, setTitle] = useState('');
   const [statusOpen, setStatusOpen] = useState(false);
   const [moving, setMoving] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [pickMonth, setPickMonth] = useState<string | null>(null);
   const [barHeight, setBarHeight] = useState(140);
   const query = useQuery({
     queryKey: ['task', id],
@@ -205,7 +208,11 @@ export default function TaskScreen() {
               <ThemedText type="label" themeColor="textSecondary">
                 Day
               </ThemedText>
-              <View style={styles.chips}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.chipsScroll}
+                contentContainerStyle={styles.chips}>
                 <Chip
                   label="Today"
                   selected={task.forDate === today}
@@ -221,10 +228,17 @@ export default function TaskScreen() {
                   selected={!task.forDate}
                   onPress={() => change.mutate({ taskId: task.id, forDate: null })}
                 />
-                {task.forDate && task.forDate !== today && task.forDate !== addDays(today, 1) ? (
-                  <Chip label={dayTitle(task.forDate, today)} selected />
-                ) : null}
-              </View>
+                {/* Any other day, from a calendar; the picked one shows here. */}
+                <Chip
+                  label={
+                    task.forDate && task.forDate !== today && task.forDate !== addDays(today, 1)
+                      ? dayTitle(task.forDate, today)
+                      : 'Pick a day…'
+                  }
+                  selected={!!task.forDate && task.forDate !== today && task.forDate !== addDays(today, 1)}
+                  onPress={() => setPicking(true)}
+                />
+              </ScrollView>
               <ThemedText type="label" themeColor="textSecondary">
                 Project
               </ThemedText>
@@ -270,7 +284,9 @@ export default function TaskScreen() {
               </Pressable>
             ) : null}
             {byDay.size === 0 ? (
-              <ThemedText themeColor="textSecondary">Nothing logged yet.</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
+                Nothing logged yet. What you log shows here, newest first.
+              </ThemedText>
             ) : (
               Array.from(byDay.entries()).map(([date, points]) => (
                 <Card key={date}>
@@ -343,6 +359,35 @@ export default function TaskScreen() {
       ) : null}
 
       <Modal
+        visible={picking}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setPicking(false)}>
+        <View style={[styles.flex, { backgroundColor: theme.background }]}>
+          <View style={styles.sheetHead}>
+            <ThemedText type="subtitle" style={styles.flex}>
+              Which day?
+            </ThemedText>
+            <IconButton name="close" label="Close" onPress={() => setPicking(false)} />
+          </View>
+          <View style={styles.pickPad}>
+            <Card>
+              <MonthGrid
+                month={pickMonth ?? monthOf(task?.forDate ?? today)}
+                onMonth={setPickMonth}
+                selected={task?.forDate ?? undefined}
+                onDay={(day) => {
+                  if (task) change.mutate({ taskId: task.id, forDate: day });
+                  setPicking(false);
+                  setPickMonth(null);
+                }}
+              />
+            </Card>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
         visible={moving}
         animationType="slide"
         presentationStyle="pageSheet"
@@ -367,13 +412,18 @@ export default function TaskScreen() {
   );
 }
 
-/** "Sunday, 15 November 2026": the whole date, so there is no doubt which day. */
-const fullDate = (key: string) =>
-  fromKey(key).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+/** "today", "tomorrow", "in 3 days", "2 days ago". */
+function relativeDay(key: string, today: string) {
+  const days = Math.round((fromKey(key).getTime() - fromKey(today).getTime()) / 86400000);
+  if (days === 0) return 'today';
+  if (days === 1) return 'tomorrow';
+  if (days === -1) return 'yesterday';
+  return days > 0 ? `in ${days} days` : `${-days} days ago`;
+}
 
 /**
  * At the top of a task: the exact day it is planned for and the day it is
- * due, with "today", "tomorrow" or "overdue" beside them.
+ * due, side by side, so there is no doubt which day is meant.
  */
 function TaskDates({
   forDate,
@@ -388,45 +438,45 @@ function TaskDates({
 }) {
   const theme = useTheme();
   const due = dueDate ? dueDate.slice(0, 10) : null;
-  const near = (key: string) => {
-    if (key === today) return 'today';
-    if (key === addDays(today, 1)) return 'tomorrow';
-    if (key === addDays(today, -1)) return 'yesterday';
-    return null;
-  };
-  const lines: { icon: 'calendar' | 'flag'; label: string; date: string; tag: string | null; late?: boolean }[] = [];
-  if (forDate) lines.push({ icon: 'calendar', label: 'For', date: forDate, tag: near(forDate) });
-  if (due && due !== forDate) {
-    const late = !done && due < today;
-    lines.push({ icon: 'flag', label: 'Due', date: due, tag: late ? 'overdue' : near(due), late });
-  }
-  if (!lines.length)
-    return (
-      <View style={styles.dateRow}>
-        <Icon name="calendar" size={14} color={theme.textSecondary} />
-        <ThemedText type="small" themeColor="textSecondary">
-          No day yet · Later
+  const late = !!due && !done && due < today;
+  const tile = (
+    icon: 'calendar' | 'flag',
+    label: string,
+    key: string | null,
+    empty: string,
+    danger = false,
+  ) => (
+    <View
+      style={[
+        styles.dateTile,
+        { backgroundColor: theme.backgroundElement, borderColor: danger ? theme.danger : theme.border },
+      ]}>
+      <View style={styles.row}>
+        <Icon name={icon} size={13} color={danger ? theme.danger : theme.textSecondary} />
+        <ThemedText type="label" themeColor={danger ? 'danger' : 'textSecondary'}>
+          {label}
         </ThemedText>
       </View>
-    );
+      {key ? (
+        <>
+          <ThemedText type="smallBold" style={danger ? { color: theme.danger } : null}>
+            {fromKey(key).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+          </ThemedText>
+          <ThemedText type="small" themeColor={danger ? 'danger' : 'textSecondary'} numberOfLines={1}>
+            {fromKey(key).toLocaleDateString(undefined, { weekday: 'long' })} · {danger ? 'overdue' : relativeDay(key, today)}
+          </ThemedText>
+        </>
+      ) : (
+        <ThemedText type="small" themeColor="textSecondary">
+          {empty}
+        </ThemedText>
+      )}
+    </View>
+  );
   return (
     <View style={styles.dates}>
-      {lines.map((l) => (
-        <View key={l.label} style={styles.dateRow}>
-          <Icon name={l.icon} size={14} color={l.late ? theme.danger : theme.textSecondary} />
-          <ThemedText type="small" themeColor="textSecondary">
-            {l.label}{' '}
-          </ThemedText>
-          <ThemedText type="smallBold" style={l.late ? { color: theme.danger } : null}>
-            {fullDate(l.date)}
-          </ThemedText>
-          {l.tag ? (
-            <ThemedText type="small" style={{ color: l.late ? theme.danger : theme.textSecondary }}>
-              · {l.tag}
-            </ThemedText>
-          ) : null}
-        </View>
-      ))}
+      {tile('calendar', 'Planned for', forDate ?? null, 'No day yet (Later)')}
+      {tile('flag', 'Due', due, 'No due date', late)}
     </View>
   );
 }
@@ -473,7 +523,10 @@ function StatusPicker({
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  chips: { flexDirection: 'row', gap: Spacing.two, paddingHorizontal: Spacing.three },
+  chipsScroll: { marginHorizontal: -Spacing.three, flexGrow: 0 },
+  pickPad: { padding: Spacing.three },
+  center: { textAlign: 'center' },
   goal: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -500,8 +553,15 @@ const styles = StyleSheet.create({
     padding: Spacing.two,
   },
   noProject: { width: 30, height: 30, borderRadius: 8, borderWidth: 1.5, borderStyle: 'dashed' },
-  dates: { gap: Spacing.one, marginTop: -Spacing.one },
-  dateRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.one },
+  dates: { flexDirection: 'row', gap: Spacing.two },
+  dateTile: {
+    flex: 1,
+    gap: 2,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two + 2,
+    borderRadius: Radius.medium,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
   logWork: {
     flexDirection: 'row',
     alignItems: 'center',

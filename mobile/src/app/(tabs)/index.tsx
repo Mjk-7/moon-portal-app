@@ -371,10 +371,7 @@ function CompanyItem({
           {list.map((p) => {
             const name = projectNameInCompany(p, company.name);
             const role = mine(p) ? ((p.leadIds ?? []).includes(profile?.id ?? '') ? 'Lead' : 'Team') : null;
-            const tasks = p.week.total
-              ? `${p.week.open}/${p.week.total} open this week`
-              : 'Nothing this week';
-            const left = p.week.total ? (p.week.total - p.week.open) / p.week.total : 0;
+            const allDone = p.week.total > 0 && p.week.open === 0;
             return (
               <Pressable
                 key={p.id}
@@ -390,21 +387,31 @@ function CompanyItem({
                   size={32}
                 />
                 <View style={styles.flex}>
-                  <ThemedText type="small" numberOfLines={1}>
+                  <ThemedText type="small" numberOfLines={1} style={styles.projectName}>
                     {name}
                   </ThemedText>
                   <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-                    {role ? `${role} · ${tasks}` : tasks}
+                    {[role, p.week.total ? `${p.week.total} this week` : 'Nothing this week']
+                      .filter(Boolean)
+                      .join(' · ')}
                   </ThemedText>
                 </View>
                 {p.week.total ? (
-                  <View style={[styles.weekBar, { backgroundColor: theme.backgroundSelected }]}>
-                    <View
-                      style={[
-                        styles.weekFill,
-                        { width: `${Math.round(left * 100)}%`, backgroundColor: theme.success },
-                      ]}
-                    />
+                  <View
+                    accessibilityLabel={`${p.week.open} of ${p.week.total} tasks open this week`}
+                    style={[
+                      styles.weekPill,
+                      { backgroundColor: theme.backgroundSelected },
+                    ]}>
+                    {allDone ? <Icon name="check" size={11} color={theme.success} /> : null}
+                    <ThemedText type="smallBold" style={[styles.weekText, allDone && { color: theme.success }]}>
+                      {allDone ? `${p.week.total} done` : `${p.week.open}/${p.week.total}`}
+                    </ThemedText>
+                    {!allDone ? (
+                      <ThemedText type="small" themeColor="textSecondary" style={styles.weekText}>
+                        open
+                      </ThemedText>
+                    ) : null}
                   </View>
                 ) : null}
                 <Icon name="chevron" size={12} color={theme.textSecondary} />
@@ -543,8 +550,16 @@ const styles = StyleSheet.create({
   },
   projects: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.two },
   project: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, minHeight: 52 },
-  weekBar: { width: 44, height: 5, borderRadius: 3, overflow: 'hidden' },
-  weekFill: { height: 5, borderRadius: 3 },
+  projectName: { fontWeight: 600 },
+  weekPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    borderRadius: 999,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 3,
+  },
+  weekText: { fontSize: 13, lineHeight: 17, fontVariant: ['tabular-nums'] },
   chips: { gap: Spacing.two },
   board: {
     flexDirection: 'row',

@@ -10,6 +10,7 @@ import { Card, Dot, ProgressBar } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { api, messageOf } from '@/lib/api';
+import { fromKey } from '@/lib/dates';
 import { type DayGroup, type DayMode, placeOf, pointsOn, type RowStatus, rowStatus } from '@/lib/day';
 import { type PlaceInput, refreshWork } from '@/lib/query';
 import { pickOf } from '@/lib/status';
@@ -71,11 +72,11 @@ export function DaySheet({
                   color={g.place.color}
                   logo={g.place.logo}
                   personal={g.place.personal}
-                  size={20}
+                  size={24}
                 />
               )
             ) : null}
-            <ThemedText type="label" themeColor="textSecondary" numberOfLines={1} style={styles.flex}>
+            <ThemedText type="smallBold" numberOfLines={1} style={styles.flex}>
               {g.title}
             </ThemedText>
             <GroupCount group={g} team={teams?.[g.key.slice(8)]} onTeam={onTeam} />
@@ -108,26 +109,25 @@ function GroupCount({
   onTeam?: (projectId: string) => void;
 }) {
   const theme = useTheme();
-  if (!team || team.total <= team.mine || !group.key.startsWith('project:'))
-    return group.tasks.length ? (
-      <ThemedText type="small" themeColor="textSecondary">
-        {group.tasks.length}
-      </ThemedText>
-    ) : null;
+  if (!team || team.total <= team.mine || !group.key.startsWith('project:')) return null;
   return (
     <Pressable
       hitSlop={8}
       accessibilityRole="button"
       accessibilityHint="Shows who is working on what here"
       onPress={() => onTeam?.(group.key.slice(8))}
-      style={({ pressed }) => [styles.team, { opacity: pressed ? 0.6 : 1 }]}>
+      style={({ pressed }) => [
+        styles.team,
+        { backgroundColor: theme.backgroundSelected, opacity: pressed ? 0.6 : 1 },
+      ]}>
       <Icon name="people" size={13} color={theme.textSecondary} />
-      <ThemedText type="small" themeColor="textSecondary">
-        <ThemedText type="smallBold" themeColor="textSecondary">
+      <ThemedText type="small" themeColor="textSecondary" style={styles.teamText}>
+        <ThemedText type="smallBold" style={styles.teamText}>
           {team.mine} mine
         </ThemedText>{' '}
-        / {team.total} total
+        / {team.total}
       </ThemedText>
+      <Icon name="chevron" size={10} color={theme.textSecondary} />
     </Pressable>
   );
 }
@@ -163,15 +163,19 @@ function AddTaskLine({ place, name, date }: { place: PlaceInput; name: string; d
         accessibilityRole="button"
         onPress={() => setOpen(true)}
         style={({ pressed }) => [styles.add, { borderColor: theme.border, opacity: pressed ? 0.6 : 1 }]}>
-        <Icon name="add" size={16} color={theme.textSecondary} />
-        <ThemedText themeColor="textSecondary" numberOfLines={1} style={styles.flex}>
+        <View style={styles.addIcon}>
+          <Icon name="add" size={15} color={theme.textSecondary} />
+        </View>
+        <ThemedText type="small" themeColor="textSecondary" numberOfLines={1} style={styles.flex}>
           Add a task in {name}
         </ThemedText>
       </Pressable>
     );
   return (
     <View style={[styles.add, { borderColor: theme.border }]}>
-      <View style={[styles.ring, { borderColor: theme.textSecondary }]} />
+      <View style={styles.addIcon}>
+        <View style={[styles.ring, { borderColor: theme.textSecondary }]} />
+      </View>
       <TextInput
         value={title}
         onChangeText={setTitle}
@@ -204,7 +208,7 @@ export function WorkBar({ done, total }: { done: number; total: number }) {
 }
 
 /** A task's mark: an open circle (with its status's dot while open), a tick, a cross. */
-function StatusMark({ status }: { status: RowStatus }) {
+export function StatusMark({ status }: { status: RowStatus }) {
   const theme = useTheme();
   if (status === 'done') return <Icon name="checkCircle" size={22} color={theme.success} />;
   if (status === 'not_done') return <Icon name="xCircle" size={22} color={theme.danger} />;
@@ -292,8 +296,8 @@ function DayTaskRow({
         ) : null}
       </View>
       {task.forDate && task.forDate < date ? (
-        <ThemedText type="small" themeColor="textSecondary">
-          {Number(task.forDate.slice(8))}/{Number(task.forDate.slice(5, 7))}
+        <ThemedText type="small" themeColor="textSecondary" accessibilityLabel={`Planned for ${task.forDate}`}>
+          {fromKey(task.forDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
         </ThemedText>
       ) : null}
     </Pressable>
@@ -326,13 +330,22 @@ const styles = StyleSheet.create({
   text: { flex: 1, gap: 2 },
   doing: { fontWeight: 600 },
   place: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
-  team: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  team: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: 999,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 3,
+  },
+  teamText: { fontSize: 13, lineHeight: 17 },
   add: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two + Spacing.one,
-    minHeight: 44,
+    minHeight: 42,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  input: { flex: 1, fontSize: 16, paddingVertical: Spacing.two },
+  addIcon: { width: 22, alignItems: 'center' },
+  input: { flex: 1, fontSize: 15, paddingVertical: Spacing.two },
 });
