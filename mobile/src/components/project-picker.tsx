@@ -7,15 +7,15 @@ import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
 import { QueryState } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
+import { useToday } from '@/hooks/use-now';
 import { useTheme } from '@/hooks/use-theme';
 import { api, withQuery } from '@/lib/api';
 import { useCompany } from '@/lib/company';
-import { todayKey } from '@/lib/dates';
 import { isCoreProject, projectNameInCompany } from '@/lib/project-name';
 import type { PlaceInput } from '@/lib/query';
 import type { Day, ProjectRef, Workspace } from '@/lib/types';
 
-type Tab = {
+export type Tab = {
   key: string;
   name: string;
   logo?: string | null;
@@ -26,7 +26,7 @@ type Tab = {
 
 /** The projects a task can go in, one tab per company and Personal last. */
 export function usePlaces() {
-  const today = todayKey();
+  const today = useToday();
   const { company } = useCompany();
   const day = useQuery({
     queryKey: ['day', today],
@@ -197,7 +197,7 @@ export function ProjectPicker({
   );
 }
 
-function PlaceRow({
+export function PlaceRow({
   mark,
   title,
   detail,
@@ -238,6 +238,111 @@ function PlaceRow({
   );
 }
 
+/** More projects than this and the picker asks for the company first. */
+const FLAT_LIMIT = 5;
+
+/**
+ * Pick where a new task goes, in as few taps as it takes: with a handful of
+ * projects, all of them in one list; with more, the companies first, then
+ * the picked company's projects. Personal is always there, for your own
+ * work.
+ */
+export function PlacePicker({ onPick }: { onPick: (place: PlaceInput, project: ProjectRef | null) => void }) {
+  const theme = useTheme();
+  const { tabs, projects, query } = usePlaces();
+  const [companyKey, setCompanyKey] = useState<string | null>(null);
+  const companies = tabs.filter((t) => !t.personal);
+  const count = companies.reduce((n, t) => n + t.projects.length, 0);
+  const personal = (
+    <PlaceRow
+      key="personal"
+      mark={<CompanyMark id="personal" name="Personal" personal size={40} />}
+      title="Personal"
+      detail="Your own work. Only you see it."
+      on={false}
+      onPress={() => onPick({ personal: true }, projects.find((p) => p.isPersonal) ?? null)}
+    />
+  );
+  const projectRow = (t: Tab, p: ProjectRef, showCompany: boolean) => (
+    <PlaceRow
+      key={p.id}
+      mark={
+        isCoreProject(p) ? (
+          <CompanyMark id={t.key} name={t.name} color={t.color} logo={t.logo} size={40} />
+        ) : (
+          <CompanyMark id={p.id} name={p.name} color={p.color} logo={p.logo} size={40} />
+        )
+      }
+      title={projectNameInCompany(p, t.name)}
+      detail={isCoreProject(p) ? 'The company’s general work' : showCompany ? t.name : undefined}
+      on={false}
+      onPress={() => onPick({ projectId: p.id }, p)}
+    />
+  );
+
+  if (!query.data)
+    return (
+      <View style={[styles.flex, styles.pad]}>
+        <QueryState loading={query.isPending} error={query.error} onRetry={() => void query.refetch()} what="your projects" />
+      </View>
+    );
+
+  const picked = companies.find((t) => t.key === companyKey);
+  if (picked)
+    return (
+      <ScrollView style={styles.flex} contentContainerStyle={styles.page}>
+        <Pressable
+          onPress={() => setCompanyKey(null)}
+          style={({ pressed }) => [styles.back, { opacity: pressed ? 0.6 : 1 }]}>
+          <Icon name="back" size={14} color={theme.textSecondary} />
+          <ThemedText type="smallBold" themeColor="textSecondary">
+            All companies
+          </ThemedText>
+        </Pressable>
+        <ThemedText type="label" themeColor="textSecondary">
+          {picked.name} · {picked.projects.length} projects
+        </ThemedText>
+        {picked.projects.map((p) => projectRow(picked, p, false))}
+      </ScrollView>
+    );
+
+  return (
+    <ScrollView style={styles.flex} contentContainerStyle={styles.page}>
+      {count > FLAT_LIMIT ? (
+        <>
+          <ThemedText type="label" themeColor="textSecondary">
+            Pick a company
+          </ThemedText>
+          {companies.map((t) => (
+            <PlaceRow
+              key={t.key}
+              mark={<CompanyMark id={t.key} name={t.name} logo={t.logo} color={t.color} size={40} />}
+              title={t.name}
+              detail={`${t.projects.length} ${t.projects.length === 1 ? 'project' : 'projects'}`}
+              on={false}
+              onPress={() =>
+                // A company with one project needs no second step.
+                t.projects.length === 1 ? onPick({ projectId: t.projects[0].id }, t.projects[0]) : setCompanyKey(t.key)
+              }
+            />
+          ))}
+        </>
+      ) : (
+        <>
+          <ThemedText type="label" themeColor="textSecondary">
+            Pick a project
+          </ThemedText>
+          {companies.flatMap((t) => t.projects.map((p) => projectRow(t, p, companies.length > 1)))}
+        </>
+      )}
+      <ThemedText type="label" themeColor="textSecondary" style={styles.personalLabel}>
+        Just for you
+      </ThemedText>
+      {personal}
+    </ScrollView>
+  );
+}
+
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   pad: { padding: Spacing.three },
@@ -254,6 +359,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one + 2,
   },
   page: { padding: Spacing.three, gap: Spacing.two },
+  back: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, paddingVertical: Spacing.one },
+  personalLabel: { marginTop: Spacing.two },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

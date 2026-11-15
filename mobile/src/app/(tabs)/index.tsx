@@ -13,16 +13,18 @@ import { WhatsNewCard } from '@/components/whats-new-card';
 import { Avatar, Card, Chip, Columns, IconButton, QueryState, Screen } from '@/components/ui';
 import { QUOTES } from '@/constants/quotes';
 import { Spacing } from '@/constants/theme';
-import { useNow } from '@/hooks/use-now';
+import { useNow, useToday } from '@/hooks/use-now';
 import { useTheme } from '@/hooks/use-theme';
 import { api, withQuery } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useCompany } from '@/lib/company';
 import { fromKey, monthOf, todayKey } from '@/lib/dates';
 import { joinMeeting } from '@/lib/meet';
+import { prefetchProject } from '@/lib/project';
 import { projectNameInCompany } from '@/lib/project-name';
+import { queryClient } from '@/lib/query';
 import { useNotifications, useUnreadCount } from '@/lib/notifications';
-import type { Company, Day, LeaderboardRow, Project, Task, Workspace } from '@/lib/types';
+import type { Company, Day, LeaderboardRow, Task, WeekProject, WeekProjects, Workspace } from '@/lib/types';
 
 /*
  * Home, as on the website: hello with the time, the date and the day's
@@ -30,7 +32,7 @@ import type { Company, Day, LeaderboardRow, Project, Task, Workspace } from '@/l
  * month's leaderboard.
  */
 export default function HomeScreen() {
-  const date = todayKey();
+  const date = useToday();
   const notifications = useNotifications();
   const unread = useUnreadCount();
   const day = useQuery({
@@ -45,12 +47,17 @@ export default function HomeScreen() {
 
   const refresh = async () => {
     setRefreshing(true);
-    await Promise.all([day.refetch(), workspace.refetch(), notifications.refetch()]).catch(() => null);
+    await Promise.all([
+      day.refetch(),
+      workspace.refetch(),
+      notifications.refetch(),
+      queryClient.invalidateQueries({ queryKey: ['projects', 'week'] }),
+    ]).catch(() => null);
     setRefreshing(false);
   };
 
   return (
-    <Screen wide refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} />}>
+    <Screen tab wide refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} />}>
       <View style={styles.top}>
         <PortalMark size={26} />
         <ThemedText type="label" style={styles.brand}>
@@ -80,6 +87,7 @@ export default function HomeScreen() {
               error={workspace.error}
               loading={workspace.isPending}
               onRetry={() => void workspace.refetch()}
+              today={date}
             />
             <LeaderboardSection />
           </>
@@ -227,18 +235,32 @@ function QuoteCard({ date }: { date: string }) {
 const roleLabel = (keys?: string[] | null) =>
   (keys ?? []).map((k) => k.charAt(0).toUpperCase() + k.slice(1)).join(', ');
 
+/**
+ * Every project with this week's tasks, in one lean call made as Home opens
+ * (and kept on the phone), so a company opens at once instead of loading.
+ */
+function useWeekProjects(today: string) {
+  return useQuery({
+    queryKey: ['projects', 'week', today],
+    queryFn: () => api<WeekProjects>(withQuery('/api/projects/week', { today })),
+  });
+}
+
 function CompaniesSection({
   workspace,
   loading,
   error,
   onRetry,
+  today,
 }: {
   workspace?: Workspace;
   loading: boolean;
   error: Error | null;
   onRetry: () => void;
+  today: string;
 }) {
   const [open, setOpen] = useState<string | null>(null);
+  const week = useWeekProjects(today);
   const companies = [...(workspace?.companies ?? [])].sort(
     (a, b) => Number(!!a.company.isPersonal) - Number(!!b.company.isPersonal),
   );
@@ -248,16 +270,30 @@ function CompaniesSection({
       <QueryState loading={loading} error={workspace ? null : error} onRetry={onRetry} what="your companies" />
       {companies.length ? (
         <Card style={styles.list}>
-          {companies.map(({ company, member }, i) => (
-            <CompanyItem
-              key={company.id}
-              company={company}
-              role={company.isPersonal ? 'Only you' : member ? roleLabel(member.roleKeys) || 'Member' : 'Visible to you'}
-              open={open === company.id}
-              first={i === 0}
-              onToggle={() => setOpen(open === company.id ? null : company.id)}
-            />
-          ))}
+          {companies.map(({ company, member }, i) => {
+            const projects = week.data?.projects.filter((p) => p.companyId === company.id);
+            const openTasks = (projects ?? []).reduce((n, p) => n + p.week.open, 0);
+            const total = (projects ?? []).reduce((n, p) => n + p.week.total, 0);
+            const role = company.isPersonal
+              ? 'Only you'
+              : member
+                ? roleLabel(member.roleKeys) || 'Member'
+                : 'Visible to you';
+            return (
+              <CompanyItem
+                key={company.id}
+                company={company}
+                role={total ? `${role} · ${openTasks}/${total} open this week` : role}
+                projects={projects}
+                loading={week.isPending}
+                error={week.data ? null : week.error}
+                onRetry={() => void week.refetch()}
+                open={open === company.id}
+                first={i === 0}
+                onToggle={() => setOpen(open === company.id ? null : company.id)}
+              />
+            );
+          })}
         </Card>
       ) : null}
     </View>
@@ -267,28 +303,35 @@ function CompaniesSection({
 function CompanyItem({
   company,
   role,
+  projects,
+  loading,
+  error,
+  onRetry,
   open,
   first,
   onToggle,
 }: {
   company: Company;
   role: string;
+  projects?: WeekProject[];
+  loading: boolean;
+  error: Error | null;
+  onRetry: () => void;
   open: boolean;
   first: boolean;
   onToggle: () => void;
 }) {
   const theme = useTheme();
   const { profile } = useAuth();
-  const projects = useQuery({
-    queryKey: ['projects', company.id],
-    queryFn: () => api<{ projects: Project[] }>(withQuery('/api/projects', { companyId: company.id })),
-    enabled: open,
-  });
-  const mine = (p: Project) =>
-    !!profile && (p.leadIds.includes(profile.id) || p.memberIds.includes(profile.id));
-  const list = [...(projects.data?.projects ?? [])]
-    .filter((p) => p.status !== 'ARCHIVED')
-    .sort((a, b) => Number(mine(b)) - Number(mine(a)) || a.name.localeCompare(b.name));
+  const mine = (p: WeekProject) =>
+    !!profile && ((p.leadIds ?? []).includes(profile.id) || (p.memberIds ?? []).includes(profile.id));
+  const list = [...(projects ?? [])].sort(
+    (a, b) =>
+      Number(mine(b)) - Number(mine(a)) ||
+      Number(!!b.isCore) - Number(!!a.isCore) ||
+      b.week.open - a.week.open ||
+      a.name.localeCompare(b.name),
+  );
 
   return (
     <View style={!first && [styles.divider, { borderColor: theme.border }]}>
@@ -317,25 +360,23 @@ function CompanyItem({
       </Pressable>
       {open ? (
         <Animated.View entering={FadeIn.duration(180)} style={styles.projects}>
-          <QueryState
-            loading={projects.isPending}
-            error={projects.data ? null : projects.error}
-            onRetry={() => void projects.refetch()}
-            what="its projects"
-          />
-          {projects.data && !list.length ? (
+          {!projects ? (
+            <QueryState loading={loading} error={error} onRetry={onRetry} what="its projects" />
+          ) : null}
+          {projects && !list.length ? (
             <ThemedText type="small" themeColor="textSecondary">
               No projects yet.
             </ThemedText>
           ) : null}
           {list.map((p) => {
             const name = projectNameInCompany(p, company.name);
-            const role = mine(p) ? (p.leadIds.includes(profile?.id ?? '') ? 'Lead' : 'Team') : null;
-            const left = p.progress ? p.progress.total - p.progress.done : 0;
-            const tasks = left ? `${left} ${left === 1 ? 'task' : 'tasks'} open` : 'No open tasks';
+            const role = mine(p) ? ((p.leadIds ?? []).includes(profile?.id ?? '') ? 'Lead' : 'Team') : null;
+            const allDone = p.week.total > 0 && p.week.open === 0;
             return (
               <Pressable
                 key={p.id}
+                // The page starts loading as the finger lands.
+                onPressIn={() => prefetchProject(p.id)}
                 onPress={() => router.push({ pathname: '/project/[id]', params: { id: p.id } })}
                 style={({ pressed }) => [styles.project, { opacity: pressed ? 0.6 : 1 }]}>
                 <CompanyMark
@@ -346,17 +387,32 @@ function CompanyItem({
                   size={32}
                 />
                 <View style={styles.flex}>
-                  <ThemedText type="small" numberOfLines={1}>
+                  <ThemedText type="small" numberOfLines={1} style={styles.projectName}>
                     {name}
                   </ThemedText>
                   <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-                    {role ? `${role} · ${tasks}` : tasks}
+                    {[role, p.week.total ? `${p.week.total} this week` : 'Nothing this week']
+                      .filter(Boolean)
+                      .join(' · ')}
                   </ThemedText>
                 </View>
-                {p.progress?.total ? (
-                  <ThemedText type="smallBold" style={styles.percent}>
-                    {Math.round(p.progress.percent)}%
-                  </ThemedText>
+                {p.week.total ? (
+                  <View
+                    accessibilityLabel={`${p.week.open} of ${p.week.total} tasks open this week`}
+                    style={[
+                      styles.weekPill,
+                      { backgroundColor: theme.backgroundSelected },
+                    ]}>
+                    {allDone ? <Icon name="check" size={11} color={theme.success} /> : null}
+                    <ThemedText type="smallBold" style={[styles.weekText, allDone && { color: theme.success }]}>
+                      {allDone ? `${p.week.total} done` : `${p.week.open}/${p.week.total}`}
+                    </ThemedText>
+                    {!allDone ? (
+                      <ThemedText type="small" themeColor="textSecondary" style={styles.weekText}>
+                        open
+                      </ThemedText>
+                    ) : null}
+                  </View>
                 ) : null}
                 <Icon name="chevron" size={12} color={theme.textSecondary} />
               </Pressable>
@@ -494,7 +550,16 @@ const styles = StyleSheet.create({
   },
   projects: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.two },
   project: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, minHeight: 52 },
-  percent: { minWidth: 36, textAlign: 'right' },
+  projectName: { fontWeight: 600 },
+  weekPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    borderRadius: 999,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 3,
+  },
+  weekText: { fontSize: 13, lineHeight: 17, fontVariant: ['tabular-nums'] },
   chips: { gap: Spacing.two },
   board: {
     flexDirection: 'row',

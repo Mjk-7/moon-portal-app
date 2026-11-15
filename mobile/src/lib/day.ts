@@ -164,3 +164,40 @@ export function workTally(day: Day, date: string) {
 /** The task's work points on the day, oldest first, that say something. */
 export const pointsOn = (task: Task, points: WorkPoint[], date: string) =>
   points.filter((p) => p.taskId === task.id && p.date === date && p.text.trim());
+
+/** The company a group of the day is in: its id, `personal`, or `none`. */
+export function companyKeyOf(group: DayGroup, day: Pick<Day, 'projects'>): string {
+  if (group.place?.personal) return 'personal';
+  if (group.key.startsWith('company:')) return group.key.slice(8);
+  if (group.key.startsWith('project:'))
+    return day.projects.find((p) => p.id === group.key.slice(8))?.companyId ?? 'none';
+  return 'none';
+}
+
+/**
+ * The day by project, as the website's worklog page shows it now: one group
+ * per project, and a Personal group always there to write in.
+ */
+export function projectGroups(day: Day, date: string): DayGroup[] {
+  const groups = groupsFor('summary', day, date);
+  if (!groups.some((g) => g.place?.personal)) {
+    const personal = day.projects.find((p) => p.isPersonal);
+    const place: Place = { key: 'personal', name: 'Personal', color: personal?.color, personal: true };
+    const none = groups.findIndex((g) => g.key === 'none');
+    groups.splice(none < 0 ? groups.length : none, 0, { key: 'personal', title: 'Personal', place, tasks: [] });
+  }
+  return groups;
+}
+
+/** Finished and total tasks in some groups, for the tabs and the bar. */
+export function groupTally(groups: DayGroup[], day: Day, date: string) {
+  const today = day.today || todayKey();
+  let done = 0;
+  let total = 0;
+  for (const g of groups)
+    for (const t of g.tasks) {
+      total += 1;
+      if (!movedOn(t, date, today) && FINISHED.includes(rowStatus(t, day.points, date))) done += 1;
+    }
+  return { done, total };
+}

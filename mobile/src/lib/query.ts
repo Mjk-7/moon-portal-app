@@ -93,7 +93,7 @@ queryClient.setMutationDefaults(MUTATIONS.changeTask, {
 
 /** Everything that shows tasks or work, after a change. */
 export function refreshWork() {
-  for (const key of ['day', 'days', 'tasks', 'task', 'month', 'project', 'goals'])
+  for (const key of ['day', 'days', 'tasks', 'task', 'month', 'project', 'projects', 'goals'])
     void queryClient.invalidateQueries({ queryKey: [key] });
 }
 

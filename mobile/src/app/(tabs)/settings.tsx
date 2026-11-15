@@ -134,7 +134,7 @@ export default function SettingsScreen() {
   const switchColors = { true: theme.success };
 
   return (
-    <Screen>
+    <Screen tab>
       <ThemedText type="title">Settings</ThemedText>
 
       <PressableCard

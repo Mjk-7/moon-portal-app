@@ -4,14 +4,15 @@ import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import { CompanyMark } from '@/components/company-mark';
 import { useOnline } from '@/components/offline-banner';
-import { ProjectPicker } from '@/components/project-picker';
+import { PlacePicker } from '@/components/project-picker';
 import { ThemedText } from '@/components/themed-text';
 import { Button, Card, Field, Screen, Segmented } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
+import { useToday } from '@/hooks/use-now';
 import { useTheme } from '@/hooks/use-theme';
 import { api, messageOf } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { addDays, todayKey } from '@/lib/dates';
+import { addDays } from '@/lib/dates';
 import { projectName } from '@/lib/project-name';
 import { type PlaceInput, queryClient, refreshWork } from '@/lib/query';
 import type { ProjectRef, Task } from '@/lib/types';
@@ -22,8 +23,9 @@ type GoalKind = 'scheduled' | 'target';
 type Period = 'day' | 'week' | 'month';
 
 /**
- * Add a task, a goal or an idea. First where it goes (companies as tabs, their
- * projects, or Personal), then the words: a task for a day, a goal that
+ * Add a task, a goal or an idea. First where it goes (with a handful of
+ * projects, all of them; with more, the company first, then its projects;
+ * and Personal), then the words: a task for a day, a goal that
  * repeats ("3 a week") or is one number to reach ("1,000 subscribers"), or an
  * idea, which opens a new page in the project to write it down.
  */
@@ -33,7 +35,7 @@ export default function NewTaskSheet() {
   const params = useLocalSearchParams<{ title?: string }>();
   const online = useOnline();
   const { profile } = useAuth();
-  const today = todayKey();
+  const today = useToday();
   // Null until picked; `auto` lets the portal place it from its words.
   const [place, setPlace] = useState<PlaceInput | 'auto' | null>(null);
   const [project, setProject] = useState<ProjectRef | null>(null);
@@ -50,7 +52,7 @@ export default function NewTaskSheet() {
     return (
       <View style={[styles.flex, { backgroundColor: theme.background }]}>
         <Stack.Screen options={{ title: 'Where does it go?' }} />
-        <ProjectPicker
+        <PlacePicker
           onPick={(picked, p) => {
             setPlace(picked);
             setProject(p);
