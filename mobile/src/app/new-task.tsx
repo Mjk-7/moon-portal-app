@@ -48,9 +48,10 @@ export default function NewTaskSheet() {
   const [forTeam, setForTeam] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  // The picker is the sheet's only view (see PlacePicker).
   if (!place)
     return (
-      <View style={[styles.flex, { backgroundColor: theme.background }]}>
+      <>
         <Stack.Screen options={{ title: 'Where does it go?' }} />
         <PlacePicker
           onPick={(picked, p) => {
@@ -58,19 +59,21 @@ export default function NewTaskSheet() {
             setProject(p);
             if (!p) setKind('task');
           }}
+          footer={
+            <Pressable
+              onPress={() => {
+                setPlace('auto');
+                setProject(null);
+                setKind('task');
+              }}
+              style={({ pressed }) => [styles.auto, { borderColor: theme.border, opacity: pressed ? 0.6 : 1 }]}>
+              <ThemedText type="small" themeColor="textSecondary">
+                Not sure? Let the portal place it from its words
+              </ThemedText>
+            </Pressable>
+          }
         />
-        <Pressable
-          onPress={() => {
-            setPlace('auto');
-            setProject(null);
-            setKind('task');
-          }}
-          style={({ pressed }) => [styles.auto, { borderColor: theme.border, opacity: pressed ? 0.6 : 1 }]}>
-          <ThemedText type="small" themeColor="textSecondary">
-            Not sure? Let the portal place it from its words
-          </ThemedText>
-        </Pressable>
-      </View>
+      </>
     );
 
   const personal = place !== 'auto' && 'personal' in place;
@@ -280,8 +283,8 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   auto: {
     alignItems: 'center',
+    marginTop: Spacing.two,
     paddingVertical: Spacing.three,
-    paddingBottom: Spacing.five,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   where: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
