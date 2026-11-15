@@ -9,10 +9,12 @@ import {
   FORM_FIELD_TYPE,
   type FormField,
 } from '@/models/hiring';
+
 import { isValidLink, splitLinkList, toHref } from './links';
 
 export const MAX_FIELDS = 40;
-export const MAX_OPTIONS = 30;
+/** Room for every Indian state and union territory (36). */
+export const MAX_OPTIONS = 40;
 export const MAX_LABEL_LENGTH = 200;
 export const MAX_SHORT_ANSWER = 500;
 export const MAX_LONG_ANSWER = 5000;

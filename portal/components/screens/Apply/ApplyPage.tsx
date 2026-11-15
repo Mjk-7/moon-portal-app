@@ -39,7 +39,16 @@ export interface PublicOpening {
   isOpen: boolean;
   fields: FormField[];
   company: { name: string; logo: string | null; color: string | null };
+  /** A key of APPLY_PAGES when the opening uses a designed page. */
+  applyPage: string | null;
+  /** The showcase film's player link (YouTube), for designed pages. */
+  showcaseEmbed: string | null;
+  /** The hiring team's preview: the form checks answers but sends nothing. */
+  preview?: boolean;
 }
+
+export const PREVIEW_NOT_SENT =
+  'This is a preview, so nothing was sent. Candidates apply from the public link.';
 
 type Answers = Record<string, string | string[] | boolean>;
 
@@ -290,6 +299,10 @@ export const ApplyPage = ({ opening }: { opening: PublicOpening }) => {
     setErrors(local);
     if (Object.keys(local).length) {
       setFormError('Please fix the highlighted answers.');
+      return;
+    }
+    if (opening.preview) {
+      setFormError(PREVIEW_NOT_SENT);
       return;
     }
 

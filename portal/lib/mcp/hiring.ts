@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 
+import { APPLY_PAGES } from '@/lib/hiring/applyPages';
 import {
   STARTER_PREFIX,
   STARTER_TEMPLATES,
@@ -102,6 +103,7 @@ const links = (origin: string) => ({
     `${origin}/hiring?view=opening&company=${a.companyId}&opening=${a.openingId}&application=${a.id}`,
   apply: (slug: string) => `${origin}/apply/${slug}`,
   taskPreview: (openingId: string) => `${origin}/task/preview/${openingId}`,
+  applyPreview: (openingId: string) => `${origin}/apply/preview/${openingId}`,
 });
 
 /* -------------------------------- lookups -------------------------------- */
@@ -411,6 +413,17 @@ const openingProperties = {
     description:
       'The rest of the job post, shown below the summary: requirements, responsibilities, nice-to-haves, pay and perks. Plain text or light Markdown; lines starting with "- " or "* " become bullets, a short line (or a **bold** or ## line) before them becomes a heading, and **text** is bold.',
   },
+  applyPage: {
+    type: 'string',
+    enum: ['', ...Object.keys(APPLY_PAGES)],
+    description:
+      'A designed apply page instead of the standard one; empty string for the standard page. Its words come from the opening: the summary\'s first paragraph is the big headline (**bold** words in it get a marker circle), each details section (a ## heading and what follows) is a card, and a section that is only a numbered list is drawn as steps. film-slate: grainy paper, red marker notes, the showcase video in a film frame, and a section whose heading starts with "First Cut" as the highlight card.',
+  },
+  showcaseVideo: {
+    type: 'string',
+    description:
+      'A YouTube link played as the showcase film at the top of a designed apply page; until there is one, the frame says it premieres soon. Empty string to clear.',
+  },
   notes: {
     type: 'string',
     description:
@@ -592,6 +605,9 @@ export const HIRING_TOOLS: Tool[] = [
         ),
         description: opening.description ?? null,
         details: opening.details ?? null,
+        applyPage: opening.applyPage ?? null,
+        showcaseVideo: opening.showcaseVideo ?? null,
+        applyPreviewUrl: links(context.origin).applyPreview(opening.id),
         notes: opening.notes ?? null,
         screening: opening.screening ?? null,
         questions: (opening.fields ?? []).map(fieldView),
@@ -636,6 +652,8 @@ export const HIRING_TOOLS: Tool[] = [
         employmentType: args?.employmentType,
         description: args?.description,
         details: args?.details,
+        applyPage: args?.applyPage,
+        showcaseVideo: args?.showcaseVideo,
         notes: args?.notes,
         screening: args?.screening,
         fields: args?.questions ?? [],
@@ -662,6 +680,8 @@ export const HIRING_TOOLS: Tool[] = [
           employmentType: data.employmentType ?? null,
           description: data.description ?? null,
           details: data.details ?? null,
+          applyPage: data.applyPage ?? null,
+          showcaseVideo: data.showcaseVideo ?? null,
           notes: data.notes ?? null,
           screening: data.screening ?? null,
           status: data.status,
@@ -684,6 +704,8 @@ export const HIRING_TOOLS: Tool[] = [
         opening: {
           ...openingSummary(opening, company, emptyStageCounts(), context),
           questions: opening.fields.map(fieldView),
+          applyPage: opening.applyPage ?? null,
+          applyPreviewUrl: links(context.origin).applyPreview(opening.id),
         },
         ...(dropped > 0 && {
           note: `${dropped} question(s) were left out: each needs a label and a known type, and choice questions need options.`,
@@ -724,6 +746,8 @@ export const HIRING_TOOLS: Tool[] = [
         'employmentType',
         'description',
         'details',
+        'applyPage',
+        'showcaseVideo',
         'notes',
         'screening',
         'status',
@@ -769,6 +793,9 @@ export const HIRING_TOOLS: Tool[] = [
           ),
           screening: updated.screening ?? null,
           questions: (updated.fields ?? []).map(fieldView),
+          applyPage: updated.applyPage ?? null,
+          showcaseVideo: updated.showcaseVideo ?? null,
+          applyPreviewUrl: links(context.origin).applyPreview(updated.id),
           hiringLead: await leadName(updated.hiringLeadId),
           replyToLead: updated.replyToLead ?? true,
           task: taskView(updated.task),

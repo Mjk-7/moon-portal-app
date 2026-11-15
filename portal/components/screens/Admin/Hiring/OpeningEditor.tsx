@@ -4,6 +4,7 @@ import type { User } from '@db/client';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
+import { APPLY_PAGES } from '@/lib/hiring/applyPages';
 import {
   EMPLOYMENT_TYPES,
   FIELD_TYPE_META,
@@ -38,6 +39,7 @@ import {
 } from '../shared/AdminUI';
 import { errorText } from '../Workspace/shared';
 import {
+  applyPreviewUrl,
   applyUrl,
   OPENING_STATUS_META,
   type OpeningRow,
@@ -114,6 +116,16 @@ const OpeningLinks = ({ opening }: { opening: OpeningRow }) => {
           </div>
         </>
       )}
+      <LinkRow
+        icon="visibility"
+        label="Apply page preview"
+        hint={
+          opening.applyPage && APPLY_PAGES[opening.applyPage]
+            ? `· ${APPLY_PAGES[opening.applyPage].name}`
+            : '· standard'
+        }
+        value={applyPreviewUrl(opening.id)}
+      />
       {opening.task ? (
         <LinkRow
           icon="assignment"
@@ -164,6 +176,8 @@ const emptyDraft = {
   employmentType: 'Full-time',
   description: '',
   details: '',
+  applyPage: '',
+  showcaseVideo: '',
   notes: '',
   screening: '',
   status: JOB_OPENING_STATUS.DRAFT as JOB_OPENING_STATUS,
@@ -745,6 +759,8 @@ export const OpeningEditor = ({
             employmentType: opening.employmentType ?? '',
             description: opening.description ?? '',
             details: opening.details ?? '',
+            applyPage: opening.applyPage ?? '',
+            showcaseVideo: opening.showcaseVideo ?? '',
             notes: opening.notes ?? '',
             screening: opening.screening ?? '',
             status: opening.status,
@@ -1043,6 +1059,32 @@ export const OpeningEditor = ({
                   'Requirements\n- …\n\nResponsibilities\n- …\n\nPay and perks\n- …'
                 }
                 className="min-h-[200px]"
+              />
+            </Field>
+            <Field
+              label="Apply page"
+              hint="A designed page instead of the standard one. It still uses the summary (its first paragraph is the headline) and the details (each section a card)."
+            >
+              <NativeSelect
+                value={draft.applyPage}
+                onChange={(e) => set('applyPage', e.target.value)}
+              >
+                <option value="">Standard</option>
+                {Object.values(APPLY_PAGES).map((page) => (
+                  <option key={page.key} value={page.key}>
+                    {page.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
+            <Field
+              label="Showcase video"
+              hint="A YouTube link, played at the top of a designed apply page."
+            >
+              <TextInput
+                value={draft.showcaseVideo}
+                onChange={(e) => set('showcaseVideo', e.target.value)}
+                placeholder="https://youtu.be/…"
               />
             </Field>
             <Field

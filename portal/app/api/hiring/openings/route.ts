@@ -101,6 +101,8 @@ export async function POST(request: Request) {
       employmentType: data.employmentType ?? null,
       description: data.description ?? null,
       details: data.details ?? null,
+      applyPage: data.applyPage ?? null,
+      showcaseVideo: data.showcaseVideo ?? null,
       notes: data.notes ?? null,
       screening: data.screening ?? null,
       status: data.status,

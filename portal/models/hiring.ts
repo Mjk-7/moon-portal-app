@@ -250,6 +250,14 @@ export type JobOpening = Loose<
     description?: Nullable<string>;
     /** The rest of the job post, shown further down the apply page. */
     details?: Nullable<string>;
+    /**
+     * A designed apply page instead of the standard one, a key of
+     * APPLY_PAGES (lib/hiring/applyPages). Its words still come from the
+     * summary, details and form above.
+     */
+    applyPage?: Nullable<string>;
+    /** A YouTube link, played as the showcase film on a designed apply page. */
+    showcaseVideo?: Nullable<string>;
     /** The hiring team's own notes. Candidates never see them. */
     notes?: Nullable<string>;
     /**
