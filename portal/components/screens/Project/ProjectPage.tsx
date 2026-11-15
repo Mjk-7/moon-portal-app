@@ -672,8 +672,8 @@ const HeaderButton = ({
   const className = cn(
     'flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors',
     primary
-      ? 'bg-white auto-light:bg-neutral-900 text-neutral-950 auto-light:text-white hover:opacity-90'
-      : 'bg-white/[0.06] auto-light:bg-black/[0.06] text-neutral-200 auto-light:text-neutral-800 hover:bg-white/[0.1] auto-light:hover:bg-black/[0.1] hover:text-white auto-light:hover:text-neutral-950',
+      ? 'bg-white text-neutral-950 hover:opacity-90 auto-light:bg-neutral-900 auto-light:text-white'
+      : 'bg-white/[0.06] text-neutral-200 hover:bg-white/[0.1] hover:text-white auto-light:bg-black/[0.06] auto-light:text-neutral-800 auto-light:hover:bg-black/[0.1] auto-light:hover:text-neutral-950',
   );
   const body = (
     <>

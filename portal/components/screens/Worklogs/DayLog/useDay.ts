@@ -360,6 +360,9 @@ export function useDay(date: string) {
           const words = title.trim();
           if (!words) return;
           const row = tasksRef.current.find((t) => t.id === id);
+          // A new line starting with "/" is a search, not a task yet.
+          if (row?.draft && !realId.current.has(id) && words.startsWith('/'))
+            return;
           if (
             row?.draft &&
             !realId.current.has(id) &&
@@ -383,6 +386,7 @@ export function useDay(date: string) {
       const row = tasksRef.current.find((t) => t.id === id);
       const words = row?.title.trim();
       if (!row || !words) return;
+      if (row.draft && !realId.current.has(id) && words.startsWith('/')) return;
       if (row.draft && !realId.current.has(id) && !creating.current.has(id))
         create(row, words);
       else patch(id, { title: words });
@@ -396,7 +400,7 @@ export function useDay(date: string) {
       const row = tasks.find((t) => t.id === id);
       let real = await idOf(id);
       if (!real && row?.draft) {
-        if (!row.title.trim()) return;
+        if (!row.title.trim() || row.title.trim().startsWith('/')) return;
         real = (await create(row, row.title.trim()))?.id ?? null;
       }
       if (!real) return;

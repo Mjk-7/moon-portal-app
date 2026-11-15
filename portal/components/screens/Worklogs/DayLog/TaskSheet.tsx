@@ -36,6 +36,7 @@ import {
   statusForKey,
   StatusIcon,
 } from './sheetParts';
+import { isSlash, SlashMenu, useSlash } from './SlashPicker';
 import type { ActionTask, TaskAction } from './TaskActions';
 import { ActionsMenu, canAssign, TaskActionDialogs } from './TaskActions';
 import { hasDetails, MeetingTime, TaskInfo } from './TaskInfo';
@@ -636,27 +637,35 @@ const AddRow = ({
   placeholder: string;
 }) => {
   const [adding, setAdding] = useState('');
+  const slash = useSlash(adding, () => setAdding(''));
   const addFromInput = () => {
     const text = adding.trim();
-    if (!text) return;
+    // "/…" searches upcoming tasks; it isn't a task of its own.
+    if (!text || isSlash(text)) return;
     const id = day.addDraft(null, place);
     day.editTitle(id, text);
     setAdding('');
   };
   return (
-    <div className="flex items-center gap-2.5 rounded-lg px-2 py-1">
+    <div className="relative flex items-center gap-2.5 rounded-lg px-2 py-1">
       <Icon
-        name="add"
+        name={slash.open ? 'search' : 'add'}
         className="text-[18px] text-neutral-600 auto-light:text-neutral-400"
       />
       <input
         value={adding}
         onChange={(e) => setAdding(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && addFromInput()}
-        onBlur={addFromInput}
-        placeholder={placeholder}
+        onKeyDown={(e) => {
+          if (slash.onKey(e)) return;
+          if (e.key === 'Enter') addFromInput();
+        }}
+        onBlur={() => (slash.open ? setAdding('') : addFromInput())}
+        placeholder={
+          slash.upcoming ? `${placeholder}, or / for upcoming` : placeholder
+        }
         className="flex-1 bg-transparent text-sm font-medium text-neutral-100 placeholder:font-normal placeholder:text-neutral-600 focus:outline-none auto-light:text-neutral-900 auto-light:placeholder:text-neutral-400"
       />
+      <SlashMenu slash={slash} />
     </div>
   );
 };
@@ -724,6 +733,11 @@ export const TaskSheet = ({
   } | null>(null);
 
   const tasks = useMemo(() => groups.flatMap((g) => g.tasks), [groups]);
+  // A new line whose words start with "/" searches upcoming tasks.
+  const slashRow = tasks.find((t) => t.draft && isSlash(t.title)) ?? null;
+  const slash = useSlash(slashRow?.title ?? '', () => {
+    if (slashRow) day.editTitle(slashRow.id, '');
+  });
 
   useEffect(() => {
     if (!focusId) return;
@@ -752,6 +766,7 @@ export const TaskSheet = ({
     status: TaskRowStatus,
     group: SheetGroup,
   ) => {
+    if (task.id === slashRow?.id && slash.onKey(e)) return;
     const el = e.currentTarget;
     const key = statusForKey(e);
     if (key) {
@@ -854,8 +869,9 @@ export const TaskSheet = ({
     return (
       <div
         key={task.rowKey ?? task.id}
-        className="group rounded-lg px-2 py-1 transition-colors focus-within:bg-white/[0.04] hover:bg-white/[0.03] auto-light:focus-within:bg-black/[0.04] auto-light:hover:bg-black/[0.03]"
+        className="group relative rounded-lg px-2 py-1 transition-colors focus-within:bg-white/[0.04] hover:bg-white/[0.03] auto-light:focus-within:bg-black/[0.04] auto-light:hover:bg-black/[0.03]"
       >
+        {task.id === slashRow?.id && <SlashMenu slash={slash} />}
         <div className="flex items-start gap-2.5">
           <button
             type="button"
@@ -890,7 +906,11 @@ export const TaskSheet = ({
               }}
               onChange={(text) => day.editTitle(task.id, text)}
               onKeyDown={(e) => onKey(e, task, status, group)}
-              onBlur={() => day.flush(task.id)}
+              onBlur={() =>
+                task.draft && isSlash(task.title)
+                  ? day.editTitle(task.id, '')
+                  : day.flush(task.id)
+              }
               placeholder="What are you working on?"
               className={cn(
                 '[grid-area:1/1]',

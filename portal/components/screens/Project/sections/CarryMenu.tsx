@@ -101,7 +101,7 @@ export const CarryMenu = ({
             />
           ) : (
             <>
-              <p className="px-2.5 pb-1 pt-1 text-[11px] leading-snug text-neutral-500">
+              <p className="px-2.5 py-1 text-[11px] leading-snug text-neutral-500">
                 The goal missed {day(task.forDate!)}. Do it on another day:
               </p>
               <p className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
@@ -142,7 +142,7 @@ export const CarryMenu = ({
                 <span className="flex-1">Pick a day…</span>
               </button>
               <div className="my-1 border-t border-white/[0.07] auto-light:border-black/[0.088]" />
-              <p className="px-2.5 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+              <p className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
                 Merge into
               </p>
               {later.length ? (

@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Toaster } from 'sonner';
+import { toast, Toaster } from 'sonner';
 
 import { ThemeToggle } from '@/components/global/ThemeToggle';
 import type { DayLine } from '@/lib/daywork/server';
@@ -44,6 +44,7 @@ import {
   placeOptions,
   rowStatus,
 } from './sheetParts';
+import { UpcomingContext, type UpcomingTask } from './SlashPicker';
 import type { SheetGroup } from './TaskSheet';
 import { madeByClaude, TaskSheet } from './TaskSheet';
 import type { DayTask } from './useDay';
@@ -400,6 +401,46 @@ export const DayLogPage = ({
     day.reload();
     yourTasks.reload();
   };
+
+  // "/" on a new line: the upcoming tasks, to bring one to this day.
+  const upcoming = useMemo(
+    () =>
+      editable
+        ? {
+            tasks: upcomingOf(yourTasks.tasks ?? [], date),
+            placeOf: (t: UpcomingTask) =>
+              placeOf(
+                t as DayTask,
+                [...day.projects, ...yourTasks.projects],
+                day.companies,
+              ),
+            date,
+            pull: async (t: UpcomingTask) => {
+              try {
+                await PortalSdk.patchData(`/api/me/day/tasks/${t.id}`, {
+                  forDate: date,
+                });
+                toast.success(
+                  `Moved to ${date === today ? 'today' : dayjs(date).format('ddd D MMM')}: ${t.title}`,
+                );
+                changed();
+              } catch {
+                toast.error('Could not move the task.');
+              }
+            },
+          }
+        : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      editable,
+      yourTasks.tasks,
+      yourTasks.projects,
+      date,
+      today,
+      day.projects,
+      day.companies,
+    ],
+  );
 
   // The sheet's parts for the view picked in the header.
   const fromBefore = (t: DayTask) =>
@@ -862,141 +903,143 @@ export const DayLogPage = ({
   );
 
   return (
-    <div className="auto-theme quiet-scrollbar fixed inset-0 overflow-y-auto bg-neutral-950 pb-[72px] text-neutral-100 auto-light:bg-neutral-50 auto-light:text-neutral-900 md:left-16 md:pb-0">
-      <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-white/[0.07] bg-neutral-950/80 px-4 backdrop-blur-xl auto-light:border-black/10 auto-light:bg-neutral-50/80">
-        {layout === 'day' ? (
-          <Link
-            href={APP_ROUTES.userWorklogs}
-            aria-label="All days"
-            className="flex size-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-white/[0.06] hover:text-white auto-light:text-neutral-500 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-950"
-          >
-            <Icon name="arrow_back" className="text-[18px]" />
-          </Link>
-        ) : (
-          <Link
-            href={APP_ROUTES.home}
-            className="whitespace-nowrap border-r border-white/10 pr-3 text-sm font-extrabold tracking-wide text-white auto-light:border-black/10 auto-light:text-neutral-950 md:text-lg"
-          >
-            PORTAL
-          </Link>
-        )}
-        <span
-          className={cn(
-            'text-xs tracking-widest text-neutral-400 auto-light:text-neutral-500 sm:text-sm',
-            showDay && 'max-lg:hidden',
+    <UpcomingContext.Provider value={upcoming}>
+      <div className="auto-theme quiet-scrollbar fixed inset-0 overflow-y-auto bg-neutral-950 pb-[72px] text-neutral-100 auto-light:bg-neutral-50 auto-light:text-neutral-900 md:left-16 md:pb-0">
+        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-white/[0.07] bg-neutral-950/80 px-4 backdrop-blur-xl auto-light:border-black/10 auto-light:bg-neutral-50/80">
+          {layout === 'day' ? (
+            <Link
+              href={APP_ROUTES.userWorklogs}
+              aria-label="All days"
+              className="flex size-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-white/[0.06] hover:text-white auto-light:text-neutral-500 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-950"
+            >
+              <Icon name="arrow_back" className="text-[18px]" />
+            </Link>
+          ) : (
+            <Link
+              href={APP_ROUTES.home}
+              className="whitespace-nowrap border-r border-white/10 pr-3 text-sm font-extrabold tracking-wide text-white auto-light:border-black/10 auto-light:text-neutral-950 md:text-lg"
+            >
+              PORTAL
+            </Link>
           )}
-        >
-          My Worklogs
-        </span>
-        {showDay && viewsShown && (
-          <nav
-            aria-label="Views"
-            // In the middle of the header: between the back arrow and the
-            // theme switch on a phone, in the middle of the page from sm up.
-            className="mx-auto flex shrink-0 items-center gap-0.5 rounded-lg border border-white/[0.07] bg-white/[0.03] p-0.5 auto-light:border-black/10 auto-light:bg-black/[0.03] sm:absolute sm:left-1/2 sm:-translate-x-1/2"
-          >
-            {VIEWS.map((v) => (
-              <button
-                key={v.value}
-                type="button"
-                aria-pressed={view === v.value}
-                onClick={() => pickView(v.value)}
-                className={cn(
-                  'h-7 rounded-md px-2 text-xs font-medium transition-colors sm:px-2.5',
-                  view === v.value
-                    ? 'bg-white/[0.12] text-white auto-light:bg-white auto-light:text-neutral-950 auto-light:shadow-sm'
-                    : 'text-neutral-400 hover:text-neutral-200 auto-light:text-neutral-500 auto-light:hover:text-neutral-800',
-                )}
-              >
-                {v.label}
-              </button>
-            ))}
-          </nav>
-        )}
-        {showDay && (
-          <span className="ml-1 hidden items-center gap-1.5 text-xs text-neutral-500 xl:flex">
-            {day.saving ? (
-              <>
-                <Spin className="size-3" /> Saving
-              </>
-            ) : day.version > 0 ? (
-              <>
-                <Icon name="cloud_done" className="text-[14px]" /> Saved
-              </>
-            ) : null}
-          </span>
-        )}
-        <div className={cn('flex-1', showDay && 'max-sm:hidden')} />
-        {showDay && (
-          <button
-            type="button"
-            onClick={toggleViews}
-            aria-pressed={viewsShown}
-            title={
-              viewsShown
-                ? 'Hide the views (Plan, Work, Mixed, Summary)'
-                : 'Show the views (Plan, Work, Mixed, Summary)'
-            }
+          <span
             className={cn(
-              'flex size-8 items-center justify-center rounded-lg transition-colors',
-              viewsShown
-                ? 'bg-white/[0.1] text-white auto-light:bg-black/[0.08] auto-light:text-neutral-950'
-                : 'text-neutral-400 hover:bg-white/[0.06] hover:text-white auto-light:text-neutral-500 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-950',
+              'text-xs tracking-widest text-neutral-400 auto-light:text-neutral-500 sm:text-sm',
+              showDay && 'max-lg:hidden',
             )}
           >
-            <Icon name="view_agenda" className="text-[18px]" />
-          </button>
-        )}
-        <ThemeToggle />
-        <Link
-          href={APP_ROUTES.user}
+            My Worklogs
+          </span>
+          {showDay && viewsShown && (
+            <nav
+              aria-label="Views"
+              // In the middle of the header: between the back arrow and the
+              // theme switch on a phone, in the middle of the page from sm up.
+              className="mx-auto flex shrink-0 items-center gap-0.5 rounded-lg border border-white/[0.07] bg-white/[0.03] p-0.5 auto-light:border-black/10 auto-light:bg-black/[0.03] sm:absolute sm:left-1/2 sm:-translate-x-1/2"
+            >
+              {VIEWS.map((v) => (
+                <button
+                  key={v.value}
+                  type="button"
+                  aria-pressed={view === v.value}
+                  onClick={() => pickView(v.value)}
+                  className={cn(
+                    'h-7 rounded-md px-2 text-xs font-medium transition-colors sm:px-2.5',
+                    view === v.value
+                      ? 'bg-white/[0.12] text-white auto-light:bg-white auto-light:text-neutral-950 auto-light:shadow-sm'
+                      : 'text-neutral-400 hover:text-neutral-200 auto-light:text-neutral-500 auto-light:hover:text-neutral-800',
+                  )}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </nav>
+          )}
+          {showDay && (
+            <span className="ml-1 hidden items-center gap-1.5 text-xs text-neutral-500 xl:flex">
+              {day.saving ? (
+                <>
+                  <Spin className="size-3" /> Saving
+                </>
+              ) : day.version > 0 ? (
+                <>
+                  <Icon name="cloud_done" className="text-[14px]" /> Saved
+                </>
+              ) : null}
+            </span>
+          )}
+          <div className={cn('flex-1', showDay && 'max-sm:hidden')} />
+          {showDay && (
+            <button
+              type="button"
+              onClick={toggleViews}
+              aria-pressed={viewsShown}
+              title={
+                viewsShown
+                  ? 'Hide the views (Plan, Work, Mixed, Summary)'
+                  : 'Show the views (Plan, Work, Mixed, Summary)'
+              }
+              className={cn(
+                'flex size-8 items-center justify-center rounded-lg transition-colors',
+                viewsShown
+                  ? 'bg-white/[0.1] text-white auto-light:bg-black/[0.08] auto-light:text-neutral-950'
+                  : 'text-neutral-400 hover:bg-white/[0.06] hover:text-white auto-light:text-neutral-500 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-950',
+              )}
+            >
+              <Icon name="view_agenda" className="text-[18px]" />
+            </button>
+          )}
+          <ThemeToggle />
+          <Link
+            href={APP_ROUTES.user}
+            className={cn(
+              showDay && 'max-sm:hidden',
+              'inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-neutral-950 transition-colors hover:bg-neutral-200 auto-light:bg-neutral-900 auto-light:text-white auto-light:hover:bg-neutral-700',
+            )}
+          >
+            <Icon name="insights" className="text-[16px]" />
+            My page
+          </Link>
+        </header>
+
+        <main
           className={cn(
-            showDay && 'max-sm:hidden',
-            'inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-neutral-950 transition-colors hover:bg-neutral-200 auto-light:bg-neutral-900 auto-light:text-white auto-light:hover:bg-neutral-700',
+            'mx-auto grid w-full gap-6 px-4 pb-24 pt-5 md:px-6',
+            showDays
+              ? 'max-w-[1600px] md:grid-cols-[minmax(250px,1fr)_minmax(0,1.6fr)] xl:grid-cols-[minmax(260px,0.9fr)_minmax(0,1.5fr)_minmax(300px,1fr)]'
+              : 'max-w-[760px]',
           )}
         >
-          <Icon name="insights" className="text-[16px]" />
-          My page
-        </Link>
-      </header>
-
-      <main
-        className={cn(
-          'mx-auto grid w-full gap-6 px-4 pb-24 pt-5 md:px-6',
-          showDays
-            ? 'max-w-[1600px] md:grid-cols-[minmax(250px,1fr)_minmax(0,1.6fr)] xl:grid-cols-[minmax(260px,0.9fr)_minmax(0,1.5fr)_minmax(300px,1fr)]'
-            : 'max-w-[760px]',
-        )}
-      >
-        {showDays && (
-          <aside className="quiet-scrollbar min-w-0 md:sticky md:top-[76px] md:row-span-2 md:max-h-[calc(100vh-96px)] md:self-start md:overflow-y-auto md:pr-1 xl:row-span-1">
-            <DayList
-              month={month}
-              onMonth={setMonth}
-              days={days ?? {}}
-              loading={!days}
-              selected={date}
-              liveLines={liveLines}
-              onPick={pick}
-              opensPage={!wide}
-            />
-          </aside>
-        )}
-        {showDay && sheetView}
-        {showDay && (
-          <aside className="quiet-scrollbar min-w-0 xl:sticky xl:top-[76px] xl:max-h-[calc(100vh-96px)] xl:self-start xl:overflow-y-auto">
-            {side}
-          </aside>
-        )}
-      </main>
-      <ProjectTeamSheet
-        place={teamOf}
-        team={teamOf ? teams[teamOf.key.slice(8)] : undefined}
-        date={date}
-        myId={user?.id}
-        onClose={() => setTeamOf(null)}
-      />
-      <Toaster position="bottom-right" richColors theme="system" />
-    </div>
+          {showDays && (
+            <aside className="quiet-scrollbar min-w-0 md:sticky md:top-[76px] md:row-span-2 md:max-h-[calc(100vh-96px)] md:self-start md:overflow-y-auto md:pr-1 xl:row-span-1">
+              <DayList
+                month={month}
+                onMonth={setMonth}
+                days={days ?? {}}
+                loading={!days}
+                selected={date}
+                liveLines={liveLines}
+                onPick={pick}
+                opensPage={!wide}
+              />
+            </aside>
+          )}
+          {showDay && sheetView}
+          {showDay && (
+            <aside className="quiet-scrollbar min-w-0 xl:sticky xl:top-[76px] xl:max-h-[calc(100vh-96px)] xl:self-start xl:overflow-y-auto">
+              {side}
+            </aside>
+          )}
+        </main>
+        <ProjectTeamSheet
+          place={teamOf}
+          team={teamOf ? teams[teamOf.key.slice(8)] : undefined}
+          date={date}
+          myId={user?.id}
+          onClose={() => setTeamOf(null)}
+        />
+        <Toaster position="bottom-right" richColors theme="system" />
+      </div>
+    </UpcomingContext.Provider>
   );
 };

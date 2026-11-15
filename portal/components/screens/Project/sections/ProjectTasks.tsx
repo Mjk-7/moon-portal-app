@@ -1802,7 +1802,7 @@ export const ProjectTasks = ({
                   key={o.k}
                   type="button"
                   onClick={() => setShow({ ...show, [o.k]: !on })}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-white/[0.06] auto-light:hover:bg-black/[0.06]"
+                  className="flex w-full items-center gap-2.5 rounded-lg p-2 text-left hover:bg-white/[0.06] auto-light:hover:bg-black/[0.06]"
                 >
                   <Icon
                     name={o.icon}

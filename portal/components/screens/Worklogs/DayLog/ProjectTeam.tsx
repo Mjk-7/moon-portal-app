@@ -152,7 +152,7 @@ export const ProjectTeamSheet = ({
                 <Icon name="close" className="text-[18px]" />
               </Dialog.Close>
             </div>
-            <div className="quiet-scrollbar flex-1 overflow-y-auto px-3 py-3">
+            <div className="quiet-scrollbar flex-1 overflow-y-auto p-3">
               {(team?.people ?? []).map((person) => (
                 <PersonTasks
                   key={person.id}
