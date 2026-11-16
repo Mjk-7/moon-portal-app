@@ -6,7 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Avatar, Button, Field, Screen } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { api, messageOf } from '@/lib/api';
+import { api, messageOf, uploadFile } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import type { Profile } from '@/lib/types';
 
@@ -66,17 +66,13 @@ export default function ProfileScreen() {
       return;
     }
     const type = asset.mimeType && asset.mimeType !== 'image/heic' ? asset.mimeType : 'image/jpeg';
-    const form = new FormData();
-    // React Native sends a file from its uri.
-    form.append('file', {
-      uri: asset.uri,
-      name: asset.fileName ?? `avatar.${type.split('/')[1] ?? 'jpg'}`,
-      type,
-    } as unknown as Blob);
-    form.append('userId', profile.id);
     setUploading(true);
     try {
-      const res = await api<{ avatar: string }>('/api/user/avatar', { method: 'POST', form });
+      const res = await uploadFile<{ avatar: string }>(
+        '/api/user/avatar',
+        { uri: asset.uri, type },
+        { userId: profile.id },
+      );
       setProfile({ ...profile, avatar: res.avatar } as Profile);
     } catch (e) {
       Alert.alert('Couldn’t change your photo', messageOf(e));

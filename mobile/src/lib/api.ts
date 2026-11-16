@@ -1,3 +1,5 @@
+import { FileSystemUploadType, uploadAsync } from 'expo-file-system/legacy';
+
 import { PORTAL_URL } from './config';
 
 /** A failed call to the portal, with the portal's own message. */
@@ -32,8 +34,6 @@ export function setOnSignedOut(handler: (() => void) | null) {
 type Options = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
-  /** A file upload: sent as multipart instead of JSON. */
-  form?: FormData;
   /** Leave the token off (sign-in). */
   anonymous?: boolean;
 };
@@ -56,7 +56,7 @@ export const portalUrl = (path: string) =>
  */
 export async function api<T>(
   path: string,
-  { method = 'GET', body, form, anonymous }: Options = {},
+  { method = 'GET', body, anonymous }: Options = {},
 ): Promise<T> {
   const headers: Record<string, string> = { accept: 'application/json' };
   if (body !== undefined) headers['content-type'] = 'application/json';
@@ -65,24 +65,60 @@ export async function api<T>(
   let res: Response;
   try {
     res = await fetch(`${PORTAL_URL}${path}`, {
-      method: form && method === 'GET' ? 'POST' : method,
+      method,
       headers,
-      body: form ?? (body === undefined ? undefined : JSON.stringify(body)),
+      body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
     throw new ApiError('Can’t reach the portal. Check your connection.', 0);
   }
 
   const json = await res.json().catch(() => null);
-  if (!res.ok || json?.status === 'fail') {
-    if (res.status === 401 && token && !anonymous) onSignedOut?.();
+  return unwrap<T>(res.status, json, anonymous);
+}
+
+/** A portal answer's `data`, or an ApiError for a failure. */
+function unwrap<T>(status: number, json: any, anonymous?: boolean): T {
+  if (status < 200 || status >= 300 || json?.status === 'fail') {
+    if (status === 401 && token && !anonymous) onSignedOut?.();
     throw new ApiError(
-      json?.error || json?.message || `The portal answered ${res.status}.`,
-      res.status,
+      json?.error || json?.message || `The portal answered ${status}.`,
+      status,
       json?.code,
     );
   }
   return (json && 'data' in json ? json.data : json) as T;
+}
+
+/**
+ * Sends a file on the phone to a portal route as multipart (`file` plus
+ * `fields`). The app's fetch (expo/fetch) can't send React Native's
+ * `{ uri, name, type }` form parts, so the upload goes through the native
+ * uploader instead.
+ */
+export async function uploadFile<T>(
+  path: string,
+  file: { uri: string; type: string },
+  fields: Record<string, string> = {},
+): Promise<T> {
+  let res: Awaited<ReturnType<typeof uploadAsync>>;
+  try {
+    res = await uploadAsync(`${PORTAL_URL}${path}`, file.uri, {
+      httpMethod: 'POST',
+      uploadType: FileSystemUploadType.MULTIPART,
+      fieldName: 'file',
+      mimeType: file.type,
+      parameters: fields,
+      headers: { accept: 'application/json', ...authHeaders() },
+    });
+  } catch {
+    throw new ApiError('Can’t reach the portal. Check your connection.', 0);
+  }
+  let json: any = null;
+  try {
+    json = JSON.parse(res.body);
+  } catch {}
+  return unwrap<T>(res.status, json);
 }
 
 /** An error's message for the screen. */

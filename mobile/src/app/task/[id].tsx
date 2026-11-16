@@ -2,25 +2,23 @@ import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, BackHandler, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, BackHandler, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CompanyMark } from '@/components/company-mark';
 import { Icon } from '@/components/icon';
 import { MeetingCard } from '@/components/meeting-card';
-import { MonthGrid } from '@/components/month-grid';
 import { MenuItem } from '@/components/popover';
-import { ProjectPicker } from '@/components/project-picker';
 import { StatusDot } from '@/components/status-dot';
 import { ThemedText } from '@/components/themed-text';
-import { Button, Card, Chip, IconButton, QueryState, Screen } from '@/components/ui';
+import { Button, IconButton, QueryState, Screen } from '@/components/ui';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useToday } from '@/hooks/use-now';
 import { useTheme } from '@/hooks/use-theme';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { addDays, clock, fromKey, monthOf } from '@/lib/dates';
+import { addDays, clock, fromKey } from '@/lib/dates';
 import { useProjectLabel } from '@/lib/project-name';
 import { currentPick, pickOf, STATUS_PICKS, type StatusPick } from '@/lib/status';
 import { POINT_LABEL, useChangeTask } from '@/lib/tasks';
@@ -43,9 +41,6 @@ export default function TaskScreen() {
   const [statusOpen, setStatusOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState('');
-  const [moving, setMoving] = useState(false);
-  const [picking, setPicking] = useState(false);
-  const [pickMonth, setPickMonth] = useState<string | null>(null);
   const [moreText, setMoreText] = useState(false);
   const [barHeight, setBarHeight] = useState(90);
   const query = useQuery({
@@ -87,12 +82,6 @@ export default function TaskScreen() {
   };
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/work'));
-
-  const setDay = (forDate: string | null) => {
-    if (task && forDate !== (task.forDate ?? null)) change.mutate({ taskId: task.id, forDate });
-    setPicking(false);
-    setPickMonth(null);
-  };
 
   const rename = () => {
     if (!task) return;
@@ -166,7 +155,7 @@ export default function TaskScreen() {
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`Project: ${project?.name ?? 'none'}. Move it`}
-                  onPress={() => setMoving(true)}
+                  onPress={() => router.push({ pathname: '/task-move', params: { id: task.id } })}
                   style={({ pressed }) => [
                     styles.dropdown,
                     styles.shrink,
@@ -239,7 +228,7 @@ export default function TaskScreen() {
               dueDate={task.dueDate}
               done={current === 'done'}
               today={today}
-              onDay={archived ? undefined : () => setPicking(true)}
+              onDay={archived ? undefined : () => router.push({ pathname: '/task-day', params: { id: task.id } })}
             />
 
             {goal ? (
@@ -419,59 +408,6 @@ export default function TaskScreen() {
         </View>
       ) : null}
 
-      <Modal
-        visible={picking}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setPicking(false)}>
-        <ScrollView style={{ backgroundColor: theme.background }} contentContainerStyle={styles.sheet}>
-          <View style={styles.sheetHead}>
-            <ThemedText type="subtitle" style={styles.flex}>
-              Which day?
-            </ThemedText>
-            <IconButton name="close" label="Close" onPress={() => setPicking(false)} />
-          </View>
-          <View style={styles.chips}>
-            <Chip label="Today" selected={task?.forDate === today} onPress={() => setDay(today)} />
-            <Chip
-              label="Tomorrow"
-              selected={task?.forDate === addDays(today, 1)}
-              onPress={() => setDay(addDays(today, 1))}
-            />
-            <Chip label="Later" selected={!task?.forDate} onPress={() => setDay(null)} />
-          </View>
-          <Card>
-            <MonthGrid
-              month={pickMonth ?? monthOf(task?.forDate ?? today)}
-              onMonth={setPickMonth}
-              selected={task?.forDate ?? undefined}
-              onDay={setDay}
-            />
-          </Card>
-        </ScrollView>
-      </Modal>
-
-      <Modal
-        visible={moving}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setMoving(false)}>
-        <View style={[styles.flex, { backgroundColor: theme.background }]}>
-          <View style={[styles.sheetHead, styles.sheetPad]}>
-            <ThemedText type="subtitle" style={styles.flex}>
-              Move to
-            </ThemedText>
-            <IconButton name="close" label="Close" onPress={() => setMoving(false)} />
-          </View>
-          <ProjectPicker
-            selected={task?.projectId}
-            onPick={(place) => {
-              if (task) change.mutate({ taskId: task.id, place });
-              setMoving(false);
-            }}
-          />
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -675,8 +611,4 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 12,
   },
-  chips: { flexDirection: 'row', gap: Spacing.two },
-  sheet: { padding: Spacing.three, gap: Spacing.three },
-  sheetHead: { flexDirection: 'row', alignItems: 'center' },
-  sheetPad: { padding: Spacing.three, paddingBottom: 0 },
 });
