@@ -457,8 +457,8 @@ function exactDay(key: string, today: string, inline = false) {
 }
 
 /**
- * Under the title, small: the exact day the task is planned for (a tap
- * moves it) and the day it is due, red once it is late.
+ * Under the title, small: the exact day the task is planned for and the
+ * day it is due, red once it is late. A tap on either opens Move to.
  */
 function DateLine({
   forDate,
@@ -477,31 +477,28 @@ function DateLine({
   const due = dueDate ? dueDate.slice(0, 10) : null;
   const late = !!due && !done && due < today;
   return (
-    <View style={styles.dateLine}>
-      <Pressable
-        disabled={!onDay}
-        onPress={onDay}
-        accessibilityRole="button"
-        accessibilityLabel={`Planned for ${forDate ? exactDay(forDate, today) : 'no day yet'}. Change the day`}
-        style={({ pressed }) => [styles.dateItem, { opacity: pressed ? 0.6 : 1 }]}>
+    <Pressable
+      disabled={!onDay}
+      onPress={onDay}
+      accessibilityRole="button"
+      accessibilityLabel={`Planned for ${forDate ? exactDay(forDate, today) : 'no day yet'}${due ? `, due ${exactDay(due, today, true)}` : ''}. Move it`}
+      style={({ pressed }) => [styles.dateLine, { opacity: pressed ? 0.6 : 1 }]}>
+      <View style={styles.dateItem}>
         <Icon name="calendar" size={13} color={theme.textSecondary} />
         <ThemedText type="small" themeColor={forDate ? 'text' : 'textSecondary'}>
           {forDate ? exactDay(forDate, today) : 'No day yet'}
         </ThemedText>
-        {onDay ? <Icon name="chevronDown" size={10} color={theme.textSecondary} /> : null}
-      </Pressable>
+      </View>
       {due ? (
         <View style={styles.dateItem}>
           <Icon name="flag" size={13} color={late ? theme.danger : theme.textSecondary} />
-          <ThemedText
-            type="small"
-            themeColor={late ? 'danger' : 'textSecondary'}
-            accessibilityLabel={`${late ? 'Overdue, was due' : 'Due'} ${exactDay(due, today, true)}`}>
+          <ThemedText type="small" themeColor={late ? 'danger' : 'textSecondary'}>
             Due {exactDay(due, today, true)}
           </ThemedText>
         </View>
       ) : null}
-    </View>
+      {onDay ? <Icon name="chevronDown" size={10} color={theme.textSecondary} /> : null}
+    </Pressable>
   );
 }
 

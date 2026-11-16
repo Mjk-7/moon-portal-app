@@ -131,7 +131,7 @@ function RootStack() {
           />
           <Stack.Screen
             name="task-day"
-            options={{ ...sheet, title: 'Which day?', sheetAllowedDetents: [0.75, 1] }}
+            options={{ ...sheet, title: 'Move to', sheetAllowedDetents: [0.85, 1] }}
           />
           <Stack.Screen name="tasks" options={{ title: 'All my tasks' }} />
           <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
