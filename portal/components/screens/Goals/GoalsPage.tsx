@@ -4,6 +4,7 @@ import type { User } from '@db/client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast, Toaster } from 'sonner';
 
+import { BetaBanner } from '@/components/global/BetaBanner';
 import { ThemeToggle } from '@/components/global/ThemeToggle';
 import { cn } from '@/lib/utils';
 import {
@@ -536,6 +537,7 @@ export const GoalsPage = () => {
   return (
     <TipProvider delayDuration={120}>
       <div className="auto-theme flex min-h-dvh flex-col bg-neutral-950 pb-28 text-neutral-100 auto-light:bg-neutral-50 auto-light:text-neutral-900 md:h-dvh md:min-h-0 md:overflow-hidden md:pb-0">
+        <BetaBanner feature="Goals" />
         <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-4 px-4 pt-6 md:min-h-0 md:flex-1 md:gap-4 md:px-8 md:pb-5 md:pt-6">
           {/* The period shown, how to move through it, and the view */}
           <div className="flex shrink-0 flex-wrap items-end gap-x-4 gap-y-3">
