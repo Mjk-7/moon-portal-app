@@ -65,18 +65,27 @@ function statusAfter(task: Task, move: TaskMove): Partial<Task> {
   }
 }
 
-/** Shows a task's new status in every cached list before the portal answers. */
+/**
+ * Shows a task's new status in every cached list before the portal answers.
+ *
+ * Other answers are cached under the same keys (the Work tab's teams sit
+ * under ['day', date, 'teams', ...] and have no `tasks`), so only lists that
+ * really hold tasks are touched. A throw here would stop the change from
+ * being sent at all.
+ */
 function patchCachedTask(taskId: string, patch: (t: Task) => Partial<Task>) {
   const apply = (t: Task) => (t.id === taskId ? { ...t, ...patch(t) } : t);
-  queryClient.setQueriesData<Day>({ queryKey: ['day'] }, (d) =>
-    d ? { ...d, tasks: d.tasks.map(apply) } : d,
-  );
-  queryClient.setQueriesData<MyTasks>({ queryKey: ['tasks'] }, (d) =>
-    d ? { ...d, tasks: d.tasks.map(apply) } : d,
-  );
-  queryClient.setQueriesData<{ task: Task }>({ queryKey: ['task', taskId] }, (d) =>
-    d?.task ? { ...d, task: apply(d.task) } : d,
-  );
+  const patchList = <T extends { tasks?: Task[] }>(d: T | undefined) =>
+    d && Array.isArray(d.tasks) ? { ...d, tasks: d.tasks.map(apply) } : d;
+  try {
+    queryClient.setQueriesData<Day>({ queryKey: ['day'] }, patchList);
+    queryClient.setQueriesData<MyTasks>({ queryKey: ['tasks'] }, patchList);
+    queryClient.setQueriesData<{ task: Task }>({ queryKey: ['task', taskId] }, (d) =>
+      d?.task ? { ...d, task: apply(d.task) } : d,
+    );
+  } catch {
+    // Showing it early is a nicety; the change still goes to the portal.
+  }
 }
 
 /**
