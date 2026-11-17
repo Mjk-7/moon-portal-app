@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { CompanyMark } from '@/components/company-mark';
 import { PlaceRow, usePlaces } from '@/components/project-picker';
@@ -30,11 +30,8 @@ export default function TaskMoveScreen() {
   const personalPicked = projects.some((p) => p.isPersonal && p.id === selected);
 
   const pick = (place: PlaceInput, same: boolean) => {
-    if (data && !same)
-      change.mutate(
-        { taskId: data.task.id, place },
-        { onError: (e) => Alert.alert('The task didn’t move', e.message || 'Please try again.') },
-      );
+    // A refusal from the portal says why (lib/query.ts).
+    if (data && !same) change.mutate({ taskId: data.task.id, place });
     router.back();
   };
 

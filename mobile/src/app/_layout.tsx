@@ -134,6 +134,14 @@ function RootStack() {
             options={{ ...sheet, title: 'Move to', sheetAllowedDetents: [0.85, 1] }}
           />
           <Stack.Screen name="tasks" options={{ title: 'All my tasks' }} />
+          <Stack.Screen
+            name="work-calendar"
+            options={{ ...sheet, title: 'Pick a day', sheetAllowedDetents: [0.85, 1] }}
+          />
+          <Stack.Screen
+            name="work-team"
+            options={{ ...sheet, title: 'Project', sheetAllowedDetents: [0.75, 1] }}
+          />
           <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
           <Stack.Screen name="chat/[id]" options={{ title: '' }} />
           <Stack.Screen name="chat/new" options={{ ...sheet, title: 'New chat', sheetAllowedDetents: [1] }} />

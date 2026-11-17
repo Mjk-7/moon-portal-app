@@ -4,7 +4,6 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { type ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
-  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -16,26 +15,25 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SafeAreaView } from 'react-native-screens/experimental';
 
 import { CompanyMark } from '@/components/company-mark';
-import { DaySheet, type GroupTeam, StatusMark } from '@/components/day-sheet';
+import { DaySheet, type GroupTeam } from '@/components/day-sheet';
 import { Fab } from '@/components/fab';
 import { Icon } from '@/components/icon';
-import { MonthGrid } from '@/components/month-grid';
 import { OfflineBanner } from '@/components/offline-banner';
 import { StatusDot } from '@/components/status-dot';
 import { ThemedText } from '@/components/themed-text';
-import { Avatar, Button, Card, Dot, IconButton, Notice, ProgressBar, QueryState } from '@/components/ui';
-import { buffOf, buffProgress } from '@/constants/buff';
+import { Card, Dot, Notice, QueryState } from '@/components/ui';
+import { buffOf } from '@/constants/buff';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useToday } from '@/hooks/use-now';
 import { useTheme } from '@/hooks/use-theme';
 import { api, portalUrl, withQuery } from '@/lib/api';
 import { companyKeyOf, type DayGroup, groupTally, placeOf, projectGroups } from '@/lib/day';
-import { addDays, dayTitle, fromKey, monthOf, monthRange, monthTitle } from '@/lib/dates';
-import { useAuth } from '@/lib/auth';
+import { addDays, dayTitle, fromKey, monthOf, monthRange } from '@/lib/dates';
+import { onDayPicked } from '@/lib/day-pick';
 import { openLink } from '@/lib/links';
 import { useMarkNotifications } from '@/lib/notifications';
 import { useCompanyLookup } from '@/lib/project-name';
-import { currentPick, pickOf } from '@/lib/status';
+import { currentPick } from '@/lib/status';
 import type { Day, Days, MonthScore, Task } from '@/lib/types';
 import { clearWorkReminders, linkOf, useMyTasks, useNeedsYou, useWorkNotifications } from '@/lib/work-badge';
 
@@ -74,7 +72,6 @@ export default function WorkScreen() {
   const today = useToday();
   const [date, setDate] = useState(today);
   const [tab, setTab] = useState(ALL);
-  const [calendar, setCalendar] = useState(false);
 
   // Past midnight the open day was "today": move on with it.
   const [lastToday, setLastToday] = useState(today);
@@ -89,6 +86,10 @@ export default function WorkScreen() {
     setLastParam(params.date);
     if (params.date && DAY_KEY.test(params.date)) setDate(params.date);
   }
+
+  // The calendar is a sheet of its own; the day picked there comes back here.
+  useEffect(() => onDayPicked(setDate), []);
+  const openCalendar = () => router.push({ pathname: '/work-calendar', params: { date } });
 
   // Opening the tab clears the work reminders it counts.
   useFocusEffect(
@@ -140,7 +141,7 @@ export default function WorkScreen() {
         <View style={styles.top}>
           <View style={styles.flex}>
             <Pressable
-              onPress={() => setCalendar(true)}
+              onPress={openCalendar}
               accessibilityRole="button"
               accessibilityHint="Pick a day"
               style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
@@ -150,7 +151,7 @@ export default function WorkScreen() {
             </Pressable>
             <View style={styles.dateLine}>
               <Pressable
-                onPress={() => setCalendar(true)}
+                onPress={openCalendar}
                 accessibilityRole="button"
                 accessibilityHint="Pick a day"
                 style={({ pressed }) => [styles.dateWords, { opacity: pressed ? 0.7 : 1 }]}>
@@ -176,7 +177,7 @@ export default function WorkScreen() {
               ) : null}
             </View>
           </View>
-          <MonthBadge score={score.data} onPress={() => setCalendar(true)} />
+          <MonthBadge score={score.data} onPress={openCalendar} />
         </View>
         <WeekStrip date={date} today={today} days={monthDays.data} onPick={setDate} />
         <CompanyTabs
@@ -214,16 +215,6 @@ export default function WorkScreen() {
         />
         <Fab label="Add a task, goal or idea" onPress={() => router.push('/new-task')} />
       </SafeAreaView>
-
-      <CalendarSheet
-        visible={calendar}
-        date={date}
-        onClose={() => setCalendar(false)}
-        onPick={(d) => {
-          setCalendar(false);
-          setDate(d);
-        }}
-      />
     </View>
   );
 }
@@ -535,7 +526,6 @@ function DayPage({
     queryKey: ['day', date],
     queryFn: () => api<Day>(withQuery('/api/me/day', { date })),
   });
-  const [teamOf, setTeamOf] = useState<string | null>(null);
   const { groups: all } = useCompanyGroups(day.data, date);
   const groups = day.data && tab !== ALL ? all.filter((g) => companyKeyOf(g, day.data!) === tab) : all;
   // Who else works in the day's projects (not Personal).
@@ -553,8 +543,16 @@ function DayPage({
   });
   const ahead = date > today;
   const empty = !!day.data && !groups.some((g) => g.tasks.length);
-  const team = teamOf ? teams.data?.projects[teamOf] : null;
-  const teamName = teamOf ? groups.find((g) => g.key === `project:${teamOf}`)?.title : null;
+  // A project's "N mine / M total" opens everyone's tasks in it on the day.
+  const openTeam = (projectId: string) =>
+    router.push({
+      pathname: '/work-team',
+      params: {
+        projectId,
+        date,
+        name: groups.find((g) => g.key === `project:${projectId}`)?.title ?? 'Project',
+      },
+    });
 
   return (
     <ScrollView
@@ -593,7 +591,7 @@ function DayPage({
           mode="summary"
           groups={groups}
           teams={teams.data?.projects}
-          onTeam={setTeamOf}
+          onTeam={openTeam}
         />
       ) : null}
       {day.data ? (
@@ -605,79 +603,7 @@ function DayPage({
           <ThemedText type="smallBold">Log work</ThemedText>
         </Pressable>
       ) : null}
-      <TeamSheet team={team ?? null} name={teamName ?? 'Project'} date={date} onClose={() => setTeamOf(null)} />
     </ScrollView>
-  );
-}
-
-/** Everyone's tasks in a project on the day, by person, from "N mine / M total". */
-function TeamSheet({
-  team,
-  name,
-  date,
-  onClose,
-}: {
-  team: Team | null;
-  name: string;
-  date: string;
-  onClose: () => void;
-}) {
-  const theme = useTheme();
-  const { profile } = useAuth();
-  return (
-    <Modal visible={!!team} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <ScrollView style={{ backgroundColor: theme.background }} contentContainerStyle={styles.sheet}>
-        <View style={styles.sheetHead}>
-          <View style={styles.flex}>
-            <ThemedText type="subtitle" numberOfLines={1}>
-              {name}
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {dayTitle(date)} · {team?.mine ?? 0} yours of {team?.total ?? 0}
-            </ThemedText>
-          </View>
-          <IconButton name="close" label="Close" onPress={onClose} />
-        </View>
-        {(team?.people ?? []).map((person) => (
-          <Card key={person.id} style={styles.teamCard}>
-            <View style={styles.teamWho}>
-              <Avatar uri={person.avatar} name={person.name} size={28} />
-              <ThemedText type="smallBold" style={styles.flex} numberOfLines={1}>
-                {person.id === profile?.id ? 'You' : person.name}
-              </ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {person.tasks.length}
-              </ThemedText>
-            </View>
-            {person.tasks.map((t) => {
-              const status = currentPick(t);
-              const finished = status === 'done' || status === 'archived';
-              return (
-                <Pressable
-                  key={t.id}
-                  onPress={() => {
-                    onClose();
-                    router.push({ pathname: '/task/[id]', params: { id: t.id } });
-                  }}
-                  style={({ pressed }) => [styles.teamTask, { borderColor: theme.border, opacity: pressed ? 0.6 : 1 }]}>
-                  <StatusMark status={status === 'todo' ? null : status} />
-                  <ThemedText
-                    style={[styles.flex, finished && { color: theme.textSecondary }]}
-                    numberOfLines={2}>
-                    {t.title}
-                  </ThemedText>
-                  {status !== 'todo' && status !== 'done' && status !== 'archived' ? (
-                    <ThemedText type="small" style={{ color: pickOf(status).color ?? theme.textSecondary }}>
-                      {pickOf(status).label}
-                    </ThemedText>
-                  ) : null}
-                </Pressable>
-              );
-            })}
-          </Card>
-        ))}
-      </ScrollView>
-    </Modal>
   );
 }
 
@@ -756,89 +682,6 @@ function WorkUpdates() {
         </Pressable>
       ))}
     </Card>
-  );
-}
-
-/* -------------------------------- Calendar -------------------------------- */
-
-function CalendarSheet({
-  visible,
-  date,
-  onClose,
-  onPick,
-}: {
-  visible: boolean;
-  date: string;
-  onClose: () => void;
-  onPick: (day: string) => void;
-}) {
-  const theme = useTheme();
-  const today = useToday();
-  const [month, setMonth] = useState(monthOf(date));
-  const [shownFor, setShownFor] = useState(date);
-  // Opening on another day shows its month.
-  if (shownFor !== date) {
-    setShownFor(date);
-    setMonth(monthOf(date));
-  }
-  const range = monthRange(month);
-  const days = useQuery({
-    queryKey: ['days', range.from, range.to],
-    queryFn: () => api<Days>(withQuery('/api/me/days', range)),
-    enabled: visible,
-  });
-  const score = useQuery({
-    queryKey: ['month', month],
-    queryFn: () => api<MonthScore>(withQuery('/api/me/month', { month })),
-    enabled: visible,
-  });
-  const points = score.data?.points ?? 0;
-  const buff = buffOf(points);
-  const lines = (day: string) => days.data?.days[day] ?? [];
-
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <ScrollView
-        style={{ backgroundColor: theme.background }}
-        contentContainerStyle={styles.sheet}>
-        <View style={styles.sheetHead}>
-          <ThemedText type="subtitle" style={styles.flex}>
-            Pick a day
-          </ThemedText>
-          <IconButton name="close" label="Close" onPress={onClose} />
-        </View>
-        <Card style={styles.buffCard}>
-          <Image source={{ uri: portalUrl(buff.src) }} style={styles.buffImage} contentFit="contain" />
-          <View style={[styles.flex, styles.buffText]}>
-            <ThemedText type="label" themeColor="textSecondary">
-              {monthTitle(month)} · {score.data?.days ?? 0} days
-            </ThemedText>
-            <ThemedText type="subtitle">{buff.title}</ThemedText>
-            <ProgressBar percent={buffProgress(points)} />
-            <ThemedText type="small" themeColor="textSecondary">
-              {points} pts · {score.data?.finished ?? 0} tasks finished · {Math.max(0, buff.next - points)} to the next
-            </ThemedText>
-          </View>
-        </Card>
-        <Card>
-          <MonthGrid
-            month={month}
-            onMonth={setMonth}
-            selected={date}
-            onDay={onPick}
-            tone={(day) => (lines(day).length ? theme.backgroundSelected : null)}
-            mark={(day) => {
-              const l = lines(day);
-              if (!l.length) return null;
-              const missed = l.some((x) => x.goalMissed);
-              const done = l.some((x) => x.status === 'done');
-              return <Dot size={5} color={missed ? theme.danger : done ? theme.success : theme.textSecondary} />;
-            }}
-          />
-        </Card>
-        {date !== today ? <Button title="Go to today" kind="secondary" onPress={() => onPick(today)} /> : null}
-      </ScrollView>
-    </Modal>
   );
 }
 
@@ -927,15 +770,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderStyle: 'dashed',
   },
-  teamCard: { gap: 0 },
-  teamWho: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingBottom: Spacing.two },
-  teamTask: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.two,
-    paddingVertical: Spacing.two,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
   updates: { gap: 0 },
   update: {
     flexDirection: 'row',
@@ -944,9 +778,4 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  sheet: { padding: Spacing.three, gap: Spacing.three },
-  sheetHead: { flexDirection: 'row', alignItems: 'center' },
-  buffCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  buffImage: { width: 72, height: 72, borderRadius: Radius.medium },
-  buffText: { gap: Spacing.one },
 });

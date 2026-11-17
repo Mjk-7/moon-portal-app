@@ -71,14 +71,9 @@ export default function TaskScreen() {
     if (status === 'done')
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => null);
     else void Haptics.selectionAsync().catch(() => null);
-    change.mutate(
-      { taskId: task.id, status },
-      {
-        // Offline it waits and is sent later; a refusal from the portal says why.
-        onError: (error) =>
-          Alert.alert('The status didn’t change', error.message || 'Please try again.'),
-      },
-    );
+    // Offline it waits and is sent later; a refusal from the portal says why
+    // (lib/query.ts).
+    change.mutate({ taskId: task.id, status });
   };
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/work'));

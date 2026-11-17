@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { MonthGrid } from '@/components/month-grid';
 import { ThemedText } from '@/components/themed-text';
@@ -49,11 +49,8 @@ export default function TaskDayScreen() {
   ];
 
   const pick = (day: string | null) => {
-    if (data && day !== forDate)
-      change.mutate(
-        { taskId: data.task.id, forDate: day },
-        { onError: (e) => Alert.alert('The day didn’t change', e.message || 'Please try again.') },
-      );
+    // A refusal from the portal says why (lib/query.ts).
+    if (data && day !== forDate) change.mutate({ taskId: data.task.id, forDate: day });
     router.back();
   };
 

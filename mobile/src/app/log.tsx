@@ -41,6 +41,8 @@ export default function LogWorkSheet() {
   const [text, setText] = useState(params.text ?? '');
   const [status, setStatus] = useState<PointStatus | null>(null);
   const [creating, setCreating] = useState(false);
+  // A task just added here, picked until the lists have it too.
+  const [added, setAdded] = useState<Task | null>(null);
 
   const projects: ProjectRef[] = useMemo(
     () => [...(day.data?.projects ?? []), ...(mine.data?.projects ?? [])],
@@ -50,13 +52,13 @@ export default function LogWorkSheet() {
   const choices: Task[] = useMemo(() => {
     const seen = new Set<string>();
     const list: Task[] = [];
-    for (const t of [...(day.data?.tasks ?? []), ...(mine.data?.tasks ?? [])]) {
+    for (const t of [...(added ? [added] : []), ...(day.data?.tasks ?? []), ...(mine.data?.tasks ?? [])]) {
       if (seen.has(t.id) || t.meeting) continue;
       seen.add(t.id);
       list.push(t);
     }
     return list;
-  }, [day.data, mine.data]);
+  }, [added, day.data, mine.data]);
   const chosen = choices.find((t) => t.id === taskId) ?? null;
   const words = search.trim().toLowerCase();
   const shown = choices
@@ -75,18 +77,24 @@ export default function LogWorkSheet() {
     router.back();
   };
 
-  /** No task matches: make one from the words, then log on it. */
+  /**
+   * No task matches: make one from the words and pick it, so what they wrote
+   * under What happened (or write next) is logged on it with Log it.
+   */
   const createAndLog = async () => {
     const title = search.trim();
     if (!title) return;
     setCreating(true);
     try {
-      await api<{ task: Task }>('/api/me/day/tasks', {
+      const { task } = await api<{ task: Task }>('/api/me/day/tasks', {
         method: 'POST',
-        body: { date, title, status: status ?? 'doing' },
+        // Work is being logged on it, so it is under way.
+        body: { date, title, status: 'doing' },
       });
       refreshWork();
-      router.back();
+      setAdded(task);
+      setTaskId(task.id);
+      setSearch('');
     } catch (e) {
       Alert.alert('Couldn’t add the task', messageOf(e));
     } finally {
