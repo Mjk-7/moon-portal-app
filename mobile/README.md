@@ -147,10 +147,12 @@ need a new build. Everything else ships as an update:
 
 - While developing: `npm start`, and the development build reloads.
 - To phones with a store build: merge to `main`. Every push to `main` that
-  touches `mobile/` runs the **Publish update** workflow
-  (`.eas/workflows/publish-update.yml`) on Expo's servers, which publishes
-  to the `production` channel. The app checks on launch and shows "Update
-  ready · Restart". Runs show on expo.dev → Project → Workflows.
+  touches `mobile/` runs the **Mobile update** GitHub Action
+  (`.github/workflows/mobile-update.yml`), which runs `eas update` on a
+  GitHub runner and publishes to the `production` channel in a few minutes,
+  with no Expo queue. The app checks on launch and shows "Update ready ·
+  Restart". Runs show under GitHub → Actions; the Action can also be run by
+  hand there (production or preview channel).
 - By hand (TestFlight testers, or a quick fix without a merge):
   `npx eas-cli@latest update --channel preview` (or `production`).
 - `runtimeVersion` follows the app version, so an update only reaches builds
@@ -166,17 +168,20 @@ need a new build. Everything else ships as an update:
 
 ## Release
 
-Run the **Store release** workflow (`.eas/workflows/store-release.yml`): on
-expo.dev → Project → Workflows, or from this folder
-`npx eas-cli@latest workflow:run .eas/workflows/store-release.yml -F platform=all`
-(`ios` or `android` for one store). It builds on Expo's servers and submits
-to App Store Connect and Google Play, so no Mac is needed. It only runs when
-started, since each build uses the EAS build budget. By hand it is still
-`npm run build:prod -- --platform all`, then `npm run submit -- --platform ios`
-(or `android`).
+Run the **Mobile store release** GitHub Action
+(`.github/workflows/mobile-store-release.yml`) from GitHub → Actions → Run
+workflow, picking `all`, `ios` or `android`. It starts production builds on
+Expo's build servers with `--auto-submit`, so each one goes to App Store
+Connect or Google Play when it finishes; no Mac is needed. Follow them on
+expo.dev → Builds. It only runs when started, since each build uses the EAS
+build budget. By hand it is still `npm run build:prod -- --platform all`,
+then `npm run submit -- --platform ios` (or `android`).
 
-Workflows need the GitHub repo connected once: expo.dev → Project → Project
-settings → GitHub → connect `TheMoonDevs/moon-portal-app`, base directory
-`mobile`. The store listing steps are in the plan doc linked from the
+Both Actions need an Expo access token once: expo.dev → Account settings →
+Access tokens → create one, then add it on GitHub as the repository secret
+`EXPO_TOKEN` (Settings → Secrets and variables → Actions). App values
+(`EXPO_PUBLIC_*`, Sentry) stay in expo.dev's environment variables.
+
+The store listing steps are in the plan doc linked from the
 pull request that added this folder. App Review needs a demo sign-in code
 and account; account deletion is in Settings → Delete my account.

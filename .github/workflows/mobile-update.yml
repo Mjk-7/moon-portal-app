@@ -1,0 +1,92 @@
+# Ships the app's JavaScript and assets as an over-the-air update, straight
+# from a GitHub runner (no Expo workflow queue). Runs on every push to main
+# that changes the app, and by hand from Actions → "Mobile update" → Run.
+#
+# It is `eas update --channel production --environment production`, so the
+# app's EXPO_PUBLIC_* values still come from expo.dev (Project → Environment
+# variables, production). The only secret here is EXPO_TOKEN.
+#
+# A native change (a new package with native code, a permission, an icon)
+# needs a store build instead: bump `version` in mobile/app.config.ts in the
+# same pull request, so this update lands on the new runtime and never reaches
+# older store builds. Then run "Mobile store release".
+
+name: Mobile update
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - '!mobile/**/*.md'
+      - '.github/workflows/mobile-update.yml'
+  workflow_dispatch:
+    inputs:
+      channel:
+        type: choice
+        description: Update channel
+        required: true
+        default: production
+        options:
+          - production
+          - preview
+      message:
+        type: string
+        description: Update message (defaults to the last commit message)
+        required: false
+
+# One publish at a time; a newer push waits for the running one and replaces
+# any that were still waiting.
+concurrency:
+  group: mobile-update-${{ github.event.inputs.channel || 'production' }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish update
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      CHANNEL: ${{ github.event.inputs.channel || 'production' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check EXPO_TOKEN
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::Add an Expo access token as the EXPO_TOKEN repository secret (expo.dev → Account settings → Access tokens)."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - run: npm ci
+
+      # A type error would otherwise go straight to every phone.
+      - run: npm run check-types
+
+      - name: eas update
+        env:
+          MESSAGE: ${{ github.event.inputs.message || github.event.head_commit.message }}
+        run: |
+          MSG="$(printf '%s' "${MESSAGE:-Update from ${GITHUB_SHA::7}}" | head -n 1)"
+          eas update \
+            --channel "$CHANNEL" \
+            --environment "$CHANNEL" \
+            --platform all \
+            --message "$MSG" \
+            --non-interactive
