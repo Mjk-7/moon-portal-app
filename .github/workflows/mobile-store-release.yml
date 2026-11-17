@@ -1,0 +1,60 @@
+# Starts production builds on EAS and sends them to App Store Connect and
+# Google Play when they finish (--auto-submit). Run it by hand from
+# Actions → "Mobile store release" → Run workflow. It never runs on its own,
+# because each build uses the EAS build budget.
+#
+# The builds themselves still run on Expo's build servers (iOS needs a Mac),
+# so they can wait in EAS's build queue. This job only starts them and exits;
+# follow them on expo.dev → Project → Builds / Submissions.
+#
+# Bump `version` in mobile/app.config.ts before a release with native changes.
+
+name: Mobile store release
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        type: choice
+        description: Which store to build and submit for
+        required: true
+        default: all
+        options:
+          - all
+          - ios
+          - android
+
+jobs:
+  release:
+    name: Build and submit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - run: npm ci
+
+      - name: eas build --auto-submit
+        env:
+          PLATFORM: ${{ github.event.inputs.platform }}
+        run: |
+          eas build \
+            --platform "$PLATFORM" \
+            --profile production \
+            --auto-submit \
+            --non-interactive \
+            --no-wait
