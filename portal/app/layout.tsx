@@ -17,6 +17,7 @@ import { AppDownloadSplash } from '@/components/global/AppDownloadSplash';
 import { PermissionDeniedToaster } from '@/components/global/PermissionDeniedToaster';
 import { MeetingReminders } from '@/components/global/MeetingReminders';
 import { ServiceWorkerProvider } from '@/components/global/ServiceWorkerProvider';
+import { WinsCelebration } from '@/components/global/WinsCelebration';
 import { SignFirstGate } from '@/components/global/SignFirstGate';
 import { ChatProvider } from '@/components/screens/Messages/ChatProvider';
 import { APP_STORE_SEARCH_URL, getStoreUrls } from '@/lib/mobile/storeLinks';
@@ -92,6 +93,7 @@ export default function RootLayout({
               <ReduxProvider>
                 <ServiceWorkerProvider />
                 <MeetingReminders />
+                <WinsCelebration />
                 <ChatProvider>{children}</ChatProvider>
                 <ToastsContainer />
                 <PermissionDeniedToaster />

@@ -75,6 +75,8 @@ export function PushBridge() {
       // A meeting booked, moved or cancelled: set its reminders again.
       if (data.url?.startsWith('/meet')) void queryClient.invalidateQueries({ queryKey: ['meetings'] });
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      // Maybe a win to celebrate on Home.
+      void queryClient.invalidateQueries({ queryKey: ['wins'] });
     });
     return () => sub.remove();
   }, [signedIn]);

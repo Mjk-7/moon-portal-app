@@ -6,6 +6,7 @@ import { Alert, Linking, Platform, StyleSheet, Switch, View } from 'react-native
 
 import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
+import { useWins, type Wins, winsKey } from '@/components/wins-card';
 import { Avatar, Card, PressableCard, Row, Screen, Segmented } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -50,6 +51,15 @@ export default function SettingsScreen() {
   const toggleLock = async (on: boolean) => {
     if (on && !(await confirmWithBiometrics('Turn on Face ID lock'))) return;
     await setPreference('lock', on);
+  };
+
+  const wins = useWins();
+  const toggleWins = async (on: boolean) => {
+    queryClient.setQueryData<Wins>(winsKey, (d) => (d ? { ...d, on } : d));
+    await api('/api/me/wins', { method: 'POST', body: { on } }).catch(() => {
+      queryClient.setQueryData<Wins>(winsKey, (d) => (d ? { ...d, on: !on } : d));
+      Alert.alert('Couldn’t save that', 'Check your connection and try again.');
+    });
   };
 
   const togglePush = async (on: boolean) => {
@@ -206,6 +216,19 @@ export default function SettingsScreen() {
               <Switch
                 value={prefs.reminders}
                 onValueChange={(v) => void setPreference('reminders', v)}
+                trackColor={switchColors}
+              />
+            }
+          />
+          <Row
+            icon="sparkles"
+            title="Wins and streaks"
+            detail="A cheer when you meet a goal, keep a streak, level up or earn a badge"
+            right={
+              <Switch
+                value={wins.data?.on ?? true}
+                disabled={!wins.data}
+                onValueChange={(v) => void toggleWins(v)}
                 trackColor={switchColors}
               />
             }

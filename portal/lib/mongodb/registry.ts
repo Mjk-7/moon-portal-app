@@ -72,6 +72,8 @@ export const modelMetaMap = defineModelRegistry({
   restDay: { collection: 'RestDay' },
   taskSchedule: { collection: 'TaskSchedule' },
   goalTally: { collection: 'GoalTally' },
+  // Its id is `<userId>:<key>`, so the same win can't be saved twice.
+  win: { collection: 'Win', usesObjectIdId: false },
   projectResult: { collection: 'ProjectResult' },
   plan: { collection: 'Plan' },
   projectPage: { collection: 'ProjectPage' },

@@ -2,6 +2,7 @@ import { db } from '@/lib/mongodb/db-client';
 import type { SessionUser } from '@/lib/permissions/server';
 import { syncTaskPoints } from '@/lib/progress/server';
 import { localClock } from '@/lib/push/dayReminders';
+import { celebrateWork } from '@/lib/wins/triggers';
 import type { LinkCandidates } from '@/lib/worklogs/linker';
 import { guessPlaces, linkCandidates } from '@/lib/worklogs/linker';
 import { PERSONAL_COMPANY_ID, PERSONAL_TITLE } from '@/lib/worklogs/personal';
@@ -220,7 +221,7 @@ export async function addPoint(input: {
   at?: string;
 }): Promise<WorkPoint> {
   const at = input.at ?? nowIso();
-  return db.workPoint.create({
+  const point: WorkPoint = await db.workPoint.create({
     data: {
       taskId: input.task.id,
       userId: input.userId,
@@ -234,6 +235,9 @@ export async function addPoint(input: {
       updatedAt: at,
     },
   });
+  // Streaks, levels and badges this may have earned (lib/wins).
+  celebrateWork(input.userId);
+  return point;
 }
 
 /** Where a person put a task, or asked it to be guessed. */

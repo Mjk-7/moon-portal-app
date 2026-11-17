@@ -3,11 +3,18 @@ import dayjs from 'dayjs';
 import { db } from '@/lib/mongodb/db-client';
 import { FINISH_POINTS } from '@/lib/progress/buff';
 import { localClock } from '@/lib/push/dayReminders';
+import { celebrateTaskDone } from '@/lib/wins/triggers';
 import { isPersonalCompany } from '@/lib/workspace/personalSpace';
 import type { Badge, PointEntry, UserBadge } from '@/models/progress';
 import { BADGE_METRIC, POINT_SOURCE } from '@/models/progress';
 import type { Task, WorkPoint } from '@/models/workspace';
 import { TASK_SIZE, TASK_STATUS } from '@/models/workspace';
+
+/** Done in the last 10 minutes, so editing an old done task cheers nothing. */
+const justFinished = (task: Task) =>
+  task.status === TASK_STATUS.DONE &&
+  !!task.completedAt &&
+  Date.now() - new Date(task.completedAt as string).getTime() < 10 * 60_000;
 
 /** Points for finishing a task, per assignee. */
 export const TASK_POINTS: Record<TASK_SIZE, number> = FINISH_POINTS;
@@ -20,6 +27,8 @@ export const TASK_POINTS: Record<TASK_SIZE, number> = FINISH_POINTS;
 export async function syncTaskPoints(task: Task | null, taskId?: string) {
   const id = task?.id ?? taskId;
   if (!id) return;
+  // Just finished: goals, big tasks (lib/wins).
+  if (task && justFinished(task)) celebrateTaskDone(task);
   await db.pointEntry.deleteMany({
     where: { taskId: id, source: POINT_SOURCE.TASK },
   });
