@@ -65,6 +65,15 @@ export type User = Loose<
      * are fully hired.
      */
     claudeLocked?: Nullable<boolean>;
+    /**
+     * A test account, hidden from people lists unless the viewer turned on
+     * `showTestAccounts` (see lib/people/visibility.ts). Set by admins.
+     */
+    isTestAccount?: Nullable<boolean>;
+    /** Set by seed scripts on what they make; such users are test accounts. */
+    demoSeed?: Nullable<string>;
+    /** Their own setting: show test accounts in people lists. */
+    showTestAccounts?: Nullable<boolean>;
     /** Full access to everything (the `*` permission). */
     isAdmin?: boolean;
     /** Portal-wide roles (see the `Role` collection). */

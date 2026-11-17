@@ -1,4 +1,7 @@
+import type { NextRequest } from 'next/server';
+
 import { db } from '@/lib/mongodb/db-client';
+import { listablePeople } from '@/lib/people/visibility';
 import { DEFAULT_MEMBER_ROLE_KEY } from '@/lib/permissions/company';
 import {
   asStringArray,
@@ -17,16 +20,29 @@ export const dynamic = 'force-dynamic';
 
 type Params = { params: { companyId: string } };
 
-export async function GET(_request: Request, { params }: Params) {
-  const { response } = await requireCompanyPermission(
+/**
+ * The company's members. Inactive people and test accounts are left out
+ * (see lib/people/visibility.ts), except with `?all=1`, which the admin
+ * screen that manages members uses.
+ */
+export async function GET(request: NextRequest, { params }: Params) {
+  const { response, user } = await requireCompanyPermission(
     params.companyId,
     'members:read',
   );
   if (response) return response;
 
-  const members: CompanyMember[] = await db.companyMember.findMany({
+  const all = request.nextUrl.searchParams.get('all') === '1';
+  let members: CompanyMember[] = await db.companyMember.findMany({
     where: { companyId: params.companyId, status: MEMBER_STATUS.ACTIVE },
   });
+  if (!all) {
+    const shown = await listablePeople(
+      user?.id,
+      members.map((m) => m.userId),
+    );
+    members = members.filter((m) => shown.has(m.userId));
+  }
   const users = await getPublicUsers(members.map((m) => m.userId));
   return ok({
     members: members.map((m) => ({

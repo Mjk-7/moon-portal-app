@@ -40,6 +40,7 @@ const SELF_EDITABLE = [
   'timezone',
   'positionTitle',
   'username',
+  'showTestAccounts',
 ];
 
 /** Fields a user editor (`users:edit`) may change on anyone's record. */
@@ -49,6 +50,7 @@ const EDITOR_EDITABLE = [
   'linkedEmails',
   'status',
   'code',
+  'isTestAccount',
 ];
 
 const pickFields = (body: Record<string, unknown>, keys: string[]) =>
@@ -324,6 +326,8 @@ export async function PUT(request: Request) {
   );
   if ('linkedEmails' in data)
     data.linkedEmails = normalizeEmails(data.linkedEmails);
+  for (const key of ['showTestAccounts', 'isTestAccount'])
+    if (key in data) data[key] = data[key] === true;
   if (typeof data.email === 'string')
     data.email = data.email.trim().toLowerCase();
   if ('status' in data && isSelf) delete data.status;

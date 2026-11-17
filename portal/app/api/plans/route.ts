@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 
 import { db } from '@/lib/mongodb/db-client';
+import { listablePeople } from '@/lib/people/visibility';
 import { isAllowedInCompany } from '@/lib/permissions/company';
 import {
   createPlan,
@@ -110,11 +111,18 @@ export async function GET(request: NextRequest) {
     .sort((a, b) =>
       String(b.updatedAt ?? '').localeCompare(String(a.updatedAt ?? '')),
     );
+  const views = await withTasks(plans);
+  // Inactive people and test accounts are left out of the people to pick,
+  // unless a plan already names them.
+  const named = JSON.stringify(views);
+  const shown = await listablePeople(user.id, Array.from(people.keys()));
   return ok({
     companies,
-    plans: await withTasks(plans),
+    plans: views,
     projects: perCompany.flatMap((x) => x.choices.projects),
-    people: Array.from(people.values()),
+    people: Array.from(people.values()).filter(
+      (p) => shown.has(p.id) || named.includes(`"${p.id}"`),
+    ),
     can: Object.fromEntries(companies.map((c, i) => [c.id, perCompany[i].can])),
   });
 }

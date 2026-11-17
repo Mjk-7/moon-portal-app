@@ -2,6 +2,7 @@ import dayjs from 'dayjs';
 import type { NextRequest } from 'next/server';
 
 import { db } from '@/lib/mongodb/db-client';
+import { listablePeopleIds } from '@/lib/people/visibility';
 import { getBuffLevelAndTitle, workScore } from '@/lib/progress/buff';
 import { workInRange } from '@/lib/progress/server';
 import {
@@ -24,7 +25,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get('companyId');
-  const { response } = await requireCompanyPermission(
+  const { response, user: viewer } = await requireCompanyPermission(
     companyId,
     'companies:read',
   );
@@ -43,7 +44,11 @@ export async function GET(request: NextRequest) {
   const members: CompanyMember[] = await db.companyMember.findMany({
     where: { companyId, status: MEMBER_STATUS.ACTIVE },
   });
-  const userIds = members.map((m) => m.userId);
+  // Inactive people and test accounts are not ranked.
+  const userIds = await listablePeopleIds(
+    viewer?.id,
+    members.map((m) => m.userId),
+  );
   if (!userIds.length) {
     return ok({ month: month.format('YYYY-MM'), rows: [] });
   }
