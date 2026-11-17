@@ -14,7 +14,7 @@ import { sendPushToUsers } from './server';
  *
  * - Evening (from 22:00): nothing logged today → "mark as rest day or log";
  *   logged, but nothing on tomorrow yet → "plan tomorrow".
- * - Morning (from 08:00): a summary of what they have planned today and
+ * - Morning (from 08:00): a summary of the open tasks on their day today and
  *   how many of their tasks need them (waiting on them, or blocked).
  *
  * They go to everyone with push in a browser or the mobile app. Each is sent
@@ -68,40 +68,42 @@ export const worklogUrl = (date: string) =>
 const restDayUrl = (date: string, mark = false) =>
   `/rest-day?date=${date}${mark ? '&mark=1' : ''}`;
 
-/** Open tasks first by due date (overdue and today first), then the rest. */
+/**
+ * The open tasks on their day today, as the worklog and the app's Today show
+ * it: planned for today, still pending from an earlier day, or (with no day
+ * set) due by today. Overdue first, then the ones under way.
+ */
 async function plannedTasks(userId: string, date: string) {
+  const tomorrow = nextDay(date);
   const tasks = (await db.task.findMany({
-    where: { assigneeIds: userId, status: { in: OPEN_STATUSES } },
-    select: { title: true, status: true, dueDate: true },
-  })) as Pick<Task, 'title' | 'status' | 'dueDate'>[];
-  const rank = (t: (typeof tasks)[number]) =>
-    t.dueDate && t.dueDate.slice(0, 10) <= date
+    where: {
+      AND: [
+        { OR: [{ ownerId: userId }, { assigneeIds: userId }] },
+        { status: { in: OPEN_STATUSES } },
+        { OR: [{ forDate: { lte: date } }, { dueDate: { lt: tomorrow } }] },
+      ],
+    },
+    select: { title: true, status: true, dueDate: true, forDate: true },
+    take: 300,
+  })) as Pick<Task, 'title' | 'status' | 'dueDate' | 'forDate'>[];
+  const due = (t: (typeof tasks)[number]) => t.dueDate?.slice(0, 10) ?? null;
+  // A task moved to a later day is not on today, even when its due day has passed.
+  const today = tasks.filter((t) =>
+    t.forDate ? t.forDate <= date : (due(t) ?? '9999') <= date,
+  );
+  const rank = (t: (typeof today)[number]) =>
+    (due(t) ?? '9999') < date
       ? 0
       : t.status === TASK_STATUS.IN_PROGRESS
         ? 1
-        : t.dueDate
-          ? 2
-          : 3;
-  return tasks
+        : 2;
+  return today
     .sort(
       (a, b) =>
         rank(a) - rank(b) ||
         (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999'),
     )
     .map((t) => t.title);
-}
-
-/** Lines in the person's "Later" todo list that aren't ticked off yet. */
-async function openTodos(userId: string) {
-  const doc = await db.docMarkdown.findUnique({
-    where: { docId: `${userId}-todoLater` },
-  });
-  const content: string = doc?.markdown?.content ?? '';
-  return content
-    .split('\n')
-    .filter((l) => !l.includes('✅'))
-    .map((l) => l.replace(/^\s*[*\-+]\s*(\[ \]\s*)?/, '').trim())
-    .filter((l) => l.replace(/[^\p{L}\p{N}]/gu, '').length >= 3);
 }
 
 const listPreview = (items: string[], max = 3) =>
@@ -181,12 +183,10 @@ const needingThem = (userId: string) =>
   }) as Promise<number>;
 
 async function morningSummary(userId: string, date: string) {
-  const [tasks, todos, needs] = await Promise.all([
+  const [planned, needs] = await Promise.all([
     plannedTasks(userId, date),
-    openTodos(userId),
     needingThem(userId),
   ]);
-  const planned = [...tasks, ...todos];
   const needLine = needs
     ? `${needs} task${needs === 1 ? ' needs' : 's need'} you. `
     : '';

@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { focusManager, onlineManager, QueryClient } from '@tanstack/react-query';
-import { AppState, Platform } from 'react-native';
+import { focusManager, MutationCache, onlineManager, QueryClient } from '@tanstack/react-query';
+import { Alert, AppState, Platform } from 'react-native';
 
-import { api } from './api';
+import { api, ApiError } from './api';
 import { APP_VERSION } from './config';
 import type { TaskMove } from './types';
 
@@ -15,7 +15,23 @@ import type { TaskMove } from './types';
  * back online, even after the app was closed.
  */
 
+/** What a refused task change or update says, by the kind of change. */
+const FAILED: Record<string, string> = {
+  logPoint: 'Your update wasn’t logged',
+  changeTask: 'The task didn’t change',
+};
+
 export const queryClient = new QueryClient({
+  // A task change or update the portal refuses says why, wherever it was
+  // made (ticked in a list, renamed, moved, logged). The screen then shows
+  // the task as the portal has it again.
+  mutationCache: new MutationCache({
+    onError: (error, _input, _context, mutation) => {
+      const title = FAILED[String(mutation.options.mutationKey?.[0])];
+      if (!title || (error instanceof ApiError && error.status === 401)) return;
+      Alert.alert(title, error.message || 'Please try again.');
+    },
+  }),
   defaultOptions: {
     queries: {
       retry: 1,
