@@ -1,4 +1,5 @@
 import { db } from '@/lib/mongodb/db-client';
+import { streakBefore } from '@/lib/wins/triggers';
 import { isRestDay } from '@/lib/worklogs/restDay';
 import { USERSTATUS } from '@/models/shared/enums';
 import type { Task } from '@/models/workspace';
@@ -157,6 +158,23 @@ async function eveningReminder(userId: string, date: string) {
     db.workPoint.count({ where: { userId, date } }),
   ]);
   if (rest || logged) return planTomorrow(userId, date);
+
+  // On a streak: say what's at stake instead.
+  const streak = await streakBefore(userId, date).catch(() => 0);
+  if (streak >= 3) {
+    await sendPushToUsers([userId], {
+      title: `🔥 Your ${streak}-day streak ends at midnight`,
+      body: 'Log one thing you did today to keep it going.',
+      url: worklogUrl(date),
+      tag: `evening-${date}`,
+      actions: [
+        { action: 'log', title: 'Log now' },
+        { action: 'rest-day', title: 'Rest day' },
+      ],
+      actionUrls: { 'rest-day': restDayUrl(date, true), log: worklogUrl(date) },
+    });
+    return true;
+  }
 
   await sendPushToUsers([userId], {
     title: 'No work logged today',

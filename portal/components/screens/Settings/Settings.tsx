@@ -394,6 +394,64 @@ const ClaudeCard = () => (
   </Card>
 );
 
+/** Goals met, streaks, levels and badges (lib/wins), on every device. */
+const WinsToggle = () => {
+  const [on, setOn] = useState<boolean | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    PortalSdk.getData('/api/me/wins', null)
+      .then((res: any) => setOn(res?.data?.on !== false))
+      .catch(() => setOn(true));
+  }, []);
+
+  const toggle = async () => {
+    if (on === null || saving) return;
+    const next = !on;
+    setOn(next);
+    setSaving(true);
+    try {
+      await PortalSdk.postData('/api/me/wins', { on: next });
+    } catch (err: any) {
+      setOn(!next);
+      toast.error(err?.error ?? 'Could not save that.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="mt-4 flex items-start justify-between gap-4 border-t border-neutral-100 pt-4">
+      <div>
+        <p className="text-sm text-neutral-900">Wins and streaks</p>
+        <p className="text-sm text-neutral-500">
+          A cheer when you meet a goal, keep a streak, level up or earn a badge.
+          At most two a day, never at night.
+        </p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={!!on}
+        aria-label="Wins and streaks"
+        disabled={on === null || saving}
+        onClick={toggle}
+        className={cn(
+          'relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-60',
+          on ? 'bg-neutral-900' : 'bg-neutral-300',
+        )}
+      >
+        <span
+          className={cn(
+            'absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow transition-transform',
+            on && 'translate-x-5',
+          )}
+        />
+      </button>
+    </div>
+  );
+};
+
 const NotificationsCard = () => (
   <Card id="notifications" title="Notifications">
     <div className="flex items-start justify-between gap-4">
@@ -405,6 +463,7 @@ const NotificationsCard = () => (
       </div>
       <PushSubscriptionToggleButton type="switch" />
     </div>
+    <WinsToggle />
   </Card>
 );
 

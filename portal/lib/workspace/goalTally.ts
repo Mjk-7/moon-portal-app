@@ -1,4 +1,5 @@
 import { db } from '@/lib/mongodb/db-client';
+import { celebrateGoal } from '@/lib/wins/triggers';
 import type { GoalTally, Project, ProjectGoal, Task } from '@/models/workspace';
 import { TASK_STATUS } from '@/models/workspace';
 
@@ -98,6 +99,9 @@ export async function updateGoalProgress(
         updatedAt: now,
       },
     });
+
+  // More progress: a goal met or a target mark passed (lib/wins).
+  if (amount > (existing?.amount ?? 0)) celebrateGoal(project, goal, userId);
 
   const tallies: GoalTally[] = await db.goalTally.findMany({
     where: { projectId: project.id, goalId: goal.id },

@@ -10,6 +10,7 @@ import { OfflineBanner } from '@/components/offline-banner';
 import { PortalMark } from '@/components/portal-mark';
 import { ThemedText } from '@/components/themed-text';
 import { WhatsNewCard } from '@/components/whats-new-card';
+import { WinsCard, winsKey } from '@/components/wins-card';
 import { Avatar, Card, Chip, Columns, IconButton, QueryState, Screen } from '@/components/ui';
 import { QUOTES } from '@/constants/quotes';
 import { Spacing } from '@/constants/theme';
@@ -52,6 +53,7 @@ export default function HomeScreen() {
       workspace.refetch(),
       notifications.refetch(),
       queryClient.invalidateQueries({ queryKey: ['projects', 'week'] }),
+      queryClient.invalidateQueries({ queryKey: winsKey }),
     ]).catch(() => null);
     setRefreshing(false);
   };
@@ -75,6 +77,7 @@ export default function HomeScreen() {
       <Columns
         left={
           <>
+            <WinsCard />
             <WhatsNewCard />
             <HelloCard day={day.data} date={date} />
             <QuoteCard date={date} />

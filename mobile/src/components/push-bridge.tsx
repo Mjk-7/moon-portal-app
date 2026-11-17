@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { messagesKey, newClientId, useChatUnread } from '@/lib/chat';
 import { openLink } from '@/lib/links';
+import { joinMeeting } from '@/lib/meet';
 import { unreadCount, useNotifications } from '@/lib/notifications';
 import { usePreferences } from '@/lib/preferences';
 import { type PushData, registerForPush, setBadge } from '@/lib/push';
@@ -56,6 +57,11 @@ export function PushBridge() {
         );
       return;
     }
+    // "Starting now": straight into the call.
+    if (data.joinUrl) {
+      void joinMeeting(data.joinUrl);
+      return;
+    }
     // Let the screens mount before moving.
     setTimeout(() => void openLink(data.url ?? (chatId ? `/messages/${chatId}` : null)), 0);
   }, [signedIn, last]);
@@ -66,7 +72,11 @@ export function PushBridge() {
     const sub = Notifications.addNotificationReceivedListener((n) => {
       const data = (n.request.content.data ?? {}) as PushData;
       if (data.chat) void queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      // A meeting booked, moved or cancelled: set its reminders again.
+      if (data.url?.startsWith('/meet')) void queryClient.invalidateQueries({ queryKey: ['meetings'] });
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      // Maybe a win to celebrate on Home.
+      void queryClient.invalidateQueries({ queryKey: ['wins'] });
     });
     return () => sub.remove();
   }, [signedIn]);
