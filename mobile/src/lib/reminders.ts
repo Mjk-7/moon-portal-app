@@ -8,20 +8,23 @@ import { fromKey } from './dates';
 import { usePreferences } from './preferences';
 import { type PushData, preparePush } from './push';
 import { isOpen } from './tasks';
-import type { MyTasks, Task } from './types';
+import type { MyTasks, Task, UpcomingMeeting } from './types';
 
 /*
- * Task reminders made on the phone (no portal involved): at 9 am on the day
- * an open task of theirs is due, with a Done button, and 10 minutes before
- * each meeting. They follow the person's task list: every time it changes,
- * reminders that no longer fit are taken off and new ones are set.
+ * Reminders made on the phone, so they arrive on time even offline: at 9 am
+ * on the day an open task of theirs is due, with a Done button, and for each
+ * confirmed meeting 15 minutes before and again when it starts (tapping that
+ * one joins the call). They follow the person's tasks and meetings
+ * (/api/me/meetings): every time either changes, reminders that no longer fit
+ * are taken off and new ones are set. The website does the same in an open
+ * portal tab (portal/components/global/MeetingReminders.tsx).
  */
 
 const PREFIX = 'reminder-';
 /** iPhones keep at most 64 waiting notifications per app. */
 const MAX = 40;
 const DUE_HOUR = 9;
-const MEETING_LEAD_MINUTES = 10;
+const MEETING_LEAD_MINUTES = 15;
 
 type Reminder = {
   id: string;
@@ -40,25 +43,36 @@ const hash = (s: string) => {
   return (h >>> 0).toString(36);
 };
 
-export function remindersFor(tasks: Task[], now = new Date()): Reminder[] {
+export function remindersFor(tasks: Task[], meetings: UpcomingMeeting[] = [], now = new Date()): Reminder[] {
   const list: Reminder[] = [];
-  for (const t of tasks) {
-    const m = t.meeting;
-    if (m) {
-      if (m.status === 'DECLINED' || m.status === 'CANCELLED') continue;
-      const start = new Date(m.start);
-      const at = new Date(start.getTime() - MEETING_LEAD_MINUTES * 60_000);
-      if (Number.isNaN(at.getTime()) || at <= now) continue;
+  for (const m of meetings) {
+    const start = new Date(m.start);
+    if (Number.isNaN(start.getTime())) continue;
+    const who = `${m.interview ? 'Interview' : 'Meeting'} with ${m.with}`;
+    const key = `${PREFIX}meet-${m.bookingId}-${start.getTime().toString(36)}`;
+    const soon = new Date(start.getTime() - MEETING_LEAD_MINUTES * 60_000);
+    if (soon > now)
       list.push({
-        id: `${PREFIX}meet-${t.id}-${start.getTime().toString(36)}`,
-        at,
-        title: `Meeting in ${MEETING_LEAD_MINUTES} minutes`,
-        body: [m.with ? `With ${m.with}` : t.title, m.time].filter(Boolean).join(' · '),
-        data: { url: '/meet' },
+        id: `${key}-soon`,
+        at: soon,
+        title: `${who} in ${MEETING_LEAD_MINUTES} minutes`,
+        body: m.joinUrl ? `${m.time} · Tap to see the details` : m.time,
+        data: { url: m.url },
         task: false,
       });
-      continue;
-    }
+    if (start > now)
+      list.push({
+        id: `${key}-now`,
+        at: start,
+        title: `${who} is starting now`,
+        body: m.joinUrl ? 'Tap to join the call' : m.time,
+        data: { url: m.url, joinUrl: m.joinUrl },
+        task: false,
+      });
+  }
+  for (const t of tasks) {
+    // Meetings come from the meetings list above.
+    if (t.meetBookingId) continue;
     if (!isOpen(t) || !t.dueDate) continue;
     const day = t.dueDate.slice(0, 10);
     const at = fromKey(day);
@@ -127,7 +141,20 @@ export async function clearReminders() {
 export function useTaskReminders() {
   const { reminders: on } = usePreferences();
   const tasks = useQuery({ queryKey: ['tasks'], queryFn: () => api<MyTasks>('/api/me/tasks') });
-  const list = useMemo(() => (on && tasks.data ? remindersFor(tasks.data.tasks) : null), [on, tasks.data]);
+  const meetings = useQuery({
+    queryKey: ['meetings', 'upcoming'],
+    queryFn: () => api<{ meetings: UpcomingMeeting[] }>('/api/me/meetings'),
+    enabled: on,
+    // Picks up meetings booked or moved since, while the app is open.
+    refetchInterval: 5 * 60_000,
+  });
+  const list = useMemo(
+    () =>
+      on && tasks.data
+        ? remindersFor(tasks.data.tasks, meetings.data?.meetings ?? [])
+        : null,
+    [on, tasks.data, meetings.data],
+  );
   const key = list?.map((r) => r.id).join('|');
 
   useEffect(() => {

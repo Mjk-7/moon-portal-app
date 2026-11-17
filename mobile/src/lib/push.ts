@@ -118,4 +118,6 @@ export type PushData = {
   chat?: { conversationId?: string; messageId?: string } | null;
   /** A task reminder made on the phone (lib/reminders.ts). */
   taskId?: string | null;
+  /** A meeting starting now (lib/reminders.ts): tapping joins the call. */
+  joinUrl?: string | null;
 };

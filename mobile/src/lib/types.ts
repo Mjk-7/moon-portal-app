@@ -80,6 +80,22 @@ export type MeetingFacts = {
   status: string;
 };
 
+/** A confirmed meeting in the coming week (/api/me/meetings). */
+export type UpcomingMeeting = {
+  bookingId: string;
+  start: string;
+  end: string;
+  /** "14:30–15:00" in the person's timezone. */
+  time: string;
+  with: string;
+  interview: boolean;
+  hosting: boolean;
+  /** The portal's join link, relative. */
+  joinUrl: string | null;
+  /** The meeting on the Meet page. */
+  url: string;
+};
+
 export type Task = {
   id: string;
   title: string;

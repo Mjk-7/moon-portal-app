@@ -15,6 +15,7 @@ import localFont from 'next/font/local';
 import { ToastsContainer } from '@/components/elements/Toast';
 import { AppDownloadSplash } from '@/components/global/AppDownloadSplash';
 import { PermissionDeniedToaster } from '@/components/global/PermissionDeniedToaster';
+import { MeetingReminders } from '@/components/global/MeetingReminders';
 import { ServiceWorkerProvider } from '@/components/global/ServiceWorkerProvider';
 import { SignFirstGate } from '@/components/global/SignFirstGate';
 import { ChatProvider } from '@/components/screens/Messages/ChatProvider';
@@ -90,6 +91,7 @@ export default function RootLayout({
             <MantineProvider>
               <ReduxProvider>
                 <ServiceWorkerProvider />
+                <MeetingReminders />
                 <ChatProvider>{children}</ChatProvider>
                 <ToastsContainer />
                 <PermissionDeniedToaster />

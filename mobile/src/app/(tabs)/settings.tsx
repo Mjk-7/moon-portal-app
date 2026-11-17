@@ -200,8 +200,8 @@ export default function SettingsScreen() {
           />
           <Row
             icon="clock"
-            title="Task reminders"
-            detail="9 am on the day a task is due, and 10 minutes before meetings"
+            title="Reminders"
+            detail="9 am on the day a task is due, and 15 minutes before and at the start of meetings"
             right={
               <Switch
                 value={prefs.reminders}
