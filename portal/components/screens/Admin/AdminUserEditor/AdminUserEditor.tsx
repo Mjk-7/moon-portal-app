@@ -260,6 +260,9 @@ export const AdminUserEditor = () => {
               {(user.roleKeys ?? []).map((key) => (
                 <Pill key={key}>{key.replace(/-/g, ' ')}</Pill>
               ))}
+              {(user.isTestAccount || user.demoSeed) && (
+                <Pill icon="science">Test account</Pill>
+              )}
               {user.isAdmin && (
                 <Pill tone="warning" icon="shield_person">
                   Admin

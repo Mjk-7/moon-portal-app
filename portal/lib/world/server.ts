@@ -1,6 +1,7 @@
 import { lookOf } from '@/lib/avatar/look';
 import { todayFor } from '@/lib/mcp/worklog';
 import { db } from '@/lib/mongodb/db-client';
+import { listablePeopleIds } from '@/lib/people/visibility';
 import type { SessionUser } from '@/lib/permissions/server';
 import { tallyRowsFor } from '@/lib/workspace/goalTally';
 import { projectLabel } from '@/lib/workspace/projectLabel';
@@ -259,11 +260,14 @@ export async function buildWorld(viewer: SessionUser): Promise<World> {
       where: { companyId: { in: companyIds }, status: MEMBER_STATUS.ACTIVE },
     }),
   ]);
+  // Inactive people and test accounts don't live in the World.
+  const shownIds = await listablePeopleIds(viewer.id, [
+    viewer.id,
+    ...members.map((m) => m.userId),
+  ]);
   const users = await db.user.findMany({
     where: {
-      id: {
-        in: Array.from(new Set([viewer.id, ...members.map((m) => m.userId)])),
-      },
+      id: { in: shownIds },
       status: 'ACTIVE',
     },
     select: {

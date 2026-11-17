@@ -35,6 +35,7 @@ const SECTIONS = [
   { id: 'companies', label: 'Companies', icon: 'domain' },
   { id: 'claude', label: 'Claude', icon: 'smart_toy' },
   { id: 'notifications', label: 'Notifications', icon: 'notifications' },
+  { id: 'people', label: 'People', icon: 'group' },
   { id: 'hiring', label: 'Hiring', icon: 'work' },
 ];
 
@@ -407,6 +408,73 @@ const NotificationsCard = () => (
   </Card>
 );
 
+/** Show test accounts in people lists (see lib/people/visibility.ts). */
+const PeopleCard = () => {
+  const { user, refetchUser } = useUser();
+  const [on, setOn] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setOn(!!user?.showTestAccounts);
+  }, [user?.showTestAccounts]);
+
+  const toggle = async () => {
+    if (!user || saving) return;
+    const next = !on;
+    setOn(next);
+    setSaving(true);
+    try {
+      await PortalSdk.putData('/api/user', {
+        id: user.id,
+        showTestAccounts: next,
+      });
+      await refetchUser();
+      toast.success(next ? 'Test accounts shown' : 'Test accounts hidden');
+    } catch (err: any) {
+      setOn(!next);
+      toast.error(err?.error ?? 'Could not save that.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card
+      id="people"
+      title="People"
+      description="Inactive people never show up in lists of people to pick from."
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm text-neutral-900">Show test accounts</p>
+          <p className="text-sm text-neutral-500">
+            Include test accounts in chats, teams, assignees and leaderboards.
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={on}
+          aria-label="Show test accounts"
+          disabled={!user || saving}
+          onClick={toggle}
+          className={cn(
+            'relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-60',
+            on ? 'bg-neutral-900' : 'bg-neutral-300',
+          )}
+        >
+          <span
+            className={cn(
+              'absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow transition-transform',
+              on && 'translate-x-5',
+            )}
+          />
+        </button>
+      </div>
+    </Card>
+  );
+};
+
 const HiringCard = () => {
   const [digest, setDigest] = useState<HIRING_DIGEST_FREQUENCY | null>(null);
   const [saving, setSaving] = useState(false);
@@ -547,6 +615,7 @@ const Settings = () => {
           <CompaniesCard />
           <ClaudeCard />
           <NotificationsCard />
+          <PeopleCard />
           {canHire && <HiringCard />}
 
           <button

@@ -3,6 +3,7 @@ import { type Filter, ObjectId } from 'mongodb';
 import { getMongoDb } from '@/lib/db/mongoose';
 import { db } from '@/lib/mongodb/db-client';
 import { ensureNotificationsReset } from '@/lib/notifications/server';
+import { listablePeopleIds } from '@/lib/people/visibility';
 import { SUPER_ADMIN_EMAILS } from '@/lib/permissions/superAdmin';
 import { sortByRecentPoints } from '@/lib/progress/myPoints';
 import { sendPushToUsers } from '@/lib/push/server';
@@ -239,7 +240,10 @@ async function peopleById(ids: string[]): Promise<Map<string, ChatPerson>> {
 /** People the person can start a chat with, A to Z. */
 export async function listContacts(userId: string): Promise<ChatPerson[]> {
   const contacts = await contactsOf(userId);
-  const people = await peopleById(Array.from(contacts.keys()));
+  // Inactive people and test accounts are left out of the list to pick from.
+  const people = await peopleById(
+    await listablePeopleIds(userId, Array.from(contacts.keys())),
+  );
   return Array.from(contacts.entries())
     .map(([id, companies]) => {
       const person = people.get(id);

@@ -197,7 +197,7 @@ const CompanyMembers = ({
     setLoading(true);
     try {
       const [m, r] = await Promise.all([
-        PortalSdk.getData(`/api/companies/${companyId}/members`, null),
+        PortalSdk.getData(`/api/companies/${companyId}/members?all=1`, null),
         can(companyId, 'roles:read')
           ? PortalSdk.getData(`/api/companies/${companyId}/roles`, null)
           : Promise.resolve({ data: { roles: [] } }),

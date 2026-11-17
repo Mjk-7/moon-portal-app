@@ -272,6 +272,29 @@ export const AdminUserBasicData = ({
               ))}
             </NativeSelect>
           </Field>
+
+          <Field
+            label="Account kind"
+            htmlFor="isTestAccount"
+            hint={
+              user.demoSeed
+                ? 'Made by a seed script, so always a test account.'
+                : 'Test accounts are hidden from people lists unless someone turns on Show test accounts in Settings.'
+            }
+          >
+            <NativeSelect
+              id="isTestAccount"
+              value={user.isTestAccount || user.demoSeed ? 'test' : 'real'}
+              disabled={!!user.demoSeed}
+              onChange={(event) => {
+                const isTestAccount = event.target.value === 'test';
+                setUser((previous) => ({ ...previous, isTestAccount }));
+              }}
+            >
+              <option value="real">Real person</option>
+              <option value="test">Test account</option>
+            </NativeSelect>
+          </Field>
         </div>
       </Panel>
 

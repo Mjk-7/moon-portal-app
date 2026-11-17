@@ -1,5 +1,6 @@
 import { projectWork } from '@/lib/daywork/server';
 import { db } from '@/lib/mongodb/db-client';
+import { listablePeople } from '@/lib/people/visibility';
 import { hasPermission } from '@/lib/permissions/matching';
 import { addDays, toDay } from '@/lib/workspace/projects';
 import { withProjectStats } from '@/lib/workspace/projectStats';
@@ -58,10 +59,19 @@ export async function GET() {
     },
     select: { companyId: true, userId: true },
   });
+  // Inactive people and test accounts are not listed as members.
+  const shown = await listablePeople(
+    user.id,
+    members.map((m) => m.userId),
+  );
   const withMembers = companies.map((c) => ({
     ...c,
     memberIds: Array.from(
-      new Set(members.filter((m) => m.companyId === c.id).map((m) => m.userId)),
+      new Set(
+        members
+          .filter((m) => m.companyId === c.id && shown.has(m.userId))
+          .map((m) => m.userId),
+      ),
     ),
   }));
 
