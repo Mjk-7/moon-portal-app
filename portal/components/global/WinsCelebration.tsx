@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useUser } from '@/utils/hooks/useUser';
+import { PortalSdk } from '@/utils/services/PortalSdk';
 
 /*
  * The celebration card: wins (goals met, streaks, levels, badges, big
@@ -21,6 +22,28 @@ type WinCard = {
 };
 
 const CHECK_EVERY_MS = 60_000;
+const SEEN_KEY = 'wins-seen';
+
+/**
+ * Wins closed on this device. The server is told too; this keeps a closed
+ * card from coming back if that call hasn't landed yet.
+ */
+const readSeen = (): Set<string> => {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'));
+  } catch {
+    return new Set();
+  }
+};
+
+const rememberSeen = (ids: string[]) => {
+  try {
+    const all = Array.from(new Set([...Array.from(readSeen()), ...ids]));
+    localStorage.setItem(SEEN_KEY, JSON.stringify(all.slice(-200)));
+  } catch {
+    // Private mode: the server still knows.
+  }
+};
 const COLORS = [
   '#f59e0b',
   '#10b981',
@@ -80,7 +103,10 @@ export const WinsCelebration = () => {
       const res = await fetch('/api/me/wins', { cache: 'no-store' });
       if (!res.ok) return;
       const json = await res.json();
-      const list: WinCard[] = json?.data?.wins ?? [];
+      const seen = readSeen();
+      const list: WinCard[] = (json?.data?.wins ?? []).filter(
+        (w: WinCard) => !seen.has(w.id),
+      );
       if (list.length) {
         setWins((current) => (current.length ? current : list));
         setIndex(0);
@@ -104,11 +130,9 @@ export const WinsCelebration = () => {
     const seen = wins.map((w) => w.id);
     setWins([]);
     setIndex(0);
-    void fetch('/api/me/wins', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ seen }),
-    }).catch(() => null);
+    rememberSeen(seen);
+    // PortalSdk sends the portal's API key, which every POST needs.
+    void PortalSdk.postData('/api/me/wins', { seen }).catch(() => null);
   }, [wins]);
 
   useEffect(() => {
