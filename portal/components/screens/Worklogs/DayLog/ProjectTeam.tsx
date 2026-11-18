@@ -17,6 +17,8 @@ import { PersonAvatar } from './TaskActions';
  * more than one person shows "3 mine / 7 total" at the end of its heading;
  * clicking it opens a panel on the right with the project's tasks on that
  * day, by who is on them, and "+X more" for what each has coming up.
+ * Clicking the project's name in its heading opens the same panel, whoever
+ * else is on it.
  */
 
 export type TeamTask = {
@@ -153,14 +155,29 @@ export const ProjectTeamSheet = ({
               </Dialog.Close>
             </div>
             <div className="quiet-scrollbar flex-1 overflow-y-auto p-3">
-              {(team?.people ?? []).map((person) => (
-                <PersonTasks
-                  key={person.id}
-                  person={person}
-                  date={date}
-                  isMe={person.id === myId}
-                />
-              ))}
+              {!team ? (
+                <div className="flex flex-col gap-2 p-1">
+                  {[0, 1].map((i) => (
+                    <div
+                      key={i}
+                      className="h-16 animate-pulse rounded-xl bg-white/[0.04] auto-light:bg-black/[0.04]"
+                    />
+                  ))}
+                </div>
+              ) : !team.people.length ? (
+                <p className="px-2 py-1.5 text-sm text-neutral-500">
+                  No tasks in this project on this day yet.
+                </p>
+              ) : (
+                team.people.map((person) => (
+                  <PersonTasks
+                    key={person.id}
+                    person={person}
+                    date={date}
+                    isMe={person.id === myId}
+                  />
+                ))
+              )}
             </div>
           </>
         )}

@@ -579,10 +579,28 @@ export const DayLogPage = ({
           key,
           title: (
             <>
-              <PlaceLogo place={place} className="size-3.5" />
-              <span className="truncate normal-case tracking-normal text-neutral-400 auto-light:text-neutral-600">
-                {place.name}
-              </span>
+              {place.kind === 'project' ? (
+                // Clicking a project opens its panel on the right, with
+                // everyone's tasks in it on the day.
+                <button
+                  type="button"
+                  onClick={() => setTeamOf(place)}
+                  title={`Open ${place.name}`}
+                  className="group -mx-1 flex min-w-0 items-center gap-1.5 rounded-md px-1 py-0.5 hover:bg-white/[0.06] auto-light:hover:bg-black/[0.06]"
+                >
+                  <PlaceLogo place={place} className="size-3.5" />
+                  <span className="truncate normal-case tracking-normal text-neutral-400 group-hover:text-neutral-100 auto-light:text-neutral-600 auto-light:group-hover:text-neutral-900">
+                    {place.name}
+                  </span>
+                </button>
+              ) : (
+                <>
+                  <PlaceLogo place={place} className="size-3.5" />
+                  <span className="truncate normal-case tracking-normal text-neutral-400 auto-light:text-neutral-600">
+                    {place.name}
+                  </span>
+                </>
+              )}
               {place.kind === 'project' && (
                 <TeamCount
                   team={teams[key.slice(8)]}
