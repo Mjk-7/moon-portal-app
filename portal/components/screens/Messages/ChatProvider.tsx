@@ -131,10 +131,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [me, refreshUnread]);
 
-  // Without Ably, check the badge now and then.
+  // Without Ably, check the badge now and then, only while the tab is in
+  // front: a portal tab left open in the background would otherwise call
+  // the server every 30 seconds all day. Coming back to the tab refreshes it.
   useEffect(() => {
     if (!me || live) return;
-    const timer = setInterval(refreshUnread, 30_000);
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') refreshUnread();
+    }, 30_000);
     return () => clearInterval(timer);
   }, [me, live, refreshUnread]);
 
