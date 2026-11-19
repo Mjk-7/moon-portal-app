@@ -947,10 +947,10 @@ export const DayLogPage = ({
 
       {planning ? (
         <p className="mt-6 px-2 text-[11px] leading-5 text-neutral-600 auto-light:text-neutral-400">
-          Enter adds the next line · Backspace on an empty line takes it out ·
-          Ctrl+Space done · Alt+↑ ↓ moves a line · Esc or Shift+↑ ↓ picks lines,
-          then Cmd+X and Cmd+V to move them or Cmd+C to copy · drag a line by
-          the handle on its left · the order is kept for the day
+          Write it like a note, one task per line · select lines, copy or cut,
+          and paste them above or below to reorder · Ctrl+Space or the check
+          marks a task done · a deleted line takes its task out · the order is
+          kept for the day
         </p>
       ) : (
         <p className="mt-6 px-2 text-[11px] leading-5 text-neutral-600 auto-light:text-neutral-400">

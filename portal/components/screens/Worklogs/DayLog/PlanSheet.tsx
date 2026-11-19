@@ -1,61 +1,53 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { toast } from 'sonner';
 
 import { cn } from '@/lib/utils';
 
-import { Icon } from '../../Admin/shared/AdminUI';
-import type { PickerOption } from './Picker';
-import { Picker } from './Picker';
-import type { Place } from './sheetParts';
-import {
-  LineInput,
-  placeInput,
-  placeOf,
-  placeOptions,
-  rowStatus,
-} from './sheetParts';
+import { placeInput, placeOf, placeOptions, rowStatus } from './sheetParts';
 import type { Day, DayTask, PlaceInput } from './useDay';
 
 /*
- * The worklog's Plan mode: the day as a plain checklist, one task per line
- * with a check in front and nothing else. Lines are written like a note
- * (Enter for the next, Backspace on an empty one to take it out), and lines
- * or blocks of them are moved by cutting and pasting, Alt+arrows or
- * dragging. The order is saved for the day and comes back when the plan is
- * opened again; tasks that left the day are skipped.
+ * The worklog's Plan mode: the day as one plain page of text, one task per
+ * line with a check in front. It is written like a note: type, Enter,
+ * Backspace, select across lines, copy or cut, and paste above or below.
+ * Each line remembers its task, so a line cut and pasted elsewhere is the
+ * same task moved, a line deleted takes its task out (once the page is
+ * left), and a new line becomes a new task.
  *
- * With project tags on, each line reads "Project - task", and typing a
- * project's name and " - " in front of a task puts it there.
+ * The order is saved for the day and comes back when the plan is opened
+ * again; tasks that left the day are skipped. With project tags on, each
+ * line reads "Project - task", and writing another project's name in front
+ * moves the task there.
  */
 
-/** A row's key while the page is open: a new row keeps its first id. */
-const keyOf = (t: DayTask) => t.rowKey ?? t.id;
+const LINE = 'data-line';
+const ID_RE = /^[a-f0-9]{24}$/i;
 
-/** Moves `keys` (kept in their order) before or after `target`. */
-function moveKeys(
-  list: string[],
-  keys: string[],
-  target: string,
-  where: 'before' | 'after',
-): string[] {
-  if (keys.includes(target)) return list;
-  const moving = list.filter((k) => keys.includes(k));
-  const rest = list.filter((k) => !keys.includes(k));
-  const at = rest.indexOf(target);
-  if (at < 0) return list;
-  const index = where === 'before' ? at : at + 1;
-  return [...rest.slice(0, index), ...moving, ...rest.slice(index)];
-}
+/** One line of the page, as the editor holds it. */
+const LINE_CLASS = cn(
+  'relative min-h-[30px] py-[3px] pl-8 pr-1 text-sm leading-6 text-neutral-100 auto-light:text-neutral-900',
+  // The check in front: a circle, green and ticked when done.
+  "before:absolute before:left-1 before:top-[6px] before:flex before:size-[18px] before:cursor-pointer before:items-center before:justify-center before:rounded-full before:border before:border-neutral-600 before:text-[11px] before:font-bold before:leading-none before:text-neutral-600 before:content-['✓'] hover:before:border-emerald-400 auto-light:before:border-neutral-300 auto-light:before:text-neutral-300",
+  'data-[done]:text-neutral-500 data-[done]:line-through data-[done]:decoration-neutral-600 data-[done]:before:border-emerald-500 data-[done]:before:bg-emerald-500 data-[done]:before:text-white auto-light:data-[done]:text-neutral-400 auto-light:data-[done]:before:border-emerald-600 auto-light:data-[done]:before:bg-emerald-600',
+);
 
-/** Puts `keys` in after `anchor` (or at the end), out of where they were. */
-function insertAfter(list: string[], keys: string[], anchor: string | null) {
-  const rest = list.filter((k) => !keys.includes(k));
-  const at = anchor ? rest.indexOf(anchor) : -1;
-  if (at < 0) return [...rest, ...keys];
-  return [...rest.slice(0, at + 1), ...keys, ...rest.slice(at + 1)];
-}
+const escapeHtml = (s: string) =>
+  s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+const lineHtml = (
+  text: string,
+  id?: string | null,
+  done = false,
+  pasted = false,
+) =>
+  `<div ${LINE}="1" class="${LINE_CLASS}"${id ? ` data-id="${id}"` : ''}${
+    done ? ' data-done="1"' : ''
+  }${pasted ? ' data-pasted="1"' : ''}>${text ? escapeHtml(text) : '<br>'}</div>`;
 
 /** A pasted line as a task: list marks and checkboxes taken off. */
 const cleanLine = (line: string) =>
@@ -65,13 +57,18 @@ const cleanLine = (line: string) =>
     .replace(/^\s*[✓✔✅☐☑]\s*/, '')
     .trim();
 
-type Clip = {
-  /** Cut lines move where they are pasted; copied lines are made again. */
-  mode: 'cut' | 'copy';
-  keys: string[];
-  /** What went on the clipboard, to know a paste is ours. */
-  text: string;
+/** The line a node is in. */
+const lineOf = (node: Node | null, root: HTMLElement | null) => {
+  let el: Node | null = node;
+  while (el && el !== root) {
+    if (el instanceof HTMLElement && el.hasAttribute(LINE)) return el;
+    el = el.parentNode;
+  }
+  return null;
 };
+
+const textOfRow = (row: HTMLElement) =>
+  (row.innerText ?? '').replace(/\n/g, ' ').trim();
 
 export const PlanSheet = ({
   day,
@@ -86,10 +83,9 @@ export const PlanSheet = ({
   editable: boolean;
   /** Each line reads "Project - task". */
   tagged: boolean;
-  /** Where a new line goes when nothing else says (the picked company). */
+  /** Where a new line goes when it names no project (the picked company). */
   newPlace: PlaceInput | null;
 }) => {
-  // The order as keys; new rows are put in it as they are made.
   const [order, setOrder] = useState<string[]>(day.planOrder);
   const dirty = useRef(false);
   useEffect(() => {
@@ -103,10 +99,9 @@ export const PlanSheet = ({
   // the rest as the day has them.
   const sorted = useMemo(() => {
     const pos = new Map(order.map((k, i) => [k, i] as const));
-    const rank = (t: DayTask) =>
-      pos.get(t.id) ?? (t.rowKey ? pos.get(t.rowKey) : undefined);
     return day.tasks
-      .map((t, i) => ({ t, i, p: rank(t) }))
+      .filter((t) => !t.draft)
+      .map((t, i) => ({ t, i, p: pos.get(t.id) }))
       .sort((a, b) => {
         if (a.p !== undefined && b.p !== undefined) return a.p - b.p;
         if (a.p !== undefined) return -1;
@@ -115,622 +110,417 @@ export const PlanSheet = ({
       })
       .map((x) => x.t);
   }, [day.tasks, order]);
-  const fullKeys = useMemo(() => sorted.map(keyOf), [sorted]);
-
-  const shownKeys = useMemo(() => new Set(shown.map(keyOf)), [shown]);
+  const shownIds = useMemo(() => new Set(shown.map((t) => t.id)), [shown]);
   const lines = useMemo(
-    () => sorted.filter((t) => shownKeys.has(keyOf(t))),
-    [sorted, shownKeys],
+    () => sorted.filter((t) => shownIds.has(t.id)),
+    [sorted, shownIds],
   );
-  const lineKeys = useMemo(() => lines.map(keyOf), [lines]);
 
-  // Saved a moment after a change, once new rows have their ids.
-  const savedIds = useMemo(
-    () => sorted.filter((t) => !t.draft).map((t) => t.id),
-    [sorted],
-  );
+  // Saved a moment after a change.
   const saveRef = useRef(day.saveOrder);
   saveRef.current = day.saveOrder;
-  const lastSaved = useRef<string>('');
+  const lastSaved = useRef('');
   useEffect(() => {
     if (!dirty.current || !editable) return;
-    const sig = savedIds.join(',');
+    const ids = sorted.map((t) => t.id);
+    const sig = ids.join(',');
     if (sig === lastSaved.current) return;
     const timer = setTimeout(() => {
       lastSaved.current = sig;
-      saveRef.current(savedIds);
+      saveRef.current(ids);
     }, 500);
     return () => clearTimeout(timer);
-  }, [savedIds, editable]);
+  }, [sorted, editable]);
 
-  /** A new order of the full day. */
-  const commit = useCallback((next: string[]) => {
-    dirty.current = true;
-    setOrder(next);
-  }, []);
-
-  /** A new order of the lines shown, put back among the hidden ones. */
-  const commitShown = useCallback(
-    (nextShown: string[]) => {
-      const set = new Set(nextShown);
-      let j = 0;
-      commit(fullKeys.map((k) => (set.has(k) ? nextShown[j++] : k)));
-    },
-    [commit, fullKeys],
-  );
-
-  /* ------------------------------------------------------------------ */
-
-  const inputs = useRef(new Map<string, HTMLTextAreaElement | null>());
-  const container = useRef<HTMLDivElement | null>(null);
-  const focusLine = useCallback((key: string, caret: 'start' | 'end') => {
-    // A new row is on the page a moment later.
-    requestAnimationFrame(() => {
-      const el = inputs.current.get(key);
-      if (!el) return;
-      el.focus();
-      const at = caret === 'start' ? 0 : el.value.length;
-      el.setSelectionRange(at, at);
-    });
-  }, []);
-
-  // Lines picked as a block: from one line to another.
-  const [block, setBlock] = useState<{ anchor: string; head: string } | null>(
-    null,
-  );
-  const picked = useMemo(() => {
-    if (!block) return [] as string[];
-    const a = lineKeys.indexOf(block.anchor);
-    const b = lineKeys.indexOf(block.head);
-    if (a < 0 || b < 0) return [];
-    return lineKeys.slice(Math.min(a, b), Math.max(a, b) + 1);
-  }, [block, lineKeys]);
-  useEffect(() => {
-    if (block && !picked.length) setBlock(null);
-  }, [block, picked]);
-  const pickBlock = (anchor: string, head: string) => {
-    setBlock({ anchor, head });
-    container.current?.focus({ preventScroll: true });
-  };
-
-  const [clip, setClip] = useState<Clip | null>(null);
-  const cutKeys = clip?.mode === 'cut' ? clip.keys : [];
-
-  const byKey = useMemo(
-    () => new Map(sorted.map((t) => [keyOf(t), t] as const)),
-    [sorted],
-  );
   const options = useMemo(
     () => placeOptions(day.projects, day.companies),
     [day.projects, day.companies],
   );
-  const placeOfTask = (t: DayTask): Place =>
-    placeOf(t, day.projects, day.companies);
-
-  /** A line's words for the clipboard, as a Markdown checklist line. */
-  const lineText = (t: DayTask) => {
-    const done = rowStatus(t, day.points, day.date) === 'done';
-    const place = placeOfTask(t);
-    const tag = tagged && place.kind !== 'none' ? `${place.name} - ` : '';
-    return `- [${done ? 'x' : ' '}] ${tag}${t.title.trim()}`;
-  };
+  const isDone = useCallback(
+    (t: DayTask) => rowStatus(t, day.points, day.date) === 'done',
+    [day.points, day.date],
+  );
+  const textOf = useCallback(
+    (t: DayTask) => {
+      const place = placeOf(t, day.projects, day.companies);
+      return tagged && place.kind !== 'none'
+        ? `${place.name} - ${t.title.trim()}`
+        : t.title.trim();
+    },
+    [tagged, day.projects, day.companies],
+  );
 
   /** A project named in front of a task ("PORTAL - fix login"). */
-  const taggedPlace = (
-    text: string,
-  ): { place: PlaceInput; title: string } | null => {
-    const m = text.match(/^\s*(.+?)\s+[-–]\s+(\S.*)$/);
-    if (!m) return null;
-    const name = m[1].trim().toLowerCase();
-    const option =
-      options.find(
-        (o) => o.label.toLowerCase() === name && o.id.startsWith('project:'),
-      ) ?? options.find((o) => o.label.toLowerCase() === name);
-    if (!option || option.id === 'none') return null;
-    return { place: placeInput(option), title: m[2] };
-  };
-
-  const putIn = (t: DayTask, place: PlaceInput) => {
-    if (t.draft) day.placeDraft(t.id, place);
-    else day.place(t.id, place);
-  };
-
-  /** Where a line under `t` goes: its project when tagged, else the tab's. */
-  const placeUnder = (t?: DayTask): PlaceInput | null => {
-    if (tagged && t) {
-      const place = placeOfTask(t);
-      if (place.kind === 'project') return { projectId: place.key.slice(8) };
-      if (place.kind === 'personal') return { personal: true };
-    }
-    return newPlace;
-  };
-
-  const newLineAfter = (t?: DayTask) => {
-    const id = day.addDraft(t ? t.id : null, placeUnder(t));
-    commit(insertAfter(fullKeys, [id], t ? keyOf(t) : null));
-    focusLine(id, 'start');
-  };
+  const taggedPlace = useCallback(
+    (
+      text: string,
+    ): { place: PlaceInput; key: string; title: string } | null => {
+      const m = text.match(/^\s*(.+?)\s+[-–]\s+(\S.*)$/);
+      if (!m) return null;
+      const name = m[1].trim().toLowerCase();
+      const option =
+        options.find(
+          (o) => o.label.toLowerCase() === name && o.id.startsWith('project:'),
+        ) ?? options.find((o) => o.label.toLowerCase() === name);
+      if (!option || option.id === 'none') return null;
+      return { place: placeInput(option), key: option.id, title: m[2].trim() };
+    },
+    [options],
+  );
 
   /* ------------------------------------------------------------------ */
 
-  const toClipboard = (text: string) =>
-    navigator.clipboard?.writeText(text).catch(() => undefined);
+  const root = useRef<HTMLDivElement | null>(null);
+  const [focused, setFocused] = useState(false);
+  const [empty, setEmpty] = useState(false);
 
-  const copyLines = (keys: string[], mode: 'cut' | 'copy') => {
-    const tasks = keys
-      .map((k) => byKey.get(k))
-      .filter((t): t is DayTask => !!t && !!t.title.trim());
-    if (!tasks.length) return '';
-    const text = tasks.map(lineText).join('\n');
-    setClip({ mode, keys: tasks.map(keyOf), text });
-    if (mode === 'cut')
-      toast(
-        `Cut ${tasks.length} line${tasks.length === 1 ? '' : 's'}. Paste where they go; Esc puts them back.`,
-      );
-    return text;
+  // The page as the tasks have it; written in while no one is typing.
+  const html = useMemo(
+    () =>
+      (lines.length ? lines : [null])
+        .map((t) => (t ? lineHtml(textOf(t), t.id, isDone(t)) : lineHtml('')))
+        .join(''),
+    [lines, textOf, isDone],
+  );
+  useEffect(() => {
+    const el = root.current;
+    if (!el || focused) return;
+    if (el.innerHTML !== html) el.innerHTML = html;
+    setEmpty(!lines.length);
+  }, [html, focused, lines.length]);
+  // While typing, only the checks follow the tasks.
+  useEffect(() => {
+    const el = root.current;
+    if (!el || !focused) return;
+    const done = new Map(day.tasks.map((t) => [t.id, isDone(t)] as const));
+    el.querySelectorAll<HTMLElement>(`[${LINE}]`).forEach((line) => {
+      const id = line.dataset.id;
+      if (!id || !done.has(id)) return;
+      if (done.get(id)) line.setAttribute('data-done', '1');
+      else line.removeAttribute('data-done');
+    });
+  }, [day.tasks, focused, isDone]);
+
+  /* ------------------------------------------------------------------ */
+
+  const byIdRef = useRef(new Map<string, DayTask>());
+  byIdRef.current = new Map(day.tasks.map((t) => [t.id, t] as const));
+  const creating = useRef(false);
+
+  /** The lines on the page now, top to bottom, each task on one line. */
+  const readLines = () => {
+    const el = root.current;
+    if (!el) return [];
+    // Text typed straight into the page (after it was emptied) is a line.
+    Array.from(el.childNodes).forEach((node) => {
+      if (node instanceof HTMLElement && node.hasAttribute(LINE)) return;
+      const wrap = document.createElement('div');
+      wrap.innerHTML = lineHtml((node.textContent ?? '').trim());
+      el.replaceChild(wrap.firstElementChild!, node);
+    });
+    const rows = Array.from(el.querySelectorAll<HTMLElement>(`[${LINE}]`));
+    // Where lines share a task (a line split in two, a copy pasted), the
+    // one that reads like the task keeps it, else the first not just pasted.
+    const groups = new Map<string, HTMLElement[]>();
+    rows.forEach((row) => {
+      const id = row.dataset.id;
+      if (!id) return;
+      if (!ID_RE.test(id) || !byIdRef.current.has(id)) {
+        // From another day, or a task gone: a new line.
+        row.removeAttribute('data-id');
+        row.removeAttribute('data-done');
+        return;
+      }
+      groups.set(id, [...(groups.get(id) ?? []), row]);
+    });
+    groups.forEach((rowsOf, id) => {
+      if (rowsOf.length < 2) return;
+      const task = byIdRef.current.get(id)!;
+      const keep =
+        rowsOf.find((r) => textOfRow(r) === textOf(task)) ??
+        rowsOf.find((r) => !r.dataset.pasted && textOfRow(r)) ??
+        rowsOf[0];
+      rowsOf.forEach((r) => {
+        if (r === keep) return;
+        r.removeAttribute('data-id');
+        r.removeAttribute('data-done');
+      });
+    });
+    rows.forEach((r) => r.removeAttribute('data-pasted'));
+    return rows.map((row) => ({
+      row,
+      id: row.dataset.id ?? null,
+      text: textOfRow(row),
+    }));
   };
 
-  /**
-   * Pastes after a line: cut lines move there, copied ones are made again,
-   * and lines from elsewhere become new tasks. An empty line pasted on
-   * makes way for them.
-   */
-  const pasteAt = async (t: DayTask | undefined, text: string) => {
+  /** Brings the tasks in line with the page; on leaving it, removals too. */
+  const sync = async (leaving = false) => {
     if (!editable) return;
-    const empty = t && !t.title.trim();
-    const anchorIndex = t ? lineKeys.indexOf(keyOf(t)) : lineKeys.length;
-    const before = empty ? lines[anchorIndex - 1] : t;
-    const anchorKey = before ? keyOf(before) : null;
-    const ours = clip && clip.text.trim() === text.trim();
+    const rows = readLines();
+    setEmpty(!rows.some((r) => r.text));
+    // Words and projects of the lines that have tasks.
+    for (const r of rows) {
+      if (!r.id || !r.text) continue;
+      const task = byIdRef.current.get(r.id);
+      if (!task) continue;
+      let title = r.text;
+      if (tagged) {
+        const tag = taggedPlace(r.text);
+        if (tag) {
+          title = tag.title;
+          const now = placeOf(task, day.projects, day.companies);
+          if (now.key !== tag.key) day.place(task.id, tag.place);
+        }
+      }
+      if (title !== task.title.trim()) day.editTitle(task.id, title);
+    }
+    // New lines become tasks, one after another, under the line above.
+    if (!creating.current) {
+      creating.current = true;
+      try {
+        for (let i = 0; i < rows.length; i++) {
+          const r = rows[i];
+          if (r.row.dataset.id || !r.text || r.row.dataset.pending) continue;
+          r.row.dataset.pending = '1';
+          const above = rows
+            .slice(0, i)
+            .reverse()
+            .find((x) => x.row.dataset.id)?.row.dataset.id;
+          const tag = tagged ? taggedPlace(r.text) : null;
+          const made = await day.addMany(
+            [
+              {
+                title: tag ? tag.title : r.text,
+                place: tag ? tag.place : newPlace,
+              },
+            ],
+            above ?? null,
+          );
+          delete r.row.dataset.pending;
+          if (made[0]) {
+            r.row.dataset.id = made[0].id;
+            byIdRef.current.set(made[0].id, made[0]);
+          }
+        }
+      } finally {
+        creating.current = false;
+      }
+    }
+    // The order of the page, put back among the lines another tab hides.
+    const ids = Array.from(
+      root.current?.querySelectorAll<HTMLElement>(`[${LINE}][data-id]`) ?? [],
+    )
+      .filter((row) => textOfRow(row))
+      .map((row) => row.dataset.id!);
+    const onPage = new Set(ids);
+    const placed = new Set(lines.map((t) => t.id));
+    const all = sorted.map((t) => t.id);
+    const next: string[] = [];
+    let j = 0;
+    for (const id of all) {
+      if (!placed.has(id)) next.push(id);
+      else if (j < ids.length) next.push(ids[j++]);
+    }
+    while (j < ids.length) next.push(ids[j++]);
+    if (next.join(',') !== all.join(',')) {
+      dirty.current = true;
+      setOrder(next);
+    }
+    // Lines taken off the page take their tasks out once the page is left,
+    // so a cut line can still be pasted back first.
+    if (leaving) for (const t of lines) if (!onPage.has(t.id)) day.remove(t.id);
+  };
+  const syncRef = useRef(sync);
+  syncRef.current = sync;
 
-    if (ours && clip.mode === 'cut') {
-      const keys = clip.keys.filter((k) => byKey.has(k));
-      setClip(null);
-      if (empty && t) day.remove(t.id);
-      if (anchorKey && keys.includes(anchorKey)) return;
-      commit(insertAfter(fullKeys, keys, anchorKey));
-      setBlock(keys.length ? { anchor: keys[0], head: keys.at(-1)! } : null);
-      container.current?.focus({ preventScroll: true });
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const soon = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => syncRef.current(), 700);
+  };
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+
+  /* ------------------------------------------------------------------ */
+
+  /** The whole lines a selection runs across, when it crosses lines. */
+  const selectedRows = () => {
+    const el = root.current;
+    const sel = window.getSelection();
+    if (!el || !sel || !sel.rangeCount) return null;
+    const range = sel.getRangeAt(0);
+    const first = lineOf(range.startContainer, el);
+    let last = lineOf(range.endContainer, el);
+    if (!first || !last || first === last) return null;
+    const rows = Array.from(el.querySelectorAll<HTMLElement>(`[${LINE}]`));
+    // Ending at the very start of a line (Shift+Down) leaves that line out.
+    const into = document.createRange();
+    into.selectNodeContents(last);
+    into.setEnd(range.endContainer, range.endOffset);
+    if (!into.toString().length) last = rows[rows.indexOf(last) - 1];
+    if (!last || last === first) return [first];
+    return rows.slice(rows.indexOf(first), rows.indexOf(last) + 1);
+  };
+
+  /** Puts the cursor at the start or end of a line. */
+  const placeCaret = (row: HTMLElement | null, where: 'start' | 'end') => {
+    const sel = window.getSelection();
+    if (!row || !sel) return;
+    const range = document.createRange();
+    range.selectNodeContents(row);
+    range.collapse(where === 'start');
+    sel.removeAllRanges();
+    sel.addRange(range);
+  };
+
+  /** Copying across lines takes whole lines, each with its task. */
+  const onCopy = (e: React.ClipboardEvent<HTMLDivElement>, cut = false) => {
+    const rows = selectedRows();
+    if (!rows) return;
+    e.preventDefault();
+    e.clipboardData.setData('text/plain', rows.map(textOfRow).join('\n'));
+    e.clipboardData.setData(
+      'text/html',
+      `<div data-plan="1">${rows
+        .map((r) => lineHtml(textOfRow(r), r.dataset.id))
+        .join('')}</div>`,
+    );
+    if (!cut || !editable) return;
+    // Out go the whole lines; the cursor goes where they were.
+    const next =
+      rows.at(-1)!.nextElementSibling ?? rows[0].previousElementSibling;
+    rows.forEach((r) => r.remove());
+    const el = root.current!;
+    if (!el.querySelector(`[${LINE}]`)) el.innerHTML = lineHtml('');
+    placeCaret(
+      (next as HTMLElement | null) ??
+        el.querySelector<HTMLElement>(`[${LINE}]`),
+      'start',
+    );
+    soon();
+  };
+
+  const onPaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (!editable) return;
+    const html = e.clipboardData.getData('text/html');
+    const text = e.clipboardData.getData('text/plain');
+    let pasted: { text: string; id?: string }[] | null = null;
+    if (html.includes('data-plan="1"')) {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      pasted = Array.from(doc.querySelectorAll<HTMLElement>(`[${LINE}]`)).map(
+        (r) => ({
+          text: (r.textContent ?? '').trim(),
+          id: ID_RE.test(r.dataset.id ?? '') ? r.dataset.id : undefined,
+        }),
+      );
+    } else if (/\r?\n/.test(text.trim())) {
+      pasted = text
+        .split(/\r?\n/)
+        .map(cleanLine)
+        .filter(Boolean)
+        .map((t) => ({ text: t }));
+    }
+    if (!pasted) {
+      // Words from one line: typed in where the cursor is.
+      document.execCommand('insertText', false, text.replace(/\s+/g, ' '));
+      soon();
       return;
     }
-
-    const items = ours
-      ? clip.keys
-          .map((k) => byKey.get(k))
-          .filter((x): x is DayTask => !!x)
-          .map((x) => {
-            const place = placeOfTask(x);
-            return {
-              title: x.title,
-              place:
-                place.kind === 'project'
-                  ? ({ projectId: place.key.slice(8) } as PlaceInput)
-                  : place.kind === 'personal'
-                    ? ({ personal: true } as PlaceInput)
-                    : place.kind === 'company'
-                      ? ({ companyId: place.key.slice(8) } as PlaceInput)
-                      : newPlace,
-            };
-          })
-      : text
-          .split(/\r?\n/)
-          .map(cleanLine)
-          .filter(Boolean)
-          .map((line) => {
-            const tag = taggedPlace(line);
-            return tag
-              ? { title: tag.title, place: tag.place }
-              : { title: line, place: placeUnder(before) };
-          });
-    if (!items.length) return;
-    if (empty && t) day.remove(t.id);
-    const made = await day.addMany(items, before?.id ?? null);
+    // Whole lines go in above the cursor's line when the cursor is at its
+    // start, below it otherwise; an empty line makes way for them.
+    const el = root.current!;
+    const sel = window.getSelection();
+    const at = sel?.rangeCount
+      ? lineOf(sel.getRangeAt(0).startContainer, el)
+      : null;
+    const wrap = document.createElement('div');
+    wrap.innerHTML = pasted
+      .map((p) => lineHtml(p.text, p.id, false, true))
+      .join('');
+    const made = Array.from(wrap.children) as HTMLElement[];
     if (!made.length) return;
-    commit(
-      insertAfter(
-        fullKeys.filter((k) => !(empty && t && k === keyOf(t))),
-        made.map((m) => m.id),
-        anchorKey,
-      ),
-    );
-    focusLine(made.at(-1)!.id, 'end');
+    const frag = document.createDocumentFragment();
+    made.forEach((m) => frag.appendChild(m));
+    if (at && sel) {
+      const caret = sel.getRangeAt(0);
+      const before = document.createRange();
+      before.selectNodeContents(at);
+      before.setEnd(caret.startContainer, caret.startOffset);
+      if (!textOfRow(at)) at.replaceWith(frag);
+      else if (!before.toString().length) at.before(frag);
+      else at.after(frag);
+    } else el.appendChild(frag);
+    placeCaret(made.at(-1)!, 'end');
+    soon();
   };
 
-  /* ------------------------------------------------------------------ */
-
-  const moveBy = (keys: string[], step: -1 | 1) => {
-    const first = lineKeys.indexOf(keys[0]);
-    const last = lineKeys.indexOf(keys.at(-1)!);
-    if (first < 0 || last < 0) return;
-    const target = lineKeys[step < 0 ? first - 1 : last + 1];
-    if (!target) return;
-    commitShown(
-      moveKeys(lineKeys, keys, target, step < 0 ? 'before' : 'after'),
-    );
+  const toggle = (row: HTMLElement | null) => {
+    if (!editable || !row) return;
+    const id = row.dataset.id;
+    const task = id ? byIdRef.current.get(id) : undefined;
+    if (!task) return;
+    const done = isDone(task);
+    if (done) row.removeAttribute('data-done');
+    else row.setAttribute('data-done', '1');
+    day.move(task.id, done ? 'todo' : 'done');
   };
 
-  const toggleDone = (t: DayTask) => {
-    if (!editable || (!t.title.trim() && t.draft)) return;
-    const done = rowStatus(t, day.points, day.date) === 'done';
-    day.move(t.id, done ? 'todo' : 'done');
-  };
-
-  const onLineKey = (
-    e: React.KeyboardEvent<HTMLTextAreaElement>,
-    t: DayTask,
-    i: number,
-  ) => {
-    const el = e.currentTarget;
-    const key = keyOf(t);
-    const atStart = el.selectionStart === 0 && el.selectionEnd === 0;
-    const atEnd =
-      el.selectionStart === el.value.length &&
-      el.selectionEnd === el.value.length;
-    const mod = e.metaKey || e.ctrlKey;
-    if (e.nativeEvent.isComposing) return;
-
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // Ctrl+Space ticks the line the cursor is in.
     if (e.ctrlKey && !e.metaKey && !e.altKey && e.key === ' ') {
       e.preventDefault();
-      toggleDone(t);
-      return;
-    }
-    if (e.key === 'Enter' && !e.shiftKey && !mod && !e.altKey) {
-      e.preventDefault();
-      day.flush(t.id);
-      newLineAfter(t);
-      return;
-    }
-    if (e.key === 'Backspace' && !el.value && !mod) {
-      e.preventDefault();
-      const prev = lines[i - 1];
-      day.remove(t.id);
-      if (prev) focusLine(keyOf(prev), 'end');
-      return;
-    }
-    if (e.altKey && !mod && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-      e.preventDefault();
-      day.flush(t.id);
-      moveBy([key], e.key === 'ArrowUp' ? -1 : 1);
-      focusLine(key, 'end');
-      return;
-    }
-    if (e.shiftKey && !mod && !e.altKey) {
-      const whole =
-        el.selectionStart === 0 && el.selectionEnd === el.value.length;
-      if (e.key === 'ArrowUp' && (el.selectionStart === 0 || whole)) {
-        e.preventDefault();
-        day.flush(t.id);
-        pickBlock(key, lineKeys[Math.max(0, i - 1)]);
-        return;
-      }
-      if (
-        e.key === 'ArrowDown' &&
-        (el.selectionEnd === el.value.length || whole)
-      ) {
-        e.preventDefault();
-        day.flush(t.id);
-        pickBlock(key, lineKeys[Math.min(lineKeys.length - 1, i + 1)]);
-        return;
-      }
-    }
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      day.flush(t.id);
-      if (clip) setClip(null);
-      pickBlock(key, key);
-      return;
-    }
-    if (mod && !e.shiftKey && e.key.toLowerCase() === 'a') {
-      // A second Cmd+A picks every line.
-      const whole =
-        el.selectionStart === 0 && el.selectionEnd === el.value.length;
-      if (whole && lineKeys.length) {
-        e.preventDefault();
-        day.flush(t.id);
-        pickBlock(lineKeys[0], lineKeys.at(-1)!);
-      }
-      return;
-    }
-    if (!e.shiftKey && !mod && !e.altKey) {
-      if (e.key === 'ArrowUp' && atStart && i > 0) {
-        e.preventDefault();
-        focusLine(lineKeys[i - 1], 'end');
-      } else if (e.key === 'ArrowDown' && atEnd && i < lines.length - 1) {
-        e.preventDefault();
-        focusLine(lineKeys[i + 1], 'start');
-      }
-    }
-  };
-
-  const onBlockKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (!block || e.target !== e.currentTarget) return;
-    const mod = e.metaKey || e.ctrlKey;
-    const head = lineKeys.indexOf(block.head);
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      setBlock(null);
-      setClip(null);
-      return;
-    }
-    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-      e.preventDefault();
-      const step = e.key === 'ArrowUp' ? -1 : 1;
-      if (e.altKey) {
-        if (editable) moveBy(picked, step);
-        return;
-      }
-      const next =
-        lineKeys[Math.min(lineKeys.length - 1, Math.max(0, head + step))];
-      if (e.shiftKey) setBlock({ anchor: block.anchor, head: next });
-      else {
-        setBlock(null);
-        focusLine(next, 'end');
-      }
-      return;
-    }
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      setBlock(null);
-      focusLine(block.head, 'end');
-      return;
-    }
-    if (mod && e.key.toLowerCase() === 'a') {
-      e.preventDefault();
-      if (lineKeys.length)
-        setBlock({ anchor: lineKeys[0], head: lineKeys.at(-1)! });
-      return;
-    }
-    if (mod && (e.key.toLowerCase() === 'c' || e.key.toLowerCase() === 'x')) {
-      e.preventDefault();
-      const cut = e.key.toLowerCase() === 'x' && editable;
-      const text = copyLines(picked, cut ? 'cut' : 'copy');
-      if (text) toClipboard(text);
-      return;
-    }
-    if (mod && e.key.toLowerCase() === 'v') {
-      e.preventDefault();
-      const target = byKey.get(
-        lineKeys[Math.max(...picked.map((k) => lineKeys.indexOf(k)))],
+      const sel = window.getSelection();
+      toggle(
+        sel?.rangeCount
+          ? lineOf(sel.getRangeAt(0).startContainer, root.current)
+          : null,
       );
-      const internal = clip?.text;
-      const read = navigator.clipboard?.readText
-        ? navigator.clipboard.readText().catch(() => internal ?? '')
-        : Promise.resolve(internal ?? '');
-      read.then((text) => {
-        setBlock(null);
-        pasteAt(target, text || internal || '');
-      });
     }
   };
-
-  /* ------------------------------------------------------------------ */
-
-  // Dragging a line (or the block it is in) by its handle.
-  const [drag, setDrag] = useState<string[] | null>(null);
-  const [drop, setDrop] = useState<{
-    key: string;
-    where: 'before' | 'after';
-  } | null>(null);
-
-  const endDrag = () => {
-    setDrag(null);
-    setDrop(null);
-  };
-
-  if (!lines.length && !editable)
-    return (
-      <p className="px-2 pb-1 pt-2 text-sm text-neutral-500">
-        Nothing on this day.
-      </p>
-    );
 
   return (
-    <div
-      ref={container}
-      tabIndex={-1}
-      role="list"
-      aria-label="Plan"
-      onKeyDown={onBlockKey}
-      onBlur={(e) => {
-        // Clicking away lets the block go; moving into a line does too.
-        if (!e.currentTarget.contains(e.relatedTarget as Node)) setBlock(null);
-      }}
-      className="py-1 focus:outline-none"
-    >
-      {lines.map((t, i) => {
-        const key = keyOf(t);
-        const done = rowStatus(t, day.points, day.date) === 'done';
-        const place = placeOfTask(t);
-        const showTag = tagged && place.kind !== 'none' && !!t.title.trim();
-        const isPicked = picked.includes(key);
-        const isCut = cutKeys.includes(key);
-        return (
-          <div
-            key={key}
-            role="listitem"
-            onDragOver={(e) => {
-              if (!drag) return;
-              e.preventDefault();
-              const box = e.currentTarget.getBoundingClientRect();
-              const where =
-                e.clientY < box.top + box.height / 2 ? 'before' : 'after';
-              if (drop?.key !== key || drop.where !== where)
-                setDrop({ key, where });
-            }}
-            onDrop={(e) => {
-              e.preventDefault();
-              if (drag && drop)
-                commitShown(moveKeys(lineKeys, drag, drop.key, drop.where));
-              endDrag();
-            }}
-            className={cn(
-              'group relative flex items-start gap-2 rounded-md py-[3px] pl-6 pr-2',
-              isPicked && 'bg-sky-500/[0.12] auto-light:bg-sky-500/[0.12]',
-              isCut && 'opacity-40',
-              drag?.includes(key) && 'opacity-40',
-            )}
-          >
-            {drop?.key === key && (
-              <span
-                className={cn(
-                  'pointer-events-none absolute inset-x-6 h-0.5 rounded bg-sky-400',
-                  drop.where === 'before' ? '-top-px' : '-bottom-px',
-                )}
-              />
-            )}
-            {editable && (
-              // The handle: click to pick the line (Shift for a block), drag
-              // to move it.
-              <button
-                type="button"
-                tabIndex={-1}
-                draggable
-                aria-label="Pick or drag this line"
-                onClick={(e) => {
-                  day.flush(t.id);
-                  if (e.shiftKey && block) pickBlock(block.anchor, key);
-                  else pickBlock(key, key);
-                }}
-                onDragStart={(e) => {
-                  day.flush(t.id);
-                  const keys = isPicked ? picked : [key];
-                  setDrag(keys);
-                  e.dataTransfer.effectAllowed = 'move';
-                  e.dataTransfer.setData(
-                    'text/plain',
-                    keys
-                      .map((k) => byKey.get(k))
-                      .filter((x): x is DayTask => !!x)
-                      .map(lineText)
-                      .join('\n'),
-                  );
-                }}
-                onDragEnd={endDrag}
-                className="absolute left-0 top-[5px] flex h-5 w-5 cursor-grab items-center justify-center rounded text-neutral-600 opacity-0 hover:bg-white/[0.06] hover:text-neutral-300 group-hover:opacity-100 auto-light:text-neutral-400 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-700"
-              >
-                <Icon name="drag_indicator" className="text-[16px]" />
-              </button>
-            )}
-            <button
-              type="button"
-              tabIndex={-1}
-              disabled={!editable}
-              aria-label={done ? 'Mark not done' : 'Mark done'}
-              aria-pressed={done}
-              onClick={() => toggleDone(t)}
-              className={cn(
-                'mt-[3px] flex size-[18px] shrink-0 items-center justify-center rounded-full transition-colors disabled:cursor-default',
-                done
-                  ? 'bg-emerald-500 text-white auto-light:bg-emerald-600'
-                  : 'border border-neutral-600 text-neutral-600 hover:border-emerald-400 hover:text-emerald-400 auto-light:border-neutral-300 auto-light:text-neutral-300 auto-light:hover:border-emerald-600 auto-light:hover:text-emerald-600',
-              )}
-            >
-              <Icon name="check" className="text-[13px] font-bold" />
-            </button>
-            <div className="flex min-w-0 flex-1 items-start">
-              {showTag &&
-                (editable ? (
-                  <Picker
-                    options={options}
-                    onPick={(o: PickerOption) => putIn(t, placeInput(o))}
-                    placeholder="Move to a project…"
-                    trigger={
-                      <button
-                        type="button"
-                        tabIndex={-1}
-                        title="Move it to another project"
-                        className="shrink-0 whitespace-nowrap rounded text-sm leading-6 text-neutral-500 hover:text-neutral-200 auto-light:text-neutral-400 auto-light:hover:text-neutral-800"
-                      >
-                        {place.name}
-                        <span className="px-1">-</span>
-                      </button>
-                    }
-                  />
-                ) : (
-                  <span className="shrink-0 whitespace-nowrap text-sm leading-6 text-neutral-500 auto-light:text-neutral-400">
-                    {place.name}
-                    <span className="px-1">-</span>
-                  </span>
-                ))}
-              <LineInput
-                value={t.title}
-                disabled={!editable}
-                placeholder={i === 0 ? 'Write a task' : ''}
-                inputRef={(el) => {
-                  if (el) inputs.current.set(key, el);
-                  else inputs.current.delete(key);
-                }}
-                onChange={(value) => {
-                  const tag = tagged ? taggedPlace(value) : null;
-                  if (tag) {
-                    putIn(t, tag.place);
-                    day.editTitle(t.id, tag.title);
-                    focusLine(key, 'end');
-                    return;
-                  }
-                  day.editTitle(t.id, value);
-                }}
-                onBlur={() => day.flush(t.id)}
-                onKeyDown={(e) => onLineKey(e, t, i)}
-                className={cn(
-                  'text-neutral-100 auto-light:text-neutral-900',
-                  done &&
-                    'text-neutral-500 line-through decoration-neutral-600 auto-light:text-neutral-400 auto-light:decoration-neutral-300',
-                )}
-                // Pastes, copies and cuts of whole lines.
-                onPaste={(e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-                  const text = e.clipboardData.getData('text/plain');
-                  const ours = clip && clip.text.trim() === text.trim();
-                  if (!ours && !text.includes('\n')) return;
-                  e.preventDefault();
-                  day.flush(t.id);
-                  pasteAt(t, text);
-                }}
-                onCopy={(e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-                  const el = e.currentTarget;
-                  if (el.selectionStart !== el.selectionEnd) return;
-                  const text = copyLines([key], 'copy');
-                  if (!text) return;
-                  e.preventDefault();
-                  e.clipboardData.setData('text/plain', text);
-                }}
-                onCut={(e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-                  const el = e.currentTarget;
-                  if (el.selectionStart !== el.selectionEnd || !editable)
-                    return;
-                  day.flush(t.id);
-                  const text = copyLines([key], 'cut');
-                  if (!text) return;
-                  e.preventDefault();
-                  e.clipboardData.setData('text/plain', text);
-                }}
-              />
-            </div>
-          </div>
-        );
-      })}
-      {editable && (
-        // Below the last line: a click starts a new one.
-        <button
-          type="button"
-          tabIndex={-1}
-          onClick={() => {
-            const last = lines.at(-1);
-            if (last && !last.title.trim()) focusLine(keyOf(last), 'end');
-            else newLineAfter(last);
-          }}
-          className={cn(
-            'flex w-full items-center gap-2 rounded-md py-1 pl-6 pr-2 text-left text-sm leading-6 text-neutral-600 hover:text-neutral-400 auto-light:text-neutral-400 auto-light:hover:text-neutral-600',
-            // Under the lines it stays out of sight until pointed at.
-            lines.length > 0 && 'opacity-0 hover:opacity-100',
-          )}
-        >
-          <span className="flex size-[18px] items-center justify-center">
-            <Icon name="add" className="text-[16px]" />
-          </span>
-          {lines.length ? 'New line' : 'Write the plan, one task per line'}
-        </button>
+    <div className="relative py-1">
+      {empty && !focused && (
+        <p className="pointer-events-none absolute left-10 top-[7px] text-sm leading-6 text-neutral-600 auto-light:text-neutral-400">
+          {editable
+            ? 'Write the plan, one task per line'
+            : 'Nothing on this day.'}
+        </p>
       )}
+      <div
+        ref={root}
+        role="textbox"
+        aria-multiline
+        aria-label="Plan"
+        contentEditable={editable}
+        suppressContentEditableWarning
+        spellCheck={false}
+        onFocus={() => setFocused(true)}
+        onBlur={() => {
+          if (timer.current) clearTimeout(timer.current);
+          syncRef.current(true).finally(() => setFocused(false));
+        }}
+        onInput={soon}
+        onKeyDown={onKeyDown}
+        onCopy={(e) => onCopy(e)}
+        onCut={(e) => onCopy(e, true)}
+        onPaste={onPaste}
+        onMouseDown={(e) => {
+          // A click on a line's check ticks it.
+          const row = lineOf(e.target as Node, root.current);
+          if (!row) return;
+          if (e.clientX - row.getBoundingClientRect().left > 28) return;
+          e.preventDefault();
+          toggle(row);
+        }}
+        className="min-h-[120px] whitespace-pre-wrap break-words px-1 pb-6 focus:outline-none"
+      />
     </div>
   );
 };

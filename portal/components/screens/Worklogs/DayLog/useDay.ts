@@ -600,28 +600,6 @@ export function useDay(date: string) {
     [track],
   );
 
-  /** Where a new row (not saved yet) goes once it has words. */
-  const placeDraft = useCallback((id: string, place: PlaceInput) => {
-    setTasks((ts) =>
-      ts.map((t) => {
-        if (t.id !== id || !t.draft) return t;
-        const next: DayTask = {
-          ...t,
-          projectId: 'projectId' in place ? place.projectId : null,
-          companyId:
-            'companyId' in place
-              ? place.companyId
-              : 'personal' in place
-                ? 'personal'
-                : null,
-        };
-        (next as any).afterId = (t as any).afterId;
-        (next as any).place = place;
-        return next;
-      }),
-    );
-  }, []);
-
   /**
    * New tasks, one after another, after a task (or at the end): for lines
    * pasted in. Returns the saved tasks in order.
@@ -671,7 +649,6 @@ export function useDay(date: string) {
     today,
     planOrder,
     saveOrder,
-    placeDraft,
     addMany,
     tasks,
     points,
