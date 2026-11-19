@@ -124,18 +124,10 @@ export const ContactStep = ({ form, setForm }: StepParams) => {
     `,
 
     };
-    const response = await fetch("/api/send-email", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(bodyData),
-    });
-
-    // console.log(response);
-
-    const data = await response.json();
-    console.log(data);
+    // The welcome email is off: /api/send-email was an open relay (anyone
+    // could send mail through it) and was removed. Send it from the server,
+    // with the recipient and text decided there, when the site is revamped.
+    void bodyData;
   };
 
   const updateFormToDB = async (formWithContactInfo: FormInfo) => {
