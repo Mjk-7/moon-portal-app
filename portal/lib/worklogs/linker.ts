@@ -1,5 +1,4 @@
-import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
-
+import { askClaudeForJson, claudeReady, nullableString } from '@/lib/ai/claude';
 import { db } from '@/lib/mongodb/db-client';
 import { isOnProjectTeam } from '@/lib/permissions/company';
 import type { SessionUser } from '@/lib/permissions/server';
@@ -275,11 +274,31 @@ function matchByName(text: string, c: LinkCandidates): Guess | null {
   return null;
 }
 
-const geminiKey = () =>
-  process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+const PLACES_SCHEMA = {
+  type: 'object',
+  properties: {
+    rows: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          line: { type: 'integer' },
+          companyId: nullableString,
+          projectId: nullableString,
+          taskId: nullableString,
+          confidence: { type: 'number' },
+        },
+        required: ['line', 'companyId', 'projectId', 'taskId', 'confidence'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['rows'],
+  additionalProperties: false,
+};
 
-/** Asks Gemini to place the lines name matching could not. */
-async function matchWithGemini(
+/** Asks Claude to place the lines name matching could not. */
+async function matchWithClaude(
   lines: PlaceItem[],
   c: LinkCandidates,
 ): Promise<Map<string, Guess>> {
@@ -287,31 +306,9 @@ async function matchWithGemini(
   if (
     !lines.length ||
     !(c.projects.length || c.companies.length) ||
-    !geminiKey()
+    !claudeReady()
   )
     return out;
-
-  const model = new GoogleGenerativeAI(geminiKey()).getGenerativeModel({
-    model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
-    generationConfig: {
-      temperature: 0,
-      responseMimeType: 'application/json',
-      responseSchema: {
-        type: SchemaType.ARRAY,
-        items: {
-          type: SchemaType.OBJECT,
-          properties: {
-            line: { type: SchemaType.INTEGER },
-            companyId: { type: SchemaType.STRING, nullable: true },
-            projectId: { type: SchemaType.STRING, nullable: true },
-            taskId: { type: SchemaType.STRING, nullable: true },
-            confidence: { type: SchemaType.NUMBER },
-          },
-          required: ['line', 'confidence'],
-        },
-      },
-    },
-  });
 
   const prompt = `You file a person's work log lines under the project they belong to, or under the company when the work is for the company but on none of its projects.
 Companies (id, name):
@@ -334,15 +331,16 @@ ${lines.map((l, i) => `${i}. ${l.text}`).join('\n')}
 For every line return its project id, the task id if the line is clearly about that task, and your confidence from 0 to 1. When the line is clearly work for one of the companies but on none of its projects (for example company admin, hiring, team meetings), return that company id with a null project id. File clearly personal life lines (gym, a workout, a run, meditation, personal reading or study) under the Personal project; never company work. Use nulls and a low confidence when you cannot tell.`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const rows = JSON.parse(result.response.text()) as {
-      line: number;
-      companyId?: string | null;
-      projectId?: string | null;
-      taskId?: string | null;
-      confidence: number;
-    }[];
-    for (const row of Array.isArray(rows) ? rows : []) {
+    const answer = await askClaudeForJson<{
+      rows: {
+        line: number;
+        companyId: string | null;
+        projectId: string | null;
+        taskId: string | null;
+        confidence: number;
+      }[];
+    }>({ prompt, schema: PLACES_SCHEMA });
+    for (const row of Array.isArray(answer?.rows) ? answer.rows : []) {
       const line = lines[row.line];
       const project = c.projects.find((p) => p.id === row.projectId);
       const company = project
@@ -373,7 +371,7 @@ For every line return its project id, the task id if the line is clearly about t
     }
   } catch (err) {
     // Linking is a helper: on any failure the lines wait for the person.
-    console.error('Worklog linking with Gemini failed', err);
+    console.error('Worklog linking with Claude failed', err);
   }
   return out;
 }
@@ -381,7 +379,7 @@ For every line return its project id, the task id if the line is clearly about t
 /**
  * Where each piece of work most likely belongs, from its words: a project
  * (and its open task for the same work), or a company alone. Name matching
- * first, Gemini for the rest; null where neither can tell.
+ * first, Claude for the rest; null where neither can tell.
  */
 export async function guessPlaces(
   items: { key: string; text: string }[],
@@ -394,7 +392,7 @@ export async function guessPlaces(
     if (guess) out.set(item.key, inCore(guess, candidates));
     else unsure.push({ key: item.key, text: item.text });
   }
-  const fromAi = await matchWithGemini(unsure, candidates);
+  const fromAi = await matchWithClaude(unsure, candidates);
   for (const line of unsure) {
     const guess = fromAi.get(line.key);
     out.set(line.key, guess ? inCore(guess, candidates) : null);

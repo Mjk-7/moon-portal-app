@@ -24,7 +24,7 @@ export const LEGAL = {
   grievanceOfficer: '',
   website: 'portal.themoondevs.com',
   /** Shown at the top of each page as "Last updated". */
-  updated: '12 November 2026',
+  updated: '19 November 2026',
 } as const;
 
 export const LEGAL_PAGES = [

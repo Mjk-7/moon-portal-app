@@ -10,9 +10,9 @@ export const BASE_MEMBER_POLICIES: string[] = [
   // Worklogs are self-service.
   'worklogs:read',
   'worklogs:edit',
-  // Notifications.
+  // Their own notifications. Sending one to someone else
+  // (notifications:create) takes a role or an admin.
   'notifications:read',
-  'notifications:create',
   'notifications:edit',
   // Badges are earned automatically; everyone can see them.
   'badges:read',

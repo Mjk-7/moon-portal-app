@@ -40,6 +40,15 @@ const nextConfig = {
   async headers() {
     return [
       {
+        // Every page: files are never guessed to be scripts, and links that
+        // carry a token (/sign, /join, /task) don't leak it to other sites.
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        ],
+      },
+      {
         // Browsers must always check for a fresh service worker.
         source: "/sw.js",
         headers: [

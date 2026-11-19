@@ -2,11 +2,19 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
 import { db } from '@/lib/mongodb/db-client';
-import { enforcePermission } from '@/lib/permissions/server';
+import { isAllowed } from '@/lib/permissions/defaults';
+import { checkPermission } from '@/lib/permissions/server';
+
+/** A to-do-later list is its owner's; people who edit users may open any. */
+const forbidden = () =>
+  NextResponse.json(
+    { success: false, error: 'You can only open your own list.' },
+    { status: 403 },
+  );
 
 export async function GET(request: NextRequest) {
-  const denied = await enforcePermission('worklogs:read');
-  if (denied) return denied;
+  const { response, user } = await checkPermission('worklogs:read');
+  if (response) return response;
 
   try {
     const userId = request.nextUrl.searchParams.get('userId') as string;
@@ -18,6 +26,9 @@ export async function GET(request: NextRequest) {
         { status: 400 },
       );
     }
+
+    if (user && user.id !== userId && !isAllowed(user, 'users:edit'))
+      return forbidden();
 
     const docId = `${userId}-todoLater`;
 
@@ -50,8 +61,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  const denied = await enforcePermission('worklogs:edit');
-  if (denied) return denied;
+  const { response, user } = await checkPermission('worklogs:edit');
+  if (response) return response;
 
   try {
     const body = await request.json();
@@ -63,6 +74,9 @@ export async function PUT(request: NextRequest) {
         { status: 400 },
       );
     }
+
+    if (user && user.id !== userId && !isAllowed(user, 'users:edit'))
+      return forbidden();
 
     const docId = `${userId}-todoLater`;
 
