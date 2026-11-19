@@ -164,8 +164,8 @@ const sections: LegalSection[] = [
             document, and spot misuse.
           </li>
           <li>
-            For AI help: when you log work, its text may be sent to Google
-            Gemini to suggest which task or goal it belongs to.
+            For AI help: when you log work, its text may be sent to Anthropic's
+            Claude to suggest which task or goal it belongs to.
           </li>
           <li>To keep signed documents verifiable, as legal records.</li>
           <li>To answer you when you write to us, and to improve {P}.</li>
@@ -219,11 +219,14 @@ const sections: LegalSection[] = [
               <td>Stores uploaded files, photos, videos and documents</td>
             </tr>
             <tr>
-              <td>Google (Firebase, Sign-In, Gemini)</td>
+              <td>Google (Firebase, Sign-In)</td>
               <td>
-                Google sign-in, website analytics, Android notifications and AI
-                suggestions
+                Google sign-in, website analytics and Android notifications
               </td>
+            </tr>
+            <tr>
+              <td>Anthropic (Claude)</td>
+              <td>AI suggestions for where logged work belongs</td>
             </tr>
             <tr>
               <td>Apple</td>

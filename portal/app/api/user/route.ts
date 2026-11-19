@@ -86,7 +86,15 @@ const withoutSecrets = (
   if (actor && (isAllowed(actor, 'users:edit') || actor.id === user.id)) {
     return { ...rest, code };
   }
-  return rest;
+  // Everyone signed in can read user records (team lists, profiles), so
+  // what proves who someone is stays with them and the people who edit users.
+  const {
+    linkedEmails: _linkedEmails,
+    appleSub: _appleSub,
+    deletionRequestedAt: _deletionRequestedAt,
+    ...shared
+  } = rest;
+  return shared;
 };
 
 /**
