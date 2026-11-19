@@ -70,6 +70,8 @@ export const modelMetaMap = defineModelRegistry({
   task: { collection: 'Task' },
   workPoint: { collection: 'WorkPoint' },
   restDay: { collection: 'RestDay' },
+  // The order of a person's day in the worklog's Plan mode.
+  dayPlan: { collection: 'DayPlan' },
   taskSchedule: { collection: 'TaskSchedule' },
   goalTally: { collection: 'GoalTally' },
   // Its id is `<userId>:<key>`, so the same win can't be saved twice.

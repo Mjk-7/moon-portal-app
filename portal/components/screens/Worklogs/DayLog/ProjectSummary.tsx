@@ -321,7 +321,13 @@ export const ProjectSummary = ({
   onFilter,
   showPoints,
   onShowPoints,
+  bare = false,
+  bareEnd,
 }: {
+  /** In bare mode: what goes at the end of the tabs' row. */
+  bareEnd?: React.ReactNode;
+  /** The company tabs alone, with no counts, bar or points switch (Plan). */
+  bare?: boolean;
   counts: PlaceCount[];
   /** From companyTabs, in order. */
   tabs: CompanyTab[];
@@ -362,7 +368,7 @@ export const ProjectSummary = ({
             className={cn(tabClass(allOn), 'px-3')}
           >
             <span className="font-medium">All</span>
-            {total > 0 && (
+            {total > 0 && !bare && (
               <span className="tabular-nums text-neutral-500">
                 {done}/{total}
               </span>
@@ -396,7 +402,7 @@ export const ProjectSummary = ({
                     <span className="max-w-[160px] truncate font-medium">
                       {t.place.name}
                     </span>
-                    {t.total > 0 && (
+                    {t.total > 0 && !bare && (
                       <span className="tabular-nums text-neutral-500">
                         {t.done}/{t.total}
                       </span>
@@ -407,22 +413,26 @@ export const ProjectSummary = ({
             );
           })}
         </div>
-        <button
-          type="button"
-          onClick={() => onShowPoints(!showPoints)}
-          aria-pressed={showPoints}
-          title={showPoints ? 'Hide work points' : 'Show work points'}
-          className={cn(
-            'flex size-8 shrink-0 items-center justify-center self-start rounded-lg transition-colors',
-            showPoints
-              ? 'bg-white/[0.1] text-white auto-light:bg-black/[0.08] auto-light:text-neutral-950'
-              : 'text-neutral-500 hover:bg-white/[0.06] hover:text-neutral-200 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-800',
-          )}
-        >
-          <Icon name="notes" className="text-[18px]" />
-        </button>
+        {bare ? (
+          bareEnd
+        ) : (
+          <button
+            type="button"
+            onClick={() => onShowPoints(!showPoints)}
+            aria-pressed={showPoints}
+            title={showPoints ? 'Hide work points' : 'Show work points'}
+            className={cn(
+              'flex size-8 shrink-0 items-center justify-center self-start rounded-lg transition-colors',
+              showPoints
+                ? 'bg-white/[0.1] text-white auto-light:bg-black/[0.08] auto-light:text-neutral-950'
+                : 'text-neutral-500 hover:bg-white/[0.06] hover:text-neutral-200 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-800',
+            )}
+          >
+            <Icon name="notes" className="text-[18px]" />
+          </button>
+        )}
       </div>
-      {total > 0 && (
+      {total > 0 && !bare && (
         <div className="mt-2 flex items-center gap-3">
           <div className="flex min-w-0 flex-1 gap-[3px]">
             {counts.map((c) => (

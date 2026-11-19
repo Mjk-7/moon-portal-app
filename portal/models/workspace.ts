@@ -382,6 +382,17 @@ export type RestDay = Loose<
   }
 >;
 
+/** How a person ordered a day's tasks in the worklog's Plan mode. */
+export type DayPlan = Loose<
+  BaseModel & {
+    userId: string;
+    /** YYYY-MM-DD, the day the order is for. */
+    date: string;
+    /** Task ids, top to bottom. Tasks no longer on the day are skipped. */
+    taskIds: string[];
+  }
+>;
+
 export type ScheduleEvery = 'day' | 'week' | 'fortnight' | 'month' | 'quarter';
 
 /** Creates the same task(s) on a repeating schedule. */

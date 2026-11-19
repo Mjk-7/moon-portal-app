@@ -152,6 +152,8 @@ export function useDay(date: string) {
   const [projects, setProjects] = useState<DayProject[]>([]);
   const [companies, setCompanies] = useState<DayCompany[]>([]);
   const [today, setToday] = useState<string | null>(null);
+  // The order the day was put in, in Plan mode (task ids, top to bottom).
+  const [planOrder, setPlanOrder] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(0);
   // Bumped after every saved change, for the panels that read tasks too.
@@ -211,6 +213,7 @@ export function useDay(date: string) {
       );
       setCompanies(companies);
       setToday(data.today ?? null);
+      if (!quiet) setPlanOrder(data.planOrder ?? []);
     } catch {
       if (!quiet) toast.error('Could not load this day.');
     } finally {
@@ -221,6 +224,7 @@ export function useDay(date: string) {
   useEffect(() => {
     setTasks([]);
     setPoints([]);
+    setPlanOrder([]);
     realId.current.clear();
     load();
   }, [date, load]);
@@ -577,9 +581,75 @@ export function useDay(date: string) {
     [idOf, track, load],
   );
 
+  /** Saves the day's order in Plan mode (shown at once, sent at once). */
+  const saveOrder = useCallback(
+    async (taskIds: string[]) => {
+      const asked = dateRef.current;
+      setPlanOrder(taskIds);
+      await track(async () => {
+        try {
+          await PortalSdk.putData('/api/me/day/plan-order', {
+            date: asked,
+            taskIds,
+          });
+        } catch (e) {
+          toast.error(errorOf(e, 'Could not save the order.'));
+        }
+      });
+    },
+    [track],
+  );
+
+  /**
+   * New tasks, one after another, after a task (or at the end): for lines
+   * pasted in. Returns the saved tasks in order.
+   */
+  const addMany = useCallback(
+    async (
+      items: { title: string; place?: PlaceInput | null }[],
+      afterId?: string | null,
+    ) => {
+      const made: DayTask[] = [];
+      let after = afterId ? await idOf(afterId) : null;
+      await track(async () => {
+        for (const item of items) {
+          const title = item.title.trim();
+          if (!title) continue;
+          try {
+            const res = await PortalSdk.postData('/api/me/day/tasks', {
+              date: dateRef.current,
+              title,
+              afterId: after,
+              place: item.place ?? undefined,
+            });
+            const task: DayTask | undefined = res?.data?.task;
+            if (!task) continue;
+            made.push(task);
+            after = task.id;
+          } catch (e) {
+            toast.error(errorOf(e, 'Could not save the task.'));
+            break;
+          }
+        }
+      });
+      if (made.length)
+        setTasks((ts) => {
+          const at = afterId ? ts.findIndex((t) => t.id === afterId) : -1;
+          if (at < 0) return [...ts, ...made];
+          return [...ts.slice(0, at + 1), ...made, ...ts.slice(at + 1)];
+        });
+      load(true);
+      return made;
+    },
+    [idOf, track, load],
+  );
+
   return {
     date,
     today,
+    planOrder,
+    saveOrder,
+    addMany,
     tasks,
     points,
     projects,
