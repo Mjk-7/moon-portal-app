@@ -479,9 +479,15 @@ export const LineInput = ({
   disabled,
   className,
   placeholder,
+  onPaste,
+  onCopy,
+  onCut,
 }: {
   value: string;
   onChange: (value: string) => void;
+  onPaste?: React.ClipboardEventHandler<HTMLTextAreaElement>;
+  onCopy?: React.ClipboardEventHandler<HTMLTextAreaElement>;
+  onCut?: React.ClipboardEventHandler<HTMLTextAreaElement>;
   onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   onBlur?: () => void;
   inputRef?: (el: HTMLTextAreaElement | null) => void;
@@ -516,6 +522,9 @@ export const LineInput = ({
       onChange={(e) => onChange(e.target.value.replace(/\n/g, ' '))}
       onKeyDown={onKeyDown}
       onBlur={onBlur}
+      onPaste={onPaste}
+      onCopy={onCopy}
+      onCut={onCut}
       className={cn(
         'block w-full resize-none overflow-hidden bg-transparent text-sm leading-6 placeholder:text-neutral-600 focus:outline-none disabled:cursor-default auto-light:placeholder:text-neutral-400',
         className,

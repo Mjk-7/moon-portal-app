@@ -2,6 +2,7 @@ import { mergeCopies } from '@/lib/daywork/duplicates';
 import { isDay, loadDay } from '@/lib/daywork/server';
 import { meetingFactsFor, syncMeetingTasks } from '@/lib/meet/meetingTasks';
 import { db } from '@/lib/mongodb/db-client';
+import { readPlanOrder } from '@/lib/worklogs/dayPlan';
 import { linkCandidates } from '@/lib/worklogs/linker';
 import { fail, ok, requireUser } from '@/lib/workspace/server';
 import type { ProjectGoal } from '@/models/workspace';
@@ -46,9 +47,11 @@ export async function GET(request: Request) {
   await mergeCopies(user.id).catch(() => 0);
   // Confirmed meetings around today are tasks on their days.
   await syncMeetingTasks(user);
-  const [day, candidates] = await Promise.all([
+  const [day, candidates, planOrder] = await Promise.all([
     loadDay(user.id, date),
     linkCandidates(user),
+    // The order the day was put in, in Plan mode.
+    readPlanOrder(user.id, date).catch(() => [] as string[]),
   ]);
   // The goals a task can be linked to, with what decides their run days.
   const goalsById = new Map<string, ProjectGoal[]>(
@@ -107,5 +110,6 @@ export async function GET(request: Request) {
       ...extra.map((p: { id: string }) => ({ ...p, goals: goalsOf(p.id) })),
     ],
     companies: candidates.companies,
+    planOrder,
   });
 }

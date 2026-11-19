@@ -27,6 +27,7 @@ import { DatePopover } from './DatePopover';
 import { DayList } from './DayList';
 import { DaySummary } from './DaySummary';
 import { Picker } from './Picker';
+import { PlanSheet } from './PlanSheet';
 import {
   companyKeyOf,
   companyTabs,
@@ -47,7 +48,7 @@ import {
 import { UpcomingContext, type UpcomingTask } from './SlashPicker';
 import type { SheetGroup } from './TaskSheet';
 import { madeByClaude, TaskSheet } from './TaskSheet';
-import type { DayTask } from './useDay';
+import type { DayTask, PlaceInput } from './useDay';
 import { useDay } from './useDay';
 import { WorklogTips } from './WorklogTips';
 import { upcomingOf, useYourTasks, YourTasks } from './YourTasks';
@@ -65,8 +66,23 @@ const fmt = (d: dayjs.Dayjs) => d.format('YYYY-MM-DD');
 const SHOW_POINTS_KEY = 'worklogs.points';
 // A new key: choices saved before Projects became the default start over.
 const VIEW_KEY = 'worklogs.view.v2';
-// Whether the Plan / Work / Mixed / Projects / Summary bar is shown.
+// Whether the Work / Mixed / Projects / Summary bar is shown.
 const VIEWS_SHOWN_KEY = 'worklogs.views.shown';
+// Default or Plan, as last picked.
+const MODE_KEY = 'worklogs.mode';
+// Plan mode's lines read "Project - task".
+const PLAN_TAGS_KEY = 'worklogs.plan.tags';
+
+/**
+ * The page's two modes: Default (the day with everything: projects,
+ * points, summaries) and Plan (the day as a plain checklist to write and
+ * order).
+ */
+type Mode = 'default' | 'plan';
+const MODES: { value: Mode; label: string }[] = [
+  { value: 'default', label: 'Default' },
+  { value: 'plan', label: 'Plan' },
+];
 
 /** Typing in a field: the page's own keys leave it alone. */
 const typing = (target: EventTarget | null) => {
@@ -80,14 +96,13 @@ const typing = (target: EventTarget | null) => {
 };
 
 /**
- * How the day's sheet is laid out: the plan (the day's tasks and what is
- * pending from before, Claude's mixed in), the work (under way and finished,
- * with Claude's in a box of their own), the person's own tasks as written
- * with Claude's apart (Mixed), by project, or a summary to read.
+ * How the day's sheet is laid out in Default mode: the work (under way and
+ * finished, with Claude's in a box of their own), the person's own tasks as
+ * written with Claude's apart (Mixed), by project, or a summary to read.
+ * (The old Plan view is Plan mode now.)
  */
-type View = 'plan' | 'work' | 'mixed' | 'projects' | 'summary';
+type View = 'work' | 'mixed' | 'projects' | 'summary';
 const VIEWS: { value: View; label: string }[] = [
-  { value: 'plan', label: 'Plan' },
   { value: 'work', label: 'Work' },
   { value: 'mixed', label: 'Mixed' },
   { value: 'projects', label: 'Projects' },
@@ -256,6 +271,34 @@ export const DayLogPage = ({
     }
   };
   const view: View = viewsShown ? pickedView : DEFAULT_VIEW;
+  const [mode, setMode] = useState<Mode>('default');
+  const [planTags, setPlanTags] = useState(false);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(MODE_KEY) === 'plan') setMode('plan');
+      setPlanTags(localStorage.getItem(PLAN_TAGS_KEY) === '1');
+    } catch {
+      // Storage can be blocked; the choice then lasts for this visit.
+    }
+  }, []);
+  const pickMode = (next: Mode) => {
+    setMode(next);
+    try {
+      localStorage.setItem(MODE_KEY, next);
+    } catch {
+      // Storage can be blocked; the choice then lasts for this visit.
+    }
+  };
+  const togglePlanTags = () => {
+    const next = !planTags;
+    setPlanTags(next);
+    try {
+      localStorage.setItem(PLAN_TAGS_KEY, next ? '1' : '0');
+    } catch {
+      // Storage can be blocked; the choice then lasts for this visit.
+    }
+  };
+  const planning = mode === 'plan';
   const pickView = (next: View) => {
     setView(next);
     try {
@@ -477,22 +520,16 @@ export const DayLogPage = ({
   const defaultGroups = dayGroups(mine, 'mine', addHere);
   const claudeGroups = dayGroups(claudes, 'claude', null, true);
 
-  // Plan: the day's tasks and what is pending from before, Claude's mixed in.
-  const planGroups: SheetGroup[] = [
-    {
-      key: 'plan-day',
-      title: dayName,
-      tasks: shown.filter((t) => !fromBefore(t)),
-      add: addHere,
-      markClaude: true,
-    },
-    {
-      key: 'plan-before',
-      title: date === today ? 'Pending from before' : 'From before',
-      tasks: shown.filter(fromBefore),
-      markClaude: true,
-    },
-  ].filter((g) => g.tasks.length || g.add);
+  // Plan mode: a new line goes in the picked tab's company (or project).
+  const planPlace: PlaceInput | null = !filter
+    ? null
+    : filter === 'personal'
+      ? { personal: true }
+      : filter.startsWith('company:')
+        ? { companyId: filter.slice(8) }
+        : filter.startsWith('project:')
+          ? { projectId: filter.slice(8) }
+          : null;
 
   // Work: under way and finished, the person's and Claude's apart.
   const finished = (t: DayTask) =>
@@ -683,7 +720,31 @@ export const DayLogPage = ({
         </div>
       </div>
 
-      {ahead && editable && (
+      <div
+        role="tablist"
+        aria-label="Mode"
+        className="mb-4 inline-flex items-center gap-0.5 rounded-lg border border-white/[0.07] bg-white/[0.03] p-0.5 auto-light:border-black/10 auto-light:bg-black/[0.03]"
+      >
+        {MODES.map((m) => (
+          <button
+            key={m.value}
+            type="button"
+            role="tab"
+            aria-selected={mode === m.value}
+            onClick={() => pickMode(m.value)}
+            className={cn(
+              'h-7 rounded-md px-3 text-xs font-medium transition-colors',
+              mode === m.value
+                ? 'bg-white/[0.12] text-white auto-light:bg-white auto-light:text-neutral-950 auto-light:shadow-sm'
+                : 'text-neutral-400 hover:text-neutral-200 auto-light:text-neutral-500 auto-light:hover:text-neutral-800',
+            )}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      {ahead && editable && !planning && (
         <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-sky-400/20 bg-sky-500/[0.07] px-3.5 py-2.5 text-xs text-sky-200 auto-light:text-sky-700">
           <Icon name="event_upcoming" className="mt-px text-[16px]" />
           <span>
@@ -701,8 +762,42 @@ export const DayLogPage = ({
         </div>
       )}
 
+      {/* Plan mode keeps the company tabs alone, on a phone too. */}
+      {planning && (
+        <ProjectSummary
+          bare
+          bareEnd={
+            <button
+              type="button"
+              onClick={togglePlanTags}
+              aria-pressed={planTags}
+              title={
+                planTags
+                  ? 'Hide project names'
+                  : 'Show project names: Project - task'
+              }
+              className={cn(
+                'flex size-8 shrink-0 items-center justify-center self-start rounded-lg transition-colors',
+                planTags
+                  ? 'bg-white/[0.1] text-white auto-light:bg-black/[0.08] auto-light:text-neutral-950'
+                  : 'text-neutral-500 hover:bg-white/[0.06] hover:text-neutral-200 auto-light:hover:bg-black/[0.06] auto-light:hover:text-neutral-800',
+              )}
+            >
+              <Icon name="sell" className="text-[18px]" />
+            </button>
+          }
+          counts={counts}
+          tabs={tabs}
+          day={day}
+          filter={filter}
+          onFilter={setFilter}
+          showPoints={false}
+          onShowPoints={() => undefined}
+        />
+      )}
+
       {/* The project bar is left out on a phone, for room. */}
-      {wide && (
+      {wide && !planning && (
         <ProjectSummary
           counts={counts}
           tabs={tabs}
@@ -715,7 +810,7 @@ export const DayLogPage = ({
       )}
 
       <div className="relative rounded-2xl border border-white/[0.07] bg-white/[0.02] p-2 auto-light:border-black/10 auto-light:bg-white">
-        {view === 'work' && <WorkBar {...workBar(mine)} />}
+        {view === 'work' && !planning && <WorkBar {...workBar(mine)} />}
         {day.loading && !day.tasks.length ? (
           <div className="flex flex-col gap-2 p-1">
             {[0, 1, 2].map((i) => (
@@ -725,6 +820,14 @@ export const DayLogPage = ({
               />
             ))}
           </div>
+        ) : planning ? (
+          <PlanSheet
+            day={day}
+            shown={shown}
+            editable={editable}
+            tagged={planTags}
+            newPlace={planPlace}
+          />
         ) : (
           <>
             {view !== 'summary' && view !== 'projects' && !shown.length && (
@@ -733,15 +836,6 @@ export const DayLogPage = ({
                   ? 'Nothing planned for this day yet. Write the plan down, one task per line.'
                   : 'Nothing on this day yet. Write a task and press Enter for the next one.'}
               </p>
-            )}
-            {view === 'plan' && (
-              <TaskSheet
-                day={day}
-                groups={planGroups}
-                editable={editable}
-                showPoints={showPoints}
-                onChanged={changed}
-              />
             )}
             {view === 'work' && (
               <TaskSheet
@@ -806,7 +900,7 @@ export const DayLogPage = ({
         )}
       </div>
 
-      {view === 'work' && claudes.length > 0 && (
+      {view === 'work' && !planning && claudes.length > 0 && (
         <div className="relative mt-4 rounded-2xl border border-dashed border-violet-400/20 bg-violet-500/[0.03] p-2 auto-light:border-violet-500/25 auto-light:bg-violet-500/[0.03]">
           <WorkBar {...workBar(claudes)} />
           <p className="flex items-center gap-1.5 px-2 pt-1 text-xs font-semibold text-violet-300 auto-light:text-violet-700">
@@ -826,7 +920,7 @@ export const DayLogPage = ({
         </div>
       )}
 
-      {view === 'mixed' && claudes.length > 0 && (
+      {view === 'mixed' && !planning && claudes.length > 0 && (
         <div className="mt-4 rounded-2xl border border-dashed border-violet-400/20 bg-violet-500/[0.03] p-2 auto-light:border-violet-500/25 auto-light:bg-violet-500/[0.03]">
           <p className="flex items-center gap-1.5 px-2 pt-1 text-xs font-semibold text-violet-300 auto-light:text-violet-700">
             <Icon name="auto_awesome" className="text-[15px]" />
@@ -845,18 +939,27 @@ export const DayLogPage = ({
         </div>
       )}
 
-      {date === today && (
+      {date === today && !planning && (
         <div className="mt-6">
           <PlanTomorrow count={tomorrowCount} onOpen={() => pick(tomorrow)} />
         </div>
       )}
 
-      <p className="mt-6 px-2 text-[11px] leading-5 text-neutral-600 auto-light:text-neutral-400">
-        Enter adds the next task · Backspace on an empty task takes it out ·
-        Ctrl+Space done · Ctrl+P doing · Ctrl+Q not done · ← → another day ·
-        Cmd+← → another company · the arrow on the right of a task shows its
-        details, notes and actions
-      </p>
+      {planning ? (
+        <p className="mt-6 px-2 text-[11px] leading-5 text-neutral-600 auto-light:text-neutral-400">
+          Enter adds the next line · Backspace on an empty line takes it out ·
+          Ctrl+Space done · Alt+↑ ↓ moves a line · Esc or Shift+↑ ↓ picks lines,
+          then Cmd+X and Cmd+V to move them or Cmd+C to copy · drag a line by
+          the handle on its left · the order is kept for the day
+        </p>
+      ) : (
+        <p className="mt-6 px-2 text-[11px] leading-5 text-neutral-600 auto-light:text-neutral-400">
+          Enter adds the next task · Backspace on an empty task takes it out ·
+          Ctrl+Space done · Ctrl+P doing · Ctrl+Q not done · ← → another day ·
+          Cmd+← → another company · the arrow on the right of a task shows its
+          details, notes and actions
+        </p>
+      )}
     </div>
   );
 
@@ -948,7 +1051,7 @@ export const DayLogPage = ({
           >
             My Worklogs
           </span>
-          {showDay && viewsShown && (
+          {showDay && viewsShown && !planning && (
             <nav
               aria-label="Views"
               // In the middle of the header: between the back arrow and the
@@ -987,15 +1090,15 @@ export const DayLogPage = ({
             </span>
           )}
           <div className={cn('flex-1', showDay && 'max-sm:hidden')} />
-          {showDay && (
+          {showDay && !planning && (
             <button
               type="button"
               onClick={toggleViews}
               aria-pressed={viewsShown}
               title={
                 viewsShown
-                  ? 'Hide the views (Plan, Work, Mixed, Summary)'
-                  : 'Show the views (Plan, Work, Mixed, Summary)'
+                  ? 'Hide the views (Work, Mixed, Projects, Summary)'
+                  : 'Show the views (Work, Mixed, Projects, Summary)'
               }
               className={cn(
                 'flex size-8 items-center justify-center rounded-lg transition-colors',
