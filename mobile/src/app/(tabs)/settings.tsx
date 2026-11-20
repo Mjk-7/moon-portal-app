@@ -18,6 +18,7 @@ import { APP_VERSION, PORTAL_URL } from '@/lib/config';
 import { timeAgo } from '@/lib/dates';
 import { openWebsite } from '@/lib/links';
 import { biometricsAvailable, confirmWithBiometrics } from '@/lib/lock';
+import { useMyDocuments } from '@/lib/documents';
 import { useUnreadCount } from '@/lib/notifications';
 import { setPreference, type ThemeChoice, usePreferences } from '@/lib/preferences';
 import { registerForPush, unregisterPush } from '@/lib/push';
@@ -32,6 +33,7 @@ import type { Connection } from '@/lib/types';
 export default function SettingsScreen() {
   const theme = useTheme();
   const unread = useUnreadCount();
+  const waitingDocs = useMyDocuments().data?.toSign.length ?? 0;
   const prefs = usePreferences();
   const { profile, refreshProfile, signOut } = useAuth();
   const [canLock, setCanLock] = useState(false);
@@ -175,6 +177,13 @@ export default function SettingsScreen() {
           detail={unread ? `${unread} unread` : null}
           chevron
           onPress={() => router.push('/notifications')}
+        />
+        <Row
+          icon="signature"
+          title="Documents"
+          detail={waitingDocs ? `${waitingDocs} waiting for you` : 'Approve, sign and read your documents'}
+          chevron
+          onPress={() => router.push('/documents')}
         />
         <Row icon="video" title="Meetings" detail="Upcoming, and your booking link" chevron onPress={() => router.push('/meetings')} />
         <Row icon="sparkles" title="What’s new" detail="What changed in the app" chevron onPress={() => router.push('/whats-new')} />

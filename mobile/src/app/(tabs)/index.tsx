@@ -19,6 +19,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { api, withQuery } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useCompany } from '@/lib/company';
+import { companyApprovals, documentsKey, useMyDocuments } from '@/lib/documents';
 import { fromKey, monthOf, todayKey } from '@/lib/dates';
 import { joinMeeting } from '@/lib/meet';
 import { prefetchProject } from '@/lib/project';
@@ -54,6 +55,7 @@ export default function HomeScreen() {
       notifications.refetch(),
       queryClient.invalidateQueries({ queryKey: ['projects', 'week'] }),
       queryClient.invalidateQueries({ queryKey: winsKey }),
+      queryClient.invalidateQueries({ queryKey: documentsKey }),
     ]).catch(() => null);
     setRefreshing(false);
   };
@@ -77,6 +79,7 @@ export default function HomeScreen() {
       <Columns
         left={
           <>
+            <WaitingDocsCard />
             <WinsCard />
             <WhatsNewCard />
             <HelloCard day={day.data} date={date} />
@@ -97,6 +100,41 @@ export default function HomeScreen() {
         }
       />
     </Screen>
+  );
+}
+
+/* ------------------------------- Documents ------------------------------- */
+
+/** Only while documents wait for the person's signature or approval. */
+function WaitingDocsCard() {
+  const theme = useTheme();
+  const docs = useMyDocuments().data?.toSign ?? [];
+  if (!docs.length) return null;
+  const approvals = companyApprovals(docs).length;
+  const title =
+    approvals === docs.length
+      ? `${approvals} ${approvals === 1 ? 'document needs' : 'documents need'} your approval`
+      : `${docs.length} ${docs.length === 1 ? 'document waits' : 'documents wait'} for you`;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityHint="Opens your documents"
+      onPress={() => router.push('/documents')}
+      style={({ pressed }) => [
+        styles.docs,
+        { backgroundColor: theme.backgroundElement, borderColor: theme.border, opacity: pressed ? 0.7 : 1 },
+      ]}>
+      <View style={styles.docsBadge}>
+        <Icon name="seal" size={20} color="#8b5cf6" />
+      </View>
+      <View style={styles.flex}>
+        <ThemedText type="smallBold">{title}</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+          {docs.map((d) => d.title).join(', ')}
+        </ThemedText>
+      </View>
+      <Icon name="chevron" size={14} color={theme.textSecondary} />
+    </Pressable>
   );
 }
 
@@ -524,6 +562,22 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   top: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   brand: { flex: 1, letterSpacing: 3 },
+  docs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    padding: Spacing.three,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  docsBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#8b5cf622',
+  },
   hello: { gap: Spacing.three, padding: Spacing.three + Spacing.one },
   helloTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   rule: { height: StyleSheet.hairlineWidth },

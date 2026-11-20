@@ -66,6 +66,8 @@ export const ICONS = {
   paperclip: { ios: 'paperclip', android: 'attach_file' },
   ellipsis: { ios: 'ellipsis', android: 'more_horiz' },
   paperplane: { ios: 'paperplane.fill', android: 'send' },
+  signature: { ios: 'signature', android: 'signature' },
+  seal: { ios: 'checkmark.seal', android: 'verified' },
 } as const satisfies Record<string, { ios: SFSymbol; android: AndroidSymbol }>;
 
 export type IconName = keyof typeof ICONS;

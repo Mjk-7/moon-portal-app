@@ -31,6 +31,9 @@ export function screenFor(link: string | null | undefined): Href | null {
 
   if (parts[0] === 'messages')
     return parts[1] ? { pathname: '/chat/[id]', params: { id: parts[1] } } : '/messages';
+  // Countersign requests and signed letters link to the Documents tab.
+  if ((parts[0] === 'user' && !parts[1] && q.get('tab') === 'documents') || parts[0] === 'profile')
+    return '/documents';
   if (parts[0] === 'user' && parts[1] === 'worklogs') {
     const date = q.get('date');
     if (date && DAY.test(date) && date !== todayKey()) return { pathname: '/work', params: { date } };

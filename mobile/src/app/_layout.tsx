@@ -169,6 +169,11 @@ function RootStack() {
           <Stack.Screen name="whats-new" options={{ title: 'What’s new' }} />
           <Stack.Screen name="delete-account" options={{ title: 'Delete account' }} />
           <Stack.Screen name="blocked" options={{ title: 'Blocked people' }} />
+          <Stack.Screen name="documents" options={{ title: 'Documents' }} />
+          <Stack.Screen
+            name="signature"
+            options={{ ...sheet, title: 'Your signature', sheetAllowedDetents: [0.75, 1] }}
+          />
         </Stack.Protected>
         <Stack.Protected guard={!signedIn}>
           <Stack.Screen name="sign-in" options={{ headerShown: false }} />
