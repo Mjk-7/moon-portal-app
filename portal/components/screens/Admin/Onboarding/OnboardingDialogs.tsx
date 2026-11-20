@@ -7,7 +7,6 @@ import { DocProse } from '@/components/shared/DocProse';
 import { fillDocument } from '@/lib/onboarding/documents';
 import {
   addDays,
-  AGREEMENT_DOCS,
   CURRENCIES,
   DOC_LABEL,
   formatDay,
@@ -43,6 +42,7 @@ import {
   type BoardData,
   type DocTemplate,
   type Hire,
+  pickedDocs,
   previewVariables,
   type ReadyApplicant,
   startingTerms,
@@ -95,26 +95,35 @@ export const Paper = ({
 
 /** Live documents for the terms being typed, one tab per document. */
 const LivePreview = ({
-  kinds,
+  keys,
   templates,
   vars,
 }: {
-  kinds: ONBOARDING_DOC_KIND[];
+  /** Template keys (a built-in kind, or "custom:<id>"). */
+  keys: string[];
   templates: DocTemplate[];
   vars: Record<string, string>;
 }) => {
-  const [kind, setKind] = useState(kinds[0]);
-  const template = templates.find((t) => t.kind === kind);
+  const [picked, setPicked] = useState(keys[0]);
+  const key = keys.includes(picked) ? picked : keys[0];
+  const template = templates.find((t) => t.key === key);
+  const label = (k: string) =>
+    templates.find((t) => t.key === k)?.label ??
+    DOC_LABEL[k as ONBOARDING_DOC_KIND] ??
+    'Document';
   return (
     <div className="flex min-h-0 flex-col gap-3">
-      <Segmented
-        value={kind}
-        onChange={setKind}
-        options={kinds.map((k) => ({ value: k, label: DOC_LABEL[k] }))}
-      />
+      {keys.length > 1 && (
+        <Segmented
+          value={key}
+          onChange={setPicked}
+          options={keys.map((k) => ({ value: k, label: label(k) }))}
+        />
+      )}
       <div className="custom-scrollbar max-h-[56vh] overflow-y-auto rounded-xl bg-neutral-800/40 p-3">
         {template ? (
           <Paper
+            title={keys.length === 1 ? template.title : undefined}
             body={fillDocument(template.body, vars).replace(/\n{3,}/g, '\n\n')}
             className="text-[13px]"
           />
@@ -126,7 +135,7 @@ const LivePreview = ({
   );
 };
 
-/** The agreement terms: what the Trial Policy and NDA are written from. */
+/** The agreement terms: what their documents are written from. */
 export const TermsFields = ({
   board,
   terms,
@@ -276,6 +285,83 @@ const termsProblem = (t: TermsDraft) =>
 
 /* ------------------------------ start a hire ------------------------------ */
 
+/**
+ * The documents a hire signs before their access opens: the Trial Policy,
+ * the NDA and the company's own, any mix. None ticked: access opens as soon
+ * as their details and the terms are in.
+ */
+const DocumentsPicker = ({
+  templates,
+  value,
+  onChange,
+}: {
+  templates: DocTemplate[];
+  value: string[] | null;
+  onChange: (value: string[]) => void;
+}) => {
+  const options = templates.filter((t) => t.beforeAccess);
+  const picked = value ?? [];
+  const toggle = (key: string) =>
+    onChange(
+      options
+        .map((t) => t.key)
+        .filter((k) => (k === key ? !picked.includes(k) : picked.includes(k))),
+    );
+  return (
+    <Field
+      label="Documents to sign before access"
+      hint={
+        picked.length
+          ? 'They sign each one, you countersign, then their portal access opens.'
+          : 'None ticked: no agreements. Their portal access opens as soon as their details and the terms are in.'
+      }
+    >
+      {value === null ? (
+        <p className="text-xs text-neutral-500">Loading the documents…</p>
+      ) : (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {options.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => toggle(t.key)}
+              className={cn(
+                'flex items-center gap-3 rounded-xl border p-3 text-left transition-colors',
+                picked.includes(t.key)
+                  ? 'border-white/30 bg-white/[0.07]'
+                  : 'border-white/[0.07] hover:border-white/15',
+              )}
+            >
+              <CheckBox checked={picked.includes(t.key)} size="sm" />
+              <span className="min-w-0 flex-1 truncate text-sm text-neutral-100">
+                {t.title}
+              </span>
+              {t.own && <Pill>Yours</Pill>}
+            </button>
+          ))}
+        </div>
+      )}
+    </Field>
+  );
+};
+
+/** Ticks the default documents (or the hire's pick) once templates load. */
+const usePicked = (
+  templates: DocTemplate[],
+  open: boolean,
+  hire?: Parameters<typeof pickedDocs>[1],
+) => {
+  const [docs, setDocs] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!open) setDocs(null);
+  }, [open]);
+  useEffect(() => {
+    if (open && docs === null && templates.length)
+      setDocs(pickedDocs(templates, hire));
+  }, [open, docs, templates, hire]);
+  return [docs, setDocs] as const;
+};
+
 export const StartDialog = ({
   open,
   onOpenChange,
@@ -297,6 +383,9 @@ export const StartDialog = ({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [withTerms, setWithTerms] = useState(false);
+  const templates = useTemplates(companyId, open);
+  const [docs, setDocs] = usePicked(templates, open);
+  const withAgreements = (docs?.length ?? 1) > 0;
   const [terms, setTerms] = useState<TermsDraft | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -344,13 +433,14 @@ export const StartDialog = ({
           ? { applicationId: chosen.applicationId }
           : { name: name.trim(), email: email.trim() }),
         terms: withTerms && terms ? termsPayload(terms) : null,
+        ...(docs ? { documents: docs } : {}),
       });
       const hire: Hire = res.data.hire;
       if (res.data.emailError)
         toast.warning(
           `Onboarding started, but the email did not go out: ${res.data.emailError}. Copy their link from the panel.`,
         );
-      else toast.success(`Sent ${hire.name.split(' ')[0]} their details form`);
+      else toast.success(`Sent ${hire.email} their details form`);
       onStarted(hire);
       onOpenChange(false);
     } catch (err) {
@@ -360,13 +450,12 @@ export const StartDialog = ({
     }
   };
 
-  const who = chosen?.name ?? name;
   return (
     <AdminModal
       open={open}
       onOpenChange={onOpenChange}
       title="Start onboarding"
-      description="They get an email with a form for their details and photo. Filling it in makes their Portal account."
+      description="Just an email is enough. They get a form for their name, details and photo, and filling it in makes their Portal account."
       icon="person_add"
       size="lg"
       footer={
@@ -383,7 +472,7 @@ export const StartDialog = ({
             size="sm"
             icon="send"
             loading={saving}
-            disabled={!chosen && (!name.trim() || !email.trim())}
+            disabled={!chosen && !email.trim()}
             onClick={submit}
           >
             Send details form
@@ -444,21 +533,29 @@ export const StartDialog = ({
 
         {pick === 'other' && (
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Name" required>
-              <TextInput
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </Field>
             <Field label="Email" required>
               <TextInput
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@example.com"
+                autoFocus
+              />
+            </Field>
+            <Field label="Name" hint="Optional. They fill it in on the form.">
+              <TextInput
+                value={name}
+                onChange={(e) => setName(e.target.value)}
               />
             </Field>
           </div>
         )}
+
+        <DocumentsPicker
+          templates={templates}
+          value={docs}
+          onChange={setDocs}
+        />
 
         <button
           type="button"
@@ -468,12 +565,15 @@ export const StartDialog = ({
           <CheckBox checked={withTerms} className="mt-0.5" />
           <span>
             <span className="block text-sm text-neutral-100">
-              Fill in the agreement terms now
+              Fill in the terms now
             </span>
             <span className="block text-xs text-neutral-500">
-              The Trial Policy and NDA then go out by themselves the moment{' '}
-              {who ? who.split(' ')[0] : 'they'} sends the form. Skip it to do
-              it later.
+              {withAgreements
+                ? (docs?.length ?? 0) === 1
+                  ? 'Their document then goes out by itself'
+                  : 'Their documents then go out by themselves'
+                : 'Their portal access then opens by itself'}{' '}
+              the moment the form is back. Skip it to do it later.
             </span>
           </span>
         </button>
@@ -504,6 +604,8 @@ export const TermsDialog = ({
   const templates = useTemplates(hire.companyId, open);
   const [terms, setTerms] = useState<TermsDraft | null>(null);
   const [saving, setSaving] = useState(false);
+  const [docs, setDocs] = usePicked(templates, open, hire);
+  const withAgreements = (docs?.length ?? 1) > 0;
   const detailsIn = hire.step !== ONBOARDING_STEP.DETAILS;
 
   useEffect(() => {
@@ -529,6 +631,7 @@ export const TermsDialog = ({
       const res = await PortalSdk.patchData(`/api/onboarding/${hire.id}`, {
         action: 'terms',
         terms: termsPayload(terms),
+        ...(docs ? { documents: docs } : {}),
       });
       if (res.data.emailError)
         toast.warning(
@@ -536,9 +639,13 @@ export const TermsDialog = ({
         );
       else
         toast.success(
-          detailsIn
-            ? `Sent the Trial Policy and NDA to ${hire.name.split(' ')[0]}`
-            : 'Saved. They go out as soon as the details form is back.',
+          !withAgreements
+            ? detailsIn
+              ? `Opened ${hire.name.split(' ')[0]}'s portal access`
+              : 'Saved. Their access opens as soon as the details form is back.'
+            : detailsIn
+              ? `Sent ${hire.name.split(' ')[0]} ${docs?.length === 1 ? 'a document' : `${docs?.length ?? 0} documents`} to sign`
+              : 'Saved. They go out as soon as the details form is back.',
         );
       onSaved(res.data.hire);
       onOpenChange(false);
@@ -553,8 +660,18 @@ export const TermsDialog = ({
     <AdminModal
       open={open}
       onOpenChange={onOpenChange}
-      title={detailsIn ? 'Send the Trial Policy and NDA' : 'Agreement terms'}
-      description="What you fill in here is written into the documents. The preview updates as you type."
+      title={
+        !withAgreements
+          ? 'Terms and portal access'
+          : detailsIn
+            ? 'Send the agreements'
+            : 'Agreement terms'
+      }
+      description={
+        withAgreements
+          ? 'What you fill in here is written into the documents. The preview updates as you type.'
+          : 'No agreements: these set their role, project and trial dates.'
+      }
       icon="signature"
       size="lg"
       footer={
@@ -569,18 +686,38 @@ export const TermsDialog = ({
           <AdminButton
             tone="primary"
             size="sm"
-            icon="send"
+            icon={withAgreements ? 'send' : 'key'}
             loading={saving}
             onClick={save}
           >
-            {detailsIn ? 'Send to sign' : 'Save; send after details'}
+            {withAgreements
+              ? detailsIn
+                ? 'Send to sign'
+                : 'Save; send after details'
+              : detailsIn
+                ? 'Open portal access'
+                : 'Save; open after details'}
           </AdminButton>
         </>
       }
     >
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-        <TermsFields board={board} terms={terms} onChange={setTerms} />
-        <LivePreview kinds={AGREEMENT_DOCS} templates={templates} vars={vars} />
+      <div className="flex flex-col gap-5">
+        <DocumentsPicker
+          templates={templates}
+          value={docs}
+          onChange={setDocs}
+        />
+        <div
+          className={cn(
+            'grid gap-5',
+            withAgreements && 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]',
+          )}
+        >
+          <TermsFields board={board} terms={terms} onChange={setTerms} />
+          {withAgreements && (
+            <LivePreview keys={docs ?? []} templates={templates} vars={vars} />
+          )}
+        </div>
       </div>
     </AdminModal>
   );
@@ -814,7 +951,7 @@ export const DecideDialog = ({
                 />
               </Field>
             </div>
-            <LivePreview kinds={OFFER_DOCS} templates={templates} vars={vars} />
+            <LivePreview keys={OFFER_DOCS} templates={templates} vars={vars} />
           </div>
         ) : (
           <div className="flex flex-col gap-4">

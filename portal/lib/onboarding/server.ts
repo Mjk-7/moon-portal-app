@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomInt } from 'crypto';
 
 import { requestOnboardingCountersign } from '@/lib/agreements/countersign';
-import { ensureIntroCourse } from '@/lib/courses/server';
+import { introCourseUrl } from '@/lib/courses/server';
 import { moveApplication } from '@/lib/hiring/server';
 import { db } from '@/lib/mongodb/db-client';
 import { ensureNotificationsReset } from '@/lib/notifications/server';
@@ -19,11 +19,11 @@ import {
 import { getCompanyAccess, nowIso } from '@/lib/workspace/server';
 import type { JobApplication, JobOpening } from '@/models/hiring';
 import { APPLICATION_STAGE } from '@/models/hiring';
-import type { ONBOARDING_DOC_KIND } from '@/models/onboarding';
 import {
   type HireDetails,
   type OfferTerms,
   type Onboarding,
+  ONBOARDING_DOC_KIND,
   ONBOARDING_STEP,
   type OnboardingDocument,
   type OnboardingEvent,
@@ -45,13 +45,16 @@ import { type OnboardingEmailKind, sendOnboardingEmail } from './emails';
 import {
   addDays,
   AGREEMENT_DOCS,
+  AGREEMENT_ROUND,
   CURRENCIES,
   DOC_LABEL,
+  docKey,
   formatDay,
   formatMoney,
   HIRE_TYPE_LABEL,
   isDay,
   isHireType,
+  listTitles,
   OFFER_DOCS,
   todayIst,
   trialEndFor,
@@ -275,18 +278,31 @@ async function docVariables(
   };
 }
 
-/** The documents of one round, written for this hire. */
+/**
+ * The documents of one round, written for this hire: built-in kinds, or
+ * keys from docKey (which can name the company's own documents).
+ */
 export async function renderDocuments(
   onboarding: Onboarding,
-  kinds: ONBOARDING_DOC_KIND[],
+  kindsOrKeys: Array<ONBOARDING_DOC_KIND | string>,
   terms: OnboardingTerms,
   offer: OfferTerms | null = null,
 ): Promise<OnboardingDocument[]> {
   const vars = await docVariables(onboarding, terms, offer);
   const at = nowIso();
-  return Promise.all(
-    kinds.map(async (kind) => {
-      const template = await templateFor(onboarding.companyId, kind);
+  const own = await companyDocuments(onboarding.companyId);
+  const docs = await Promise.all(
+    kindsOrKeys.map(async (key) => {
+      const custom = key.startsWith('custom:')
+        ? own.find((t) => docKey(t) === key)
+        : null;
+      if (key.startsWith('custom:') && !custom) return null;
+      const kind = custom
+        ? ONBOARDING_DOC_KIND.CUSTOM
+        : (key as ONBOARDING_DOC_KIND);
+      const template = custom
+        ? { title: custom.title, body: custom.body }
+        : await templateFor(onboarding.companyId, kind);
       const body = fillDocument(template.body, vars)
         // Lines left empty by a blank placeholder.
         .replace(/\n{3,}/g, '\n\n')
@@ -294,14 +310,101 @@ export async function renderDocuments(
       return {
         id: randomBytes(6).toString('hex'),
         kind,
+        templateId: custom?.id ?? null,
         title: fillDocument(template.title, vars).trim() || DOC_LABEL[kind],
         body,
         hash: sha256(body),
         sentAt: at,
         viewedAt: null,
         signature: null,
+      } as OnboardingDocument;
+    }),
+  );
+  return docs.filter((d): d is OnboardingDocument => !!d);
+}
+
+/** The company's own documents (signed before access), oldest first. */
+export async function companyDocuments(
+  companyId: string,
+): Promise<OnboardingTemplate[]> {
+  const list: OnboardingTemplate[] = await db.onboardingTemplate.findMany({
+    where: { companyId, kind: ONBOARDING_DOC_KIND.CUSTOM },
+    orderBy: { createdAt: 'asc' },
+  });
+  return list;
+}
+
+/**
+ * What can be signed before access: the Trial Policy, the NDA and the
+ * company's own documents, each with whether it is ticked by default.
+ */
+export async function agreementChoices(companyId: string) {
+  const [own, rows] = await Promise.all([
+    companyDocuments(companyId),
+    db.onboardingTemplate.findMany({
+      where: { companyId, kind: { in: AGREEMENT_DOCS } },
+    }) as Promise<OnboardingTemplate[]>,
+  ]);
+  return [
+    ...AGREEMENT_DOCS.map((kind) => {
+      const row = rows.find((r) => r.kind === kind);
+      return {
+        key: kind as string,
+        title: row?.title || DEFAULT_DOCUMENTS[kind].title,
+        sendByDefault: row?.sendByDefault !== false,
       };
     }),
+    ...own.map((t) => ({
+      key: docKey(t),
+      title: t.title,
+      sendByDefault: t.sendByDefault !== false,
+    })),
+  ];
+}
+
+/**
+ * The documents a hire signs before access, from a pick (unknown keys are
+ * dropped, the order follows the company's list) or the defaults.
+ */
+export async function pickAgreementDocs(
+  companyId: string,
+  picked: unknown,
+): Promise<string[]> {
+  const choices = await agreementChoices(companyId);
+  if (!Array.isArray(picked))
+    return choices.filter((c) => c.sendByDefault).map((c) => c.key);
+  const want = picked.filter((p): p is string => typeof p === 'string');
+  // Claude may name a document by its title.
+  const match = (p: string) =>
+    choices.find(
+      (c) =>
+        c.key === p || c.title.trim().toLowerCase() === p.trim().toLowerCase(),
+    )?.key;
+  const keys = new Set(want.map(match).filter(Boolean));
+  return choices.filter((c) => keys.has(c.key)).map((c) => c.key);
+}
+
+/**
+ * The documents a hire signs before access. An explicit pick wins;
+ * otherwise their saved pick (or none, when they're onboarding without
+ * agreements), else the company's defaults.
+ */
+export async function agreementKeysFor(
+  onboarding: Onboarding,
+  {
+    withoutAgreements,
+    documents,
+  }: { withoutAgreements?: boolean; documents?: unknown } = {},
+): Promise<string[]> {
+  if (withoutAgreements) return [];
+  if (documents !== undefined && documents !== null)
+    return pickAgreementDocs(onboarding.companyId, documents);
+  if (withoutAgreements === false && !onboarding.agreementDocs?.length)
+    return pickAgreementDocs(onboarding.companyId, null);
+  if (onboarding.withoutAgreements) return [];
+  return pickAgreementDocs(
+    onboarding.companyId,
+    onboarding.agreementDocs ?? null,
   );
 }
 
@@ -409,7 +512,12 @@ async function emailHire(
     {
       kind,
       to: onboarding.email,
-      firstName: name.trim().split(/\s+/)[0] || name,
+      // Started from an email only: no real name until the details form.
+      firstName:
+        !onboarding.details &&
+        onboarding.name === nameFromEmail(onboarding.email)
+          ? 'there'
+          : name.trim().split(/\s+/)[0] || name,
       companyName: onboarding.terms?.companyName || company.name,
       role: onboarding.terms?.role || 'a new member of the team',
       joinUrl: joinUrl(origin, onboarding.token),
@@ -417,6 +525,13 @@ async function emailHire(
       loginUrl: `${origin}/login`,
       courseUrl: extra.courseUrl,
       passcode: extra.passcode ?? null,
+      withoutAgreements: !!onboarding.withoutAgreements,
+      documentTitles: onboarding.documents
+        .filter((d) => currentRound(onboarding).includes(d.kind))
+        .map((d) => d.title),
+      trialPolicySigned: onboarding.documents.some(
+        (d) => d.kind === ONBOARDING_DOC_KIND.TRIAL_POLICY && !!d.signature,
+      ),
       signInEmail: onboarding.details?.signInEmail ?? onboarding.email,
       trialStartsOn: onboarding.trialStartsOn,
       trialEndsOn: onboarding.trialEndsOn,
@@ -483,7 +598,20 @@ export interface StartInput {
   email?: string | null;
   /** Agreement terms filled in now, to send as soon as details come back. */
   terms?: Record<string, unknown> | null;
+  /** No documents at all: access opens once details and terms are in. */
+  withoutAgreements?: boolean;
+  /** The documents to sign before access (docKey keys); unset: defaults. */
+  documents?: string[] | null;
 }
+
+/** A stand-in name from an email ("asha.rao@x.com" is "Asha Rao"). */
+export const nameFromEmail = (email: string) =>
+  email
+    .split('@')[0]
+    .split(/[._+-]+/)
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(' ') || email;
 
 export interface StepResult {
   onboarding: Onboarding;
@@ -511,10 +639,11 @@ export async function startOnboarding(
     if (!application)
       throw new OnboardingError(404, 'That applicant isn’t in this company.');
   }
-  const name = text(application?.name ?? input.name, 120);
   const email = text(application?.email ?? input.email, 200).toLowerCase();
-  if (!name) throw new OnboardingError(400, 'Add their name.');
   if (!isEmail(email)) throw new OnboardingError(400, 'Add a valid email.');
+  // With only an email, they give their name on the details form.
+  const name =
+    text(application?.name ?? input.name, 120) || nameFromEmail(email);
 
   const open: Onboarding | null = await db.onboarding.findFirst({
     where: {
@@ -530,6 +659,9 @@ export async function startOnboarding(
     input.terms && Object.keys(input.terms).length
       ? await parseTerms(input.companyId, input.terms)
       : null;
+  const agreementDocs = input.withoutAgreements
+    ? []
+    : await pickAgreementDocs(input.companyId, input.documents ?? null);
 
   const now = nowIso();
   const onboarding: Onboarding = await db.onboarding.create({
@@ -546,6 +678,8 @@ export async function startOnboarding(
       details: null,
       terms,
       autoSendAgreements: !!terms,
+      agreementDocs,
+      withoutAgreements: agreementDocs.length === 0,
       documents: [],
       trialPay: terms
         ? trialPayFor(terms.monthlyPay, terms.hireType, terms.currency)
@@ -781,6 +915,10 @@ export async function submitDetails(
       userId: user.id,
       createdUser,
       step: ONBOARDING_STEP.AGREEMENTS,
+      // Started with only an email: their own name replaces the stand-in.
+      ...(onboarding.name === nameFromEmail(onboarding.email)
+        ? { name: details.legalName }
+        : {}),
     },
   );
   let updated = await reload(onboarding.id);
@@ -791,15 +929,17 @@ export async function submitDetails(
   }
   await notifyTeam(
     updated,
-    `${onboarding.name} sent their details`,
-    'Fill in their terms and send the Trial Policy and NDA.',
+    `${updated.name} sent their details`,
+    updated.withoutAgreements
+      ? 'Fill in their terms to open their portal access.'
+      : 'Fill in their terms and send their agreements.',
   );
   updated = await reload(onboarding.id);
   return { onboarding: updated };
 }
 
 /**
- * Saves the agreement terms and sends the Trial Policy and NDA. Before the
+ * Saves the agreement terms and sends the documents picked for them. Before the
  * details form is back, the terms are kept and the agreements go out by
  * themselves once it is. Sending again replaces unsigned documents.
  */
@@ -808,16 +948,30 @@ export async function sendAgreements(
   onboarding: Onboarding,
   rawTerms: Record<string, unknown> | null,
   origin: string,
-  { send = true }: { send?: boolean } = {},
+  {
+    send = true,
+    withoutAgreements,
+    documents: picked,
+  }: {
+    send?: boolean;
+    withoutAgreements?: boolean;
+    /** The documents to sign (docKey keys); unset keeps the hire's pick. */
+    documents?: string[] | null;
+  } = {},
 ): Promise<StepResult> {
   if (
     onboarding.step !== ONBOARDING_STEP.DETAILS &&
     onboarding.step !== ONBOARDING_STEP.AGREEMENTS
   )
     throw new OnboardingError(409, 'The agreements are already signed.');
+  const keys = await agreementKeysFor(onboarding, {
+    withoutAgreements,
+    documents: picked,
+  });
+  const skip = keys.length === 0;
   if (
     onboarding.documents.some(
-      (d) => AGREEMENT_DOCS.includes(d.kind) && d.signature,
+      (d) => AGREEMENT_ROUND.includes(d.kind) && d.signature,
     )
   )
     throw new OnboardingError(
@@ -840,26 +994,57 @@ export async function sendAgreements(
     await logStep(
       onboarding,
       onboarding.step === ONBOARDING_STEP.DETAILS
-        ? 'Saved the agreement terms; they go out when the details form is back'
+        ? skip
+          ? 'Saved the terms, without agreements; access opens when the details form is back'
+          : 'Saved the agreement terms; they go out when the details form is back'
         : 'Saved the agreement terms',
       byUserId,
-      { terms, trialPay, autoSendAgreements: send },
+      {
+        terms,
+        trialPay,
+        autoSendAgreements: send,
+        agreementDocs: keys,
+        withoutAgreements: skip,
+      },
     );
     return { onboarding: await reload(onboarding.id) };
   }
 
+  if (skip) {
+    // No documents: unsigned ones sent earlier are withdrawn, and
+    // their access opens now.
+    await logStep(onboarding, 'Chose to onboard without agreements', byUserId, {
+      terms,
+      trialPay,
+      autoSendAgreements: false,
+      agreementDocs: [],
+      withoutAgreements: true,
+      documents: onboarding.documents.filter(
+        (d) => !AGREEMENT_ROUND.includes(d.kind),
+      ),
+    });
+    return grantAccess(await reload(onboarding.id), origin);
+  }
+
   const withTerms = { ...onboarding, terms };
-  const documents = await renderDocuments(withTerms, AGREEMENT_DOCS, terms);
+  const documents = await renderDocuments(withTerms, keys, terms);
   await db.onboarding.update({
     where: { id: onboarding.id },
-    data: { terms, trialPay, documents, autoSendAgreements: false },
+    data: {
+      terms,
+      trialPay,
+      documents,
+      autoSendAgreements: false,
+      agreementDocs: keys,
+      withoutAgreements: false,
+    },
   });
   const updated = await reload(onboarding.id);
   const mail = await emailHire(updated, 'agreements', origin);
   await logStep(
     updated,
     mail.sent
-      ? 'Sent the Trial Policy and NDA to sign'
+      ? `Sent the ${listTitles(documents.map((d) => d.title))} to sign`
       : `The agreements are ready, but the email did not go out: ${mail.error}`,
     byUserId,
   );
@@ -873,7 +1058,7 @@ const sameName = (a: string, b: string) =>
 /** The documents the hire is signing now. */
 export const currentRound = (onboarding: Onboarding) =>
   onboarding.step === ONBOARDING_STEP.AGREEMENTS
-    ? AGREEMENT_DOCS
+    ? AGREEMENT_ROUND
     : onboarding.step === ONBOARDING_STEP.OFFER
       ? OFFER_DOCS
       : [];
@@ -944,18 +1129,54 @@ export async function signDocument(
       documents,
     },
   );
-  // The company countersigns it afterwards; onboarding doesn't wait.
+  // The company countersigns it next. The step moves on only once both
+  // sides have signed every document of the round.
   await requestOnboardingCountersign(onboarding.id, docId, origin).catch((e) =>
     console.error('[onboarding] countersign', e),
   );
   const updated = await reload(onboarding.id);
-  const done = documents
-    .filter((d) => round.includes(d.kind))
-    .every((d) => d.signature);
-  if (!done) return { onboarding: updated };
+  if (roundSigned(updated, 'hire') && !roundSigned(updated, 'both'))
+    await logStep(
+      updated,
+      'Signed everything; waiting for the company to countersign',
+      null,
+    );
+  return advanceOnboarding(updated.id, origin);
+}
+
+/**
+ * Whether every document of the round they're on is signed by the hire, or
+ * by both sides (a document whose type needs no company signature counts
+ * once the hire signs it).
+ */
+export function roundSigned(onboarding: Onboarding, by: 'hire' | 'both') {
+  const docs = onboarding.documents.filter((d) =>
+    currentRound(onboarding).includes(d.kind),
+  );
+  return (
+    docs.length > 0 &&
+    docs.every(
+      (d) =>
+        d.signature &&
+        (by === 'hire' || !d.countersign || d.countersign.signature),
+    )
+  );
+}
+
+/**
+ * Moves a hire on once both sides have signed the round: the agreements
+ * open their portal access, the offer makes them fully hired. Runs after
+ * the hire signs and after the company countersigns, whichever is last.
+ */
+export async function advanceOnboarding(
+  onboardingId: string,
+  origin: string,
+): Promise<StepResult> {
+  const onboarding = await reload(onboardingId);
+  if (!onboarding || !roundSigned(onboarding, 'both')) return { onboarding };
   return onboarding.step === ONBOARDING_STEP.AGREEMENTS
-    ? grantAccess(updated, origin)
-    : completeHire(updated, origin);
+    ? grantAccess(onboarding, origin)
+    : completeHire(onboarding, origin);
 }
 
 /**
@@ -967,6 +1188,8 @@ export async function grantAccess(
   onboarding: Onboarding,
   origin: string,
 ): Promise<StepResult> {
+  // Already open (signing and countersigning can land together).
+  if (onboarding.step !== ONBOARDING_STEP.AGREEMENTS) return { onboarding };
   const terms = onboarding.terms;
   if (!terms || !onboarding.userId)
     throw new OnboardingError(409, 'Their details and terms are missing.');
@@ -1025,13 +1248,14 @@ export async function grantAccess(
   const today = todayIst();
   const start = terms.startDate > today ? terms.startDate : today;
   const end = trialEndFor(start, terms.hireType);
-  const course = await ensureIntroCourse(
+  const courseUrl = await introCourseUrl(
     onboarding.companyId,
     onboarding.createdById,
+    origin,
   );
   await logStep(
     onboarding,
-    `Signed everything; portal access open, trial ${formatDay(start)} to ${formatDay(end)}`,
+    `${onboarding.withoutAgreements ? 'Portal access open (no agreements)' : 'Both sides signed; portal access open'}, trial ${formatDay(start)} to ${formatDay(end)}`,
     null,
     {
       step: ONBOARDING_STEP.TRIAL,
@@ -1042,20 +1266,28 @@ export async function grantAccess(
     },
   );
   const updated = await reload(onboarding.id);
+  // Always send the passcode: onboarding makes the account (and its code)
+  // when they send their details but never emails it before this, so "the
+  // passcode you already have" left new hires with none. It goes only to
+  // their own address.
   const mail = await emailHire(updated, 'access', origin, {
-    passcode: user.code ? null : passcode,
-    courseUrl: `${origin}/courses/${course.id}`,
+    passcode,
+    courseUrl: courseUrl ?? undefined,
   });
   await logStep(
     updated,
     mail.sent
-      ? 'Emailed their sign-in, passcode and the Portal course'
+      ? courseUrl
+        ? 'Emailed their sign-in, passcode and the Portal course'
+        : 'Emailed their sign-in and passcode (the course is not ready yet)'
       : `The sign-in email did not go out: ${mail.error}`,
     null,
   );
   await notifyTeam(
     updated,
-    `${onboarding.name} signed the agreements`,
+    onboarding.withoutAgreements
+      ? `${onboarding.name}'s portal access is open`
+      : `${onboarding.name}'s agreements are signed by both sides`,
     `Their trial runs ${formatDay(start)} to ${formatDay(end)}.`,
   );
   return { onboarding: await reload(onboarding.id), emailError: mail.error };
@@ -1207,6 +1439,7 @@ export async function completeHire(
   onboarding: Onboarding,
   origin: string,
 ): Promise<StepResult> {
+  if (onboarding.step !== ONBOARDING_STEP.OFFER) return { onboarding };
   if (onboarding.userId)
     await db.user.update({
       where: { id: onboarding.userId },
@@ -1222,13 +1455,14 @@ export async function completeHire(
       hiredAt: at,
     },
   );
-  const course = await ensureIntroCourse(
+  const courseUrl = await introCourseUrl(
     onboarding.companyId,
     onboarding.createdById,
+    origin,
   );
   const updated = await reload(onboarding.id);
   const mail = await emailHire(updated, 'hired', origin, {
-    courseUrl: `${origin}/courses/${course.id}`,
+    courseUrl: courseUrl ?? undefined,
   });
   await notifyTeam(
     updated,
@@ -1294,11 +1528,21 @@ export async function resendStepEmail(
   let mail;
   if (kind) mail = await emailHire(onboarding, kind, origin);
   else {
-    // On trial: their sign-in, with a fresh passcode only on request.
-    const course = await ensureIntroCourse(onboarding.companyId, actor.id);
+    // On trial: their sign-in again, with the passcode their account has.
+    const user = onboarding.userId
+      ? await db.user.findFirst({
+          where: { id: onboarding.userId },
+          select: { code: true },
+        })
+      : null;
+    const courseUrl = await introCourseUrl(
+      onboarding.companyId,
+      actor.id,
+      origin,
+    );
     mail = await emailHire(onboarding, 'access', origin, {
-      passcode: null,
-      courseUrl: `${origin}/courses/${course.id}`,
+      passcode: (user?.code as string | null | undefined) ?? null,
+      courseUrl: courseUrl ?? undefined,
     });
   }
   await logStep(

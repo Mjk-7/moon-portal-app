@@ -1,111 +1,85 @@
-import { db } from '@/lib/mongodb/db-client';
-import {
-  DEFAULT_DOCUMENTS,
-  MAX_DOC_BODY,
-  MAX_DOC_TITLE,
-} from '@/lib/onboarding/documents';
 import { onboardingFailure } from '@/lib/onboarding/http';
-import { DOC_LABEL } from '@/lib/onboarding/meta';
 import { requireInCompany } from '@/lib/onboarding/server';
-import { getSessionUser } from '@/lib/permissions/server';
-import { fail, nowIso, ok } from '@/lib/workspace/server';
 import {
-  ONBOARDING_DOC_KIND,
-  type OnboardingTemplate,
-} from '@/models/onboarding';
+  addTemplate,
+  listTemplates,
+  removeTemplate,
+  saveTemplate,
+} from '@/lib/onboarding/templates';
+import { getSessionUser, type SessionUser } from '@/lib/permissions/server';
+import { fail, ok } from '@/lib/workspace/server';
 
 export const dynamic = 'force-dynamic';
 
-const KINDS = Object.values(ONBOARDING_DOC_KIND);
-const isKind = (v: unknown): v is ONBOARDING_DOC_KIND =>
-  KINDS.includes(v as ONBOARDING_DOC_KIND);
-
-/** Every onboarding document for a company: its own wording or the draft. */
-export async function GET(request: Request) {
+async function actorFor(companyId: unknown, permission: string) {
   const actor = await getSessionUser();
-  if (!actor) return fail(401, 'Authentication required.');
-  const companyId = new URL(request.url).searchParams.get('companyId');
-  if (!companyId) return fail(400, 'companyId is required.');
+  if (!actor) return { error: fail(401, 'Authentication required.') };
+  if (typeof companyId !== 'string')
+    return { error: fail(400, 'companyId is required.') };
+  await requireInCompany(actor, companyId, permission);
+  return { actor: actor as SessionUser, companyId };
+}
+
+/** The company's documents: the four built in, then its own. */
+export async function GET(request: Request) {
   try {
-    await requireInCompany(actor, companyId, 'hiring:read');
-    const own: OnboardingTemplate[] = await db.onboardingTemplate.findMany({
-      where: { companyId },
-    });
+    const got = await actorFor(
+      new URL(request.url).searchParams.get('companyId'),
+      'hiring:read',
+    );
+    if ('error' in got) return got.error;
+    return ok({ templates: await listTemplates(got.companyId) });
+  } catch (e) {
+    return onboardingFailure(e);
+  }
+}
+
+/** Adds a document of the company's own: `{ companyId, title?, body? }`. */
+export async function POST(request: Request) {
+  const body = await request.json().catch(() => ({}));
+  try {
+    const got = await actorFor(body.companyId, 'hiring:edit');
+    if ('error' in got) return got.error;
     return ok({
-      templates: KINDS.map((kind) => {
-        const t = own.find((o) => o.kind === kind);
-        return {
-          kind,
-          label: DOC_LABEL[kind],
-          title: t?.title ?? DEFAULT_DOCUMENTS[kind].title,
-          body: t?.body ?? DEFAULT_DOCUMENTS[kind].body,
-          custom: !!t,
-          updatedAt: t?.updatedAt ?? null,
-        };
-      }),
+      template: await addTemplate(got.companyId, got.actor.id, body),
     });
   } catch (e) {
     return onboardingFailure(e);
   }
 }
 
-/** Saves a company's wording: `{ companyId, kind, title, body }`. */
+/**
+ * Saves a document: `{ companyId, key (or kind), title?, body?,
+ * sendByDefault? }`.
+ */
 export async function PUT(request: Request) {
-  const actor = await getSessionUser();
-  if (!actor) return fail(401, 'Authentication required.');
   const body = await request.json().catch(() => ({}));
-  if (typeof body.companyId !== 'string' || !isKind(body.kind))
-    return fail(400, 'companyId and kind are required.');
-  const title =
-    typeof body.title === 'string'
-      ? body.title.trim().slice(0, MAX_DOC_TITLE)
-      : '';
-  const text =
-    typeof body.body === 'string' ? body.body.slice(0, MAX_DOC_BODY) : '';
-  if (!title || !text.trim()) return fail(400, 'Add a title and the text.');
   try {
-    await requireInCompany(actor, body.companyId, 'hiring:edit');
-    const now = nowIso();
-    const found: OnboardingTemplate | null =
-      await db.onboardingTemplate.findFirst({
-        where: { companyId: body.companyId, kind: body.kind },
-      });
-    if (found)
-      await db.onboardingTemplate.update({
-        where: { id: found.id },
-        data: { title, body: text, updatedById: actor.id, updatedAt: now },
-      });
-    else
-      await db.onboardingTemplate.create({
-        data: {
-          companyId: body.companyId,
-          kind: body.kind,
-          title,
-          body: text,
-          updatedById: actor.id,
-          createdAt: now,
-          updatedAt: now,
-        },
-      });
+    const got = await actorFor(body.companyId, 'hiring:edit');
+    if ('error' in got) return got.error;
+    const key = typeof body.key === 'string' ? body.key : body.kind;
+    await saveTemplate(got.companyId, got.actor.id, key, body);
     return ok({ saved: true });
   } catch (e) {
     return onboardingFailure(e);
   }
 }
 
-/** Goes back to the built-in draft: `?companyId&kind`. */
+/**
+ * `?companyId&key`: a built-in document goes back to the starting draft;
+ * one of the company's own is removed (documents already sent keep it).
+ */
 export async function DELETE(request: Request) {
-  const actor = await getSessionUser();
-  if (!actor) return fail(401, 'Authentication required.');
   const params = new URL(request.url).searchParams;
-  const companyId = params.get('companyId');
-  const kind = params.get('kind');
-  if (!companyId || !isKind(kind))
-    return fail(400, 'companyId and kind are required.');
   try {
-    await requireInCompany(actor, companyId, 'hiring:edit');
-    await db.onboardingTemplate.deleteMany({ where: { companyId, kind } });
-    return ok({ reset: true });
+    const got = await actorFor(params.get('companyId'), 'hiring:edit');
+    if ('error' in got) return got.error;
+    return ok(
+      await removeTemplate(
+        got.companyId,
+        params.get('key') ?? params.get('kind'),
+      ),
+    );
   } catch (e) {
     return onboardingFailure(e);
   }

@@ -1,14 +1,17 @@
 'use client';
 
+import type { JSONContent } from '@tiptap/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
-import { DocProse } from '@/components/shared/DocProse';
+import { lessonDoc } from '@/lib/courses/lessonDoc';
 import type { CourseView } from '@/lib/courses/server';
 import { cn } from '@/lib/utils';
 import { useWorkspace } from '@/utils/hooks/useWorkspace';
 import { PortalSdk } from '@/utils/services/PortalSdk';
 
+import { DocEditor } from '../../Project/DocEditor';
+import { SaveBadge, type SaveState } from '../../Project/PageDoc';
 import {
   AdminButton,
   AdminModal,
@@ -19,22 +22,55 @@ import {
   IconAction,
   Panel,
   Pill,
-  Segmented,
   SkeletonRows,
   TextArea,
   TextInput,
+  ToggleSwitch,
 } from '../shared/AdminUI';
 import { CompanyPicker, errorText, NeedsCompany } from '../Workspace/shared';
 
-type Lesson = { id: string; title: string; body: string };
+type Lesson = {
+  id: string;
+  title: string;
+  body: string;
+  content?: JSONContent | null;
+};
+
+const SAVE_AFTER_MS = 800;
 
 const newLesson = (): Lesson => ({
   id: Math.random().toString(36).slice(2, 10),
-  title: 'New lesson',
+  title: '',
   body: '',
+  content: null,
 });
 
-/** Writes one course: its title, description and lessons, in order. */
+/** A one-line-looking title that wraps and grows like a page heading. */
+const GrowingTitle = (
+  props: React.TextareaHTMLAttributes<HTMLTextAreaElement>,
+) => {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = '0px';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [props.value]);
+  return <textarea ref={ref} rows={1} {...props} />;
+};
+
+type Draft = { title: string; description: string; lessons: Lesson[] };
+const draftOf = (c: CourseView): Draft => ({
+  title: c.title,
+  description: c.description ?? '',
+  lessons: c.lessons as Lesson[],
+});
+
+/**
+ * Writes one course like a project page: lessons down the side, each one a
+ * page in the same editor (press / for headings, lists, videos and more).
+ * Everything saves by itself a moment after the last change.
+ */
 const CourseEditor = ({
   course,
   onSaved,
@@ -44,66 +80,114 @@ const CourseEditor = ({
   onSaved: (course: CourseView) => void;
   onDeleted: () => void;
 }) => {
-  const [title, setTitle] = useState(course.title);
-  const [description, setDescription] = useState(course.description ?? '');
-  const [lessons, setLessons] = useState<Lesson[]>(course.lessons);
+  const [draft, setDraft] = useState<Draft>(() => draftOf(course));
   const [active, setActive] = useState<string | null>(
     course.lessons[0]?.id ?? null,
   );
-  const [mode, setMode] = useState<'write' | 'preview'>('write');
-  const [saving, setSaving] = useState(false);
+  const [state, setState] = useState<SaveState>('idle');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [savingReady, setSavingReady] = useState(false);
 
-  useEffect(() => {
-    setTitle(course.title);
-    setDescription(course.description ?? '');
-    setLessons(course.lessons);
-    setActive((a) =>
-      course.lessons.some((l) => l.id === a)
-        ? a
-        : (course.lessons[0]?.id ?? null),
-    );
-  }, [course]);
+  // What the server last has, so only real changes save.
+  const saved = useRef(JSON.stringify(draftOf(course)));
+  const latest = useRef(draft);
+  latest.current = draft;
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const handlers = useRef({ onSaved });
+  handlers.current = { onSaved };
 
-  const lesson = lessons.find((l) => l.id === active) ?? null;
-  const dirty =
-    title !== course.title ||
-    description !== (course.description ?? '') ||
-    JSON.stringify(lessons) !== JSON.stringify(course.lessons);
-
-  const edit = (patch: Partial<Lesson>) =>
-    setLessons((all) =>
-      all.map((l) => (l.id === active ? { ...l, ...patch } : l)),
-    );
-  const move = (id: string, by: number) =>
-    setLessons((all) => {
-      const i = all.findIndex((l) => l.id === id);
-      const j = i + by;
-      if (i < 0 || j < 0 || j >= all.length) return all;
-      const next = [...all];
-      [next[i], next[j]] = [next[j], next[i]];
-      return next;
-    });
-
-  const save = async () => {
-    setSaving(true);
+  const flush = useCallback(async () => {
+    clearTimeout(timer.current);
+    const next = latest.current;
+    const json = JSON.stringify(next);
+    if (json === saved.current) return;
+    if (!next.title.trim()) return; // a course needs a title; wait for one
+    setState('saving');
     try {
       const res = await PortalSdk.patchData(`/api/courses/${course.id}`, {
-        title,
-        description,
-        lessons,
+        title: next.title,
+        description: next.description,
+        lessons: next.lessons.map((l) => ({
+          ...l,
+          title: l.title.trim() || 'Untitled lesson',
+        })),
+      });
+      saved.current = json;
+      handlers.current.onSaved(res.data.course);
+      setState(JSON.stringify(latest.current) === json ? 'saved' : 'saving');
+    } catch (err) {
+      setState('error');
+      toast.error(errorText(err));
+    }
+  }, [course.id]);
+
+  // Save a moment after the last change, and when the course is left.
+  useEffect(() => {
+    if (JSON.stringify(draft) === saved.current) return;
+    setState('saving');
+    clearTimeout(timer.current);
+    timer.current = setTimeout(flush, SAVE_AFTER_MS);
+  }, [draft, flush]);
+  useEffect(
+    () => () => {
+      flush();
+    },
+    [flush],
+  );
+
+  const lessons = draft.lessons;
+  const index = lessons.findIndex((l) => l.id === active);
+  const lesson = lessons[index] ?? null;
+
+  const editLesson = (id: string, patch: Partial<Lesson>) =>
+    setDraft((d) => ({
+      ...d,
+      lessons: d.lessons.map((l) => (l.id === id ? { ...l, ...patch } : l)),
+    }));
+  const move = (id: string, by: number) =>
+    setDraft((d) => {
+      const i = d.lessons.findIndex((l) => l.id === id);
+      const j = i + by;
+      if (i < 0 || j < 0 || j >= d.lessons.length) return d;
+      const next = [...d.lessons];
+      [next[i], next[j]] = [next[j], next[i]];
+      return { ...d, lessons: next };
+    });
+  const addLesson = () => {
+    const l = newLesson();
+    setDraft((d) => ({ ...d, lessons: [...d.lessons, l] }));
+    setActive(l.id);
+  };
+  const removeLesson = (id: string) => {
+    const rest = lessons.filter((l) => l.id !== id);
+    setDraft((d) => ({ ...d, lessons: rest }));
+    setActive(rest[Math.max(0, index - 1)]?.id ?? null);
+  };
+
+  // Saved straight away, apart from the writing.
+  const setReady = async (ready: boolean) => {
+    setSavingReady(true);
+    try {
+      const res = await PortalSdk.patchData(`/api/courses/${course.id}`, {
+        ready,
       });
       onSaved(res.data.course);
-      toast.success('Course saved');
+      toast.success(
+        ready
+          ? 'New hires will get this course'
+          : 'Left out of onboarding until ready',
+      );
     } catch (err) {
       toast.error(errorText(err));
     } finally {
-      setSaving(false);
+      setSavingReady(false);
     }
   };
 
   const remove = async () => {
     try {
+      clearTimeout(timer.current);
+      saved.current = JSON.stringify(latest.current);
       await PortalSdk.deleteData(`/api/courses/${course.id}`, null);
       onDeleted();
     } catch (err) {
@@ -118,18 +202,25 @@ const CourseEditor = ({
 
   return (
     <Panel className="flex min-w-0 flex-col">
-      <div className="flex flex-col gap-3 border-b border-white/[0.07] p-4">
+      <div className="flex flex-col gap-3 border-b border-white/[0.07] p-4 auto-light:border-black/[0.08]">
         <div className="flex flex-wrap items-center gap-2">
           <TextInput
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            value={draft.title}
+            onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
+            placeholder="Course title"
             className="h-10 min-w-0 flex-1 text-base font-semibold"
           />
-          {course.isIntro && (
-            <Pill tone="info" icon="how_to_reg">
-              Sent to new hires
-            </Pill>
-          )}
+          {course.isIntro &&
+            (course.ready ? (
+              <Pill tone="info" icon="how_to_reg">
+                Sent to new hires
+              </Pill>
+            ) : (
+              <Pill tone="warning" icon="pending">
+                Not sent yet
+              </Pill>
+            ))}
+          <SaveBadge state={state} />
           <CopyButton value={link} label="Copy the course link" />
           <a href={`/courses/${course.id}`} target="_blank" rel="noreferrer">
             <IconAction icon="open_in_new" label="Open as a learner" />
@@ -144,26 +235,44 @@ const CourseEditor = ({
           )}
         </div>
         <TextArea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          value={draft.description}
+          onChange={(e) =>
+            setDraft((d) => ({ ...d, description: e.target.value }))
+          }
           placeholder="What this course is for, in a line or two"
           className="min-h-[56px]"
         />
+        {course.isIntro && (
+          <ToggleSwitch
+            checked={course.ready}
+            disabled={savingReady}
+            onChange={setReady}
+            label="Ready for new hires"
+            description={
+              course.ready
+                ? 'New hires get a link to this course with their Portal sign-in.'
+                : 'Still being set up, so it’s left out of onboarding emails and the join page. Turn this on when it’s ready.'
+            }
+          />
+        )}
       </div>
 
-      <div className="grid min-h-[480px] md:grid-cols-[240px_minmax(0,1fr)]">
-        <div className="flex flex-col gap-1 border-b border-white/[0.07] p-3 md:border-b-0 md:border-r">
+      <div className="grid min-h-[560px] md:grid-cols-[240px_minmax(0,1fr)]">
+        <div className="flex flex-col gap-1 border-b border-white/[0.07] p-3 auto-light:border-black/[0.08] md:border-b-0 md:border-r">
+          <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+            Lessons
+          </p>
           {lessons.map((l, i) => (
             <div
               key={l.id}
               className={cn(
                 'group flex items-center gap-2 rounded-lg px-2 py-2 text-sm transition-colors',
                 l.id === active
-                  ? 'bg-white/[0.08] text-white'
-                  : 'text-neutral-400 hover:bg-white/[0.04]',
+                  ? 'bg-white/[0.08] text-white auto-light:bg-black/[0.06] auto-light:text-neutral-950'
+                  : 'text-neutral-400 hover:bg-white/[0.04] auto-light:text-neutral-600 auto-light:hover:bg-black/[0.04]',
               )}
             >
-              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-[10px] text-neutral-400">
+              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-[10px] text-neutral-400 auto-light:bg-black/[0.06]">
                 {i + 1}
               </span>
               <button
@@ -171,14 +280,14 @@ const CourseEditor = ({
                 onClick={() => setActive(l.id)}
                 className="min-w-0 flex-1 truncate text-left"
               >
-                {l.title || 'Untitled'}
+                {l.title || 'Untitled lesson'}
               </button>
               <span className="hidden gap-0.5 group-hover:flex">
                 <button
                   type="button"
                   aria-label="Move up"
                   onClick={() => move(l.id, -1)}
-                  className="text-neutral-500 hover:text-white"
+                  className="text-neutral-500 hover:text-white auto-light:hover:text-neutral-950"
                 >
                   <Icon name="arrow_upward" className="text-[14px]" />
                 </button>
@@ -186,7 +295,7 @@ const CourseEditor = ({
                   type="button"
                   aria-label="Move down"
                   onClick={() => move(l.id, 1)}
-                  className="text-neutral-500 hover:text-white"
+                  className="text-neutral-500 hover:text-white auto-light:hover:text-neutral-950"
                 >
                   <Icon name="arrow_downward" className="text-[14px]" />
                 </button>
@@ -195,69 +304,48 @@ const CourseEditor = ({
           ))}
           <button
             type="button"
-            onClick={() => {
-              const l = newLesson();
-              setLessons((all) => [...all, l]);
-              setActive(l.id);
-              setMode('write');
-            }}
-            className="mt-1 flex items-center gap-2 rounded-lg border border-dashed border-white/10 p-2 text-sm text-neutral-400 hover:border-white/25 hover:text-white"
+            onClick={addLesson}
+            className="mt-1 flex items-center gap-2 rounded-lg border border-dashed border-white/10 p-2 text-sm text-neutral-400 hover:border-white/25 hover:text-white auto-light:border-black/15 auto-light:text-neutral-600 auto-light:hover:border-black/30 auto-light:hover:text-neutral-950"
           >
             <Icon name="add" className="text-[16px]" />
             Add a lesson
           </button>
         </div>
 
-        <div className="flex min-w-0 flex-col">
+        <div className="min-w-0">
           {lesson ? (
-            <>
-              <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.07] px-4 py-3">
-                <TextInput
-                  value={lesson.title}
-                  onChange={(e) => edit({ title: e.target.value })}
-                  className="h-9 min-w-0 flex-1"
-                />
-                <Segmented
-                  value={mode}
-                  onChange={setMode}
-                  options={[
-                    { value: 'write', label: 'Write', icon: 'edit' },
-                    { value: 'preview', label: 'Preview', icon: 'visibility' },
-                  ]}
-                />
+            <article className="mx-auto w-full max-w-3xl px-6 pt-8 md:px-10">
+              <div className="mb-1 flex items-center gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                  Lesson {index + 1} of {lessons.length}
+                </p>
+                <div className="flex-1" />
                 <IconAction
                   icon="delete"
                   label="Remove lesson"
                   tone="danger"
-                  onClick={() => {
-                    setLessons((all) => all.filter((l) => l.id !== lesson.id));
-                    setActive(
-                      lessons.find((l) => l.id !== lesson.id)?.id ?? null,
-                    );
-                  }}
+                  onClick={() => removeLesson(lesson.id)}
                 />
               </div>
-              {mode === 'write' ? (
-                <textarea
-                  value={lesson.body}
-                  onChange={(e) => edit({ body: e.target.value })}
-                  placeholder={
-                    'Write in Markdown.\n\n## A heading\n\n- A point\n- Another point\n\n[A link](https://…)'
-                  }
-                  className="custom-scrollbar min-h-[420px] flex-1 resize-none bg-transparent p-4 font-mono text-[13px] leading-relaxed text-neutral-200 placeholder:text-neutral-700 focus:outline-none"
-                />
-              ) : (
-                <div className="custom-scrollbar max-h-[560px] overflow-y-auto p-5">
-                  <h2 className="mb-3 text-xl font-semibold text-white">
-                    {lesson.title}
-                  </h2>
-                  <DocProse
-                    markdown={lesson.body || '_Nothing written yet._'}
-                    tone="dark"
-                  />
-                </div>
-              )}
-            </>
+              <GrowingTitle
+                value={lesson.title}
+                autoFocus={!lesson.title}
+                onChange={(e) =>
+                  editLesson(lesson.id, {
+                    title: e.target.value.replace(/\n/g, ' '),
+                  })
+                }
+                placeholder="Lesson title"
+                className="mb-5 w-full resize-none bg-transparent text-3xl font-bold leading-tight tracking-tight text-white outline-none placeholder:text-neutral-700 auto-light:text-neutral-950 auto-light:placeholder:text-neutral-300"
+              />
+              <DocEditor
+                key={lesson.id}
+                content={lessonDoc(lesson)}
+                editable
+                placeholder="Write the lesson, or press / for headings, lists, videos…"
+                onChange={(content) => editLesson(lesson.id, { content })}
+              />
+            </article>
           ) : (
             <EmptyState
               icon="edit_note"
@@ -266,7 +354,7 @@ const CourseEditor = ({
               }
               description={
                 course.isIntro
-                  ? 'New hires get a link to it with their sign-in. Add lessons on worklogs, projects, and setting up Claude once fully hired. You can also ask Claude to write it with you.'
+                  ? 'New hires get a link to it with their sign-in once it’s marked ready. Add lessons on worklogs, projects, and setting up Claude once fully hired. You can also ask Claude to write it with you.'
                   : 'Add a lesson to start.'
               }
             />
@@ -274,21 +362,9 @@ const CourseEditor = ({
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-2 border-t border-white/[0.07] px-4 py-3">
-        <span className="text-xs text-neutral-500">
-          {lessons.length} {lessons.length === 1 ? 'lesson' : 'lessons'}
-          {dirty ? ' · unsaved changes' : ''}
-        </span>
-        <AdminButton
-          tone="primary"
-          size="sm"
-          icon="save"
-          loading={saving}
-          disabled={!dirty}
-          onClick={save}
-        >
-          Save course
-        </AdminButton>
+      <div className="flex items-center gap-2 border-t border-white/[0.07] px-4 py-3 text-xs text-neutral-500 auto-light:border-black/[0.08]">
+        {lessons.length} {lessons.length === 1 ? 'lesson' : 'lessons'} · Saves
+        as you write. Type / in a lesson for videos, images, callouts and more.
       </div>
 
       <AdminModal
@@ -486,7 +562,7 @@ export const AdminCourses = ({
                   {c.lessons.length
                     ? `${c.lessons.length} lessons`
                     : 'Empty, to write'}
-                  {c.isIntro ? ' · new hires' : ''}
+                  {c.isIntro ? (c.ready ? ' · new hires' : ' · not ready') : ''}
                 </span>
               </button>
             ))}

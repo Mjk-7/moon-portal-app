@@ -241,6 +241,23 @@ export const DEFAULT_DOCUMENTS: Record<
     title: 'Work Agreement',
     body: WORK_AGREEMENT,
   },
+  // A company's own document starts from this.
+  [ONBOARDING_DOC_KIND.CUSTOM]: {
+    title: 'New document',
+    body: `This document is between {{companyName}} ("the Company") and {{hireName}} ({{hireEmail}}), joining as {{role}}.
+
+## 1. Purpose
+
+Write what this document covers.
+
+## 2. Terms
+
+- A point they agree to.
+- Another point.
+
+Signed on {{today}}.
+`,
+  },
 };
 
 export const MAX_DOC_TITLE = 120;

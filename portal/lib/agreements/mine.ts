@@ -1,5 +1,6 @@
 import { db } from '@/lib/mongodb/db-client';
 import { DOC_LABEL } from '@/lib/onboarding/meta';
+import { advanceOnboarding } from '@/lib/onboarding/server';
 import type { SessionUser } from '@/lib/permissions/server';
 import {
   type Agreement,
@@ -361,9 +362,13 @@ export async function approveMine(
 ) {
   const ob = parseOnboardingRef(ref);
   try {
-    if (ob)
+    if (ob) {
       await approveOnboardingDoc(user, ob.onboardingId, ob.docId, meta, origin);
-    else {
+      // The last countersignature opens their access (or completes the hire).
+      await advanceOnboarding(ob.onboardingId, origin).catch((e) =>
+        console.error('[onboarding] advance after countersign', e),
+      );
+    } else {
       if (!/^[a-f0-9]{24}$/i.test(ref))
         throw new AgreementError(404, 'Not found.');
       const a: Agreement | null = await db.agreement.findFirst({

@@ -47,13 +47,39 @@ export interface BoardData {
 }
 
 export interface DocTemplate {
+  /** How it is picked for a hire: the kind, or "custom:<id>". */
+  key: string;
   kind: ONBOARDING_DOC_KIND;
+  id: string | null;
   label: string;
   title: string;
   body: string;
+  /** One the company added itself. */
+  own: boolean;
+  /** Reworded from the starting draft. */
   custom: boolean;
+  /** Signed before portal access (otherwise with the offer). */
+  beforeAccess: boolean;
+  /** Ticked for new hires by default. */
+  sendByDefault: boolean;
   updatedAt: string | null;
 }
+
+/** The documents ticked for a hire: their saved pick, or the defaults. */
+export const pickedDocs = (
+  templates: DocTemplate[],
+  hire?: {
+    agreementDocs?: string[] | null;
+    withoutAgreements?: boolean;
+  } | null,
+) =>
+  hire?.withoutAgreements
+    ? []
+    : hire?.agreementDocs?.length
+      ? hire.agreementDocs
+      : templates
+          .filter((t) => t.beforeAccess && t.sendByDefault)
+          .map((t) => t.key);
 
 /** The terms form, as the inputs hold it (numbers as text). */
 export interface TermsDraft {

@@ -7,7 +7,7 @@ import { DocProse } from '@/components/shared/DocProse';
 import type { JoinState } from '@/lib/onboarding/join';
 import { formatDay, HIRE_TYPE_LABEL, STEPS } from '@/lib/onboarding/meta';
 import { cn } from '@/lib/utils';
-import { ONBOARDING_STEP } from '@/models/onboarding';
+import { ONBOARDING_DOC_KIND, ONBOARDING_STEP } from '@/models/onboarding';
 import { TMD_PORTAL_API_KEY } from '@/utils/constants/appInfo';
 
 const sans = Plus_Jakarta_Sans({
@@ -303,7 +303,7 @@ const DetailsForm = ({
   onDone: (s: JoinState) => void;
 }) => {
   const [form, setForm] = useState({
-    legalName: state.name,
+    legalName: state.nameKnown ? state.name : '',
     preferredName: '',
     signInEmail: state.email,
     phone: '',
@@ -391,8 +391,10 @@ const DetailsForm = ({
           </h1>
           <p className="mt-2 text-[15px] leading-relaxed text-zinc-600">
             First, a few details to set up your portal account. It takes about
-            three minutes. Next come your Trial Policy and NDA to sign, then
-            your sign-in.
+            three minutes.{' '}
+            {state.withoutAgreements
+              ? 'Your sign-in comes right after.'
+              : 'Next come your agreements to sign, then your sign-in.'}
           </p>
         </div>
 
@@ -478,7 +480,7 @@ const DetailsForm = ({
           <input
             value={form.preferredName}
             onChange={set('preferredName')}
-            placeholder={state.firstName}
+            placeholder={state.nameKnown ? state.firstName : 'A first name'}
             className={fieldClass()}
           />
         </Input>
@@ -828,6 +830,24 @@ const DocList = ({
   </ul>
 );
 
+/** What the documents before access are for, in a line each. */
+const agreementsIntro = (state: JoinState) => {
+  const kinds = state.toSign.map((d) => d.kind);
+  const about = [
+    kinds.includes(ONBOARDING_DOC_KIND.TRIAL_POLICY) &&
+      'The Trial Policy explains how your trial works and how you are paid for it.',
+    kinds.includes(ONBOARDING_DOC_KIND.NDA) &&
+      "The NDA keeps our work and our clients' work private.",
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const sign =
+    state.toSign.length === 1
+      ? 'Read it, then sign with your name. Your sign-in comes once we countersign it too.'
+      : 'Read each one, then sign with your name. Your sign-in comes once we countersign them too.';
+  return about ? `${about} ${sign}` : sign;
+};
+
 const SignRound = ({
   state,
   title,
@@ -955,9 +975,10 @@ const WaitingCard = ({ state }: { state: JoinState }) => (
         Thanks, {state.firstName}. Your account is set up.
       </h1>
       <p className="mt-2 text-[15px] leading-relaxed text-zinc-600">
-        {state.contact.name} is preparing your Trial Policy and NDA. We will
-        email you as soon as they are ready to sign, usually within a day. You
-        can come back to this same link any time.
+        {state.withoutAgreements
+          ? `${state.contact.name} is setting up your trial. We will email your Portal sign-in as soon as it is ready, usually within a day.`
+          : `${state.contact.name} is preparing your agreements. We will email you as soon as they are ready to sign, usually within a day.`}{' '}
+        You can come back to this same link any time.
       </p>
     </div>
     {state.avatar && (
@@ -973,6 +994,33 @@ const WaitingCard = ({ state }: { state: JoinState }) => (
         </p>
       </div>
     )}
+  </Card>
+);
+
+/** They signed the round; the company countersigns next. */
+const CountersignCard = ({
+  state,
+  offer,
+}: {
+  state: JoinState;
+  offer?: boolean;
+}) => (
+  <Card className="flex flex-col gap-4">
+    <span className="inline-flex size-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+      <Symbol name="task_alt" className="text-[26px]" />
+    </span>
+    <div>
+      <h1 className="text-2xl font-extrabold tracking-tight text-zinc-950">
+        Thanks for signing, {state.firstName}.
+      </h1>
+      <p className="mt-2 text-[15px] leading-relaxed text-zinc-600">
+        {state.companyName} countersigns next.{' '}
+        {offer
+          ? 'Once they do, you are fully hired and we will email you.'
+          : 'Once they do, we will email your Portal sign-in and passcode, usually within a day.'}{' '}
+        You get a copy signed by both sides by email too.
+      </p>
+    </div>
   </Card>
 );
 
@@ -1016,18 +1064,27 @@ export const JoinPage = ({ initial }: { initial: JoinState }) => {
       {state.step === ONBOARDING_STEP.AGREEMENTS &&
         (state.waitingOnTeam ? (
           <WaitingCard state={state} />
+        ) : state.waitingOnCompany ? (
+          <CountersignCard state={state} />
         ) : (
           <SignRound
             state={state}
-            title="Two agreements to sign"
-            intro="The Trial Policy explains how your trial works and how you are paid for it. The NDA keeps our work and our clients' work private. Read each one, then sign with your name. Your sign-in comes right after."
+            title={
+              state.toSign.length === 1
+                ? 'One document to sign'
+                : `${state.toSign.length} documents to sign`
+            }
+            intro={agreementsIntro(state)}
             onOpen={setOpen}
           />
         ))}
 
       {state.step === ONBOARDING_STEP.TRIAL && <AccessCard state={state} />}
 
-      {state.step === ONBOARDING_STEP.OFFER && (
+      {state.step === ONBOARDING_STEP.OFFER && state.waitingOnCompany && (
+        <CountersignCard state={state} offer />
+      )}
+      {state.step === ONBOARDING_STEP.OFFER && !state.waitingOnCompany && (
         <SignRound
           state={state}
           title={`Congratulations, ${state.firstName}!`}

@@ -43,7 +43,7 @@ export async function GET(_: Request, { params }: Params) {
   }
 }
 
-/** Edits a course: `{ title?, description?, lessons? }`. */
+/** Edits a course: `{ title?, description?, lessons?, ready? }`. */
 export async function PATCH(request: Request, { params }: Params) {
   const actor = await getSessionUser();
   if (!actor) return fail(401, 'Authentication required.');

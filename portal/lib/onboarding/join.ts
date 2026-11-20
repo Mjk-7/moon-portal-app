@@ -1,10 +1,16 @@
-import { ensureIntroCourse } from '@/lib/courses/server';
+import { introCourseUrl } from '@/lib/courses/server';
 import { db } from '@/lib/mongodb/db-client';
 import { type Onboarding, ONBOARDING_STEP } from '@/models/onboarding';
 import type { Company } from '@/models/workspace';
 
-import { AGREEMENT_DOCS, OFFER_DOCS } from './meta';
-import { contactFor, currentRound, JOIN_TOKEN_PATTERN } from './server';
+import { AGREEMENT_ROUND, OFFER_DOCS } from './meta';
+import {
+  contactFor,
+  currentRound,
+  JOIN_TOKEN_PATTERN,
+  nameFromEmail,
+  roundSigned,
+} from './server';
 
 /** The onboarding behind a /join link. */
 export async function onboardingByToken(
@@ -30,16 +36,24 @@ export async function joinState(onboarding: Onboarding, origin: string) {
     onboarding.step === ONBOARDING_STEP.TRIAL ||
     onboarding.step === ONBOARDING_STEP.OFFER ||
     onboarding.step === ONBOARDING_STEP.HIRED;
-  const course = hasAccess
-    ? await ensureIntroCourse(onboarding.companyId, onboarding.createdById)
+  const courseUrl = hasAccess
+    ? await introCourseUrl(onboarding.companyId, onboarding.createdById, origin)
     : null;
   const round = currentRound(onboarding);
   const name = onboarding.details?.preferredName || onboarding.name;
   return {
     token: onboarding.token,
     step: onboarding.step,
-    firstName: name.trim().split(/\s+/)[0] || name,
+    // Started from an email only: no name until they fill in the form.
+    firstName:
+      !onboarding.details && onboarding.name === nameFromEmail(onboarding.email)
+        ? 'there'
+        : name.trim().split(/\s+/)[0] || name,
     name: onboarding.name,
+    /** False when onboarding started from an email only. */
+    nameKnown:
+      !!onboarding.details ||
+      onboarding.name !== nameFromEmail(onboarding.email),
     email: onboarding.email,
     companyName: onboarding.terms?.companyName || company?.name || 'The team',
     companyLogo: (company?.logo as string | null) ?? null,
@@ -78,12 +92,18 @@ export async function joinState(onboarding: Onboarding, origin: string) {
       })),
     waitingOnTeam:
       onboarding.step === ONBOARDING_STEP.AGREEMENTS &&
-      !onboarding.documents.some((d) => AGREEMENT_DOCS.includes(d.kind)),
+      !onboarding.documents.some((d) => AGREEMENT_ROUND.includes(d.kind)),
+    /** They signed this round; the company hasn't countersigned yet. */
+    waitingOnCompany:
+      currentRound(onboarding).length > 0 &&
+      roundSigned(onboarding, 'hire') &&
+      !roundSigned(onboarding, 'both'),
+    withoutAgreements: !!onboarding.withoutAgreements,
     hasOffer: onboarding.documents.some((d) => OFFER_DOCS.includes(d.kind)),
     trialStartsOn: onboarding.trialStartsOn ?? null,
     trialEndsOn: onboarding.trialEndsOn ?? null,
     loginUrl: hasAccess ? `${origin}/login` : null,
-    courseUrl: course ? `${origin}/courses/${course.id}` : null,
+    courseUrl,
   };
 }
 

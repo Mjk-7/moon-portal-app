@@ -45,6 +45,8 @@ export async function hireView(
     details: onboarding.details ?? null,
     terms: onboarding.terms ?? null,
     autoSendAgreements: !!onboarding.autoSendAgreements,
+    withoutAgreements: !!onboarding.withoutAgreements,
+    agreementDocs: onboarding.agreementDocs ?? null,
     trialPay: onboarding.trialPay ?? null,
     trialStartsOn: onboarding.trialStartsOn ?? null,
     trialEndsOn: onboarding.trialEndsOn ?? null,
@@ -59,6 +61,12 @@ export async function hireView(
       sentAt: d.sentAt,
       viewedAt: d.viewedAt ?? null,
       signature: d.signature ?? null,
+      countersign: d.countersign
+        ? {
+            name: d.countersign.name,
+            signedAt: d.countersign.signature?.at ?? null,
+          }
+        : null,
     })),
     lastEmail: onboarding.lastEmail ?? null,
     history: [...(onboarding.history ?? [])].reverse(),

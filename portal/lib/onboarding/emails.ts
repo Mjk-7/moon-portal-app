@@ -2,7 +2,7 @@ import { isResendConfigured, sendEmail } from '@/lib/email/resend';
 import { HIRING_EMAIL_TAGS, hiringFrom } from '@/lib/hiring/email';
 import { emailHtml } from '@/lib/hiring/emailTemplates';
 
-import { formatDay } from './meta';
+import { formatDay, listTitles } from './meta';
 
 /*
  * The emails a new hire gets on the way in. They go out from the hiring
@@ -29,10 +29,24 @@ export interface OnboardingEmailContext {
   loginUrl?: string;
   courseUrl?: string;
   passcode?: string | null;
+  /** Onboarding without any documents to sign before access. */
+  withoutAgreements?: boolean;
+  /** The documents waiting for them in this round. */
+  documentTitles?: string[];
+  /** Whether they signed a Trial Policy (it sets out the trial pay). */
+  trialPolicySigned?: boolean;
   signInEmail?: string | null;
   trialStartsOn?: string | null;
   trialEndsOn?: string | null;
 }
+
+/** "Your Trial Policy and NDA are ready." */
+const docsReady = (titles: string[] = []) =>
+  !titles.length
+    ? 'Your agreements are ready.'
+    : titles.length === 1
+      ? `Your ${titles[0]} is ready.`
+      : `Your ${listTitles(titles)} are ready.`;
 
 const contactLine = (c: OnboardingEmailContext['contact']) =>
   [c.name, c.email, c.phone].filter(Boolean).join(', ');
@@ -57,7 +71,7 @@ We work in the Portal, so the first step is your account. Fill in your details a
 
 ${ctx.joinUrl}
 
-Next, you'll get your Trial Policy and Non-Disclosure Agreement to sign on the same page, then your Portal sign-in.
+${ctx.withoutAgreements ? "Once it's in, we'll email your Portal sign-in." : "Next, you'll get your agreements to sign on the same page, then your Portal sign-in."}
 
 ${help}
 
@@ -68,11 +82,11 @@ ${sign}`,
         subject: `Your agreements with ${ctx.companyName} are ready to sign`,
         text: `${hi}
 
-Thanks for your details. Your Trial Policy and Non-Disclosure Agreement are ready. Read them and sign both here:
+Thanks for your details. ${docsReady(ctx.documentTitles)} Read ${(ctx.documentTitles?.length ?? 2) === 1 ? 'it and sign it' : 'them and sign each one'} here:
 
 ${ctx.joinUrl}
 
-As soon as both are signed, we'll email your Portal sign-in.
+Once you've signed and we've countersigned, we'll email your Portal sign-in.
 
 ${help}
 
@@ -83,15 +97,19 @@ ${sign}`,
         subject: `Your Portal sign-in for ${ctx.companyName}`,
         text: `${hi}
 
-Thanks for signing. Your Portal access is open.
+${ctx.withoutAgreements ? 'Your Portal access is open.' : 'Your agreements are signed by both sides, and your Portal access is open.'}
 
 Sign in here: ${ctx.loginUrl}
 ${ctx.passcode ? `Your passcode: ${ctx.passcode}\n` : 'Use the passcode you already have.\n'}Google account to sign in with: ${ctx.signInEmail}
-
+${
+  ctx.courseUrl
+    ? `
 Start with the Portal introductory course. It shows how the Portal works and what we expect every day, like writing your worklog:
 
 ${ctx.courseUrl}
-
+`
+    : ''
+}
 Your trial runs from ${formatDay(ctx.trialStartsOn)} to ${formatDay(ctx.trialEndsOn)}. Keep your passcode to yourself.
 
 ${help}
@@ -119,11 +137,15 @@ ${sign}`,
         text: `${hi}
 
 Everything is signed. You're now a full member of ${ctx.companyName}, and your Claude access is open.
-
+${
+  ctx.courseUrl
+    ? `
 The introductory course shows how to set up Claude with the Portal:
 
 ${ctx.courseUrl}
-
+`
+    : ''
+}
 ${ctx.contact.name} will be in touch for your introductory call.
 
 ${sign}`,
@@ -135,7 +157,7 @@ ${sign}`,
 
 Thank you for the work you put in during your trial. We've decided not to continue, and your Portal access has now closed.
 
-Your trial will be paid as your Trial Policy sets out.
+${ctx.trialPolicySigned ? 'Your trial will be paid as your Trial Policy sets out.' : 'Your trial will be paid as agreed with you.'}
 
 ${help}
 

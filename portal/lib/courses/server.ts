@@ -1,14 +1,18 @@
 import { randomBytes } from 'crypto';
 
 import { db } from '@/lib/mongodb/db-client';
+import { docToMarkdown, markdownToDoc } from '@/lib/workspace/pageMarkdown';
 import { nowIso } from '@/lib/workspace/server';
 import type { Course, CourseLesson } from '@/models/onboarding';
+import type { JsonObject } from '@/models/shared/base';
 
 export const MAX_COURSE_TITLE = 120;
 export const MAX_COURSE_DESCRIPTION = 600;
 export const MAX_LESSONS = 60;
 export const MAX_LESSON_TITLE = 160;
 export const MAX_LESSON_BODY = 40000;
+/** A lesson page's JSON, in characters (images are links, not data). */
+export const MAX_LESSON_CONTENT = 400000;
 
 /** The course every new hire gets with their sign-in, before it is written. */
 export const INTRO_COURSE = {
@@ -35,6 +39,8 @@ export async function ensureIntroCourse(
       title: INTRO_COURSE.title,
       description: INTRO_COURSE.description,
       isIntro: true,
+      // Not sent to new hires until someone writes it and marks it ready.
+      ready: false,
       lessons: [],
       createdById: byUserId,
       updatedById: null,
@@ -42,6 +48,28 @@ export async function ensureIntroCourse(
       updatedAt: now,
     },
   });
+}
+
+/**
+ * Whether a course is set up enough to send to new hires. An explicit
+ * toggle wins; with none, a course with lessons counts as ready.
+ */
+export const courseIsReady = (course: Pick<Course, 'ready' | 'lessons'>) =>
+  typeof course.ready === 'boolean'
+    ? course.ready
+    : (course.lessons ?? []).length > 0;
+
+/**
+ * The link to the company's intro course for onboarding emails and the join
+ * page, or null while the course is marked not ready (they're left out).
+ */
+export async function introCourseUrl(
+  companyId: string,
+  byUserId: string,
+  origin: string,
+): Promise<string | null> {
+  const course = await ensureIntroCourse(companyId, byUserId);
+  return courseIsReady(course) ? `${origin}/courses/${course.id}` : null;
 }
 
 const text = (value: unknown, max: number) =>
@@ -59,6 +87,11 @@ export function parseCourseInput(body: Record<string, unknown>): {
   }
   if ('description' in body)
     data.description = text(body.description, MAX_COURSE_DESCRIPTION) || null;
+  if ('ready' in body) {
+    if (typeof body.ready !== 'boolean')
+      return { data, error: 'ready must be true or false.' };
+    data.ready = body.ready;
+  }
   if ('lessons' in body) {
     if (!Array.isArray(body.lessons))
       return { data, error: 'Lessons must be a list.' };
@@ -73,13 +106,28 @@ export function parseCourseInput(body: Record<string, unknown>): {
       let id = typeof raw.id === 'string' ? raw.id.slice(0, 24) : '';
       if (!/^[a-z0-9]{6,24}$/.test(id) || seen.has(id)) id = lessonId();
       seen.add(id);
-      lessons.push({
-        id,
-        title,
-        body:
+      // The page editor sends the page; Claude sends Markdown. Either way
+      // both are kept, so the page and its Markdown always agree.
+      let content: JsonObject;
+      if (
+        raw.content &&
+        typeof raw.content === 'object' &&
+        (raw.content as JsonObject).type === 'doc'
+      ) {
+        if (JSON.stringify(raw.content).length > MAX_LESSON_CONTENT)
+          return { data, error: `"${title}" is too long for one lesson.` };
+        content = raw.content as JsonObject;
+      } else
+        content = markdownToDoc(
           typeof raw.body === 'string'
             ? raw.body.slice(0, MAX_LESSON_BODY)
             : '',
+        );
+      lessons.push({
+        id,
+        title,
+        body: docToMarkdown(content).slice(0, MAX_LESSON_BODY),
+        content,
       });
     }
     data.lessons = lessons;
@@ -100,6 +148,7 @@ export async function courseView(course: Course, userId: string | null) {
     title: course.title,
     description: course.description ?? null,
     isIntro: !!course.isIntro,
+    ready: courseIsReady(course),
     lessons: course.lessons ?? [],
     updatedAt: course.updatedAt ?? null,
     doneLessonIds: (progress?.doneLessonIds ?? []) as string[],

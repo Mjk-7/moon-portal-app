@@ -45,7 +45,7 @@ const COLUMNS = [
 
 const COLUMN_HINT: Record<string, string> = {
   [ONBOARDING_STEP.DETAILS]: 'Details form and photo',
-  [ONBOARDING_STEP.AGREEMENTS]: 'Trial Policy and NDA',
+  [ONBOARDING_STEP.AGREEMENTS]: 'Documents, signed by both sides',
   [ONBOARDING_STEP.TRIAL]: 'In the Portal, no Claude yet',
   [ONBOARDING_STEP.OFFER]: 'Offer letter to sign',
 };
@@ -386,7 +386,7 @@ export const AdminOnboarding = ({
               <EmptyState
                 icon="how_to_reg"
                 title="Nobody is onboarding right now"
-                description="Move an applicant to Hired, or start onboarding someone here. They get a details form first, then their agreements, then their Portal sign-in."
+                description="Move an applicant to Hired, or start onboarding someone here. They get a details form first, then their agreements (if any), then their Portal sign-in."
                 action={
                   canEdit ? (
                     <AdminButton
