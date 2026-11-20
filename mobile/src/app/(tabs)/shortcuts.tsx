@@ -8,6 +8,7 @@ import { Screen } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useChatUnread } from '@/lib/chat';
+import { useMyDocuments } from '@/lib/documents';
 import { openWebsite } from '@/lib/links';
 import { useUnreadCount } from '@/lib/notifications';
 import { countShortcut, useTopShortcuts } from '@/lib/shortcut-usage';
@@ -43,6 +44,7 @@ export default function ShortcutsScreen() {
   const [search, setSearch] = useState('');
   const unread = useUnreadCount();
   const chats = useChatUnread().data?.unread ?? 0;
+  const waitingDocs = useMyDocuments().data?.toSign.length ?? 0;
 
   const groups: { title: string; items: Item[] }[] = [
     {
@@ -108,6 +110,14 @@ export default function ShortcutsScreen() {
           color: '#007aff',
           open: { pathname: '/person/[id]', params: { id: 'me' } },
           words: 'activity profile work',
+        },
+        {
+          title: 'Documents',
+          icon: 'signature',
+          color: '#8b5cf6',
+          open: '/documents',
+          detail: waitingDocs ? String(waitingDocs) : null,
+          words: 'approve sign agreements countersign nda signature letters',
         },
         { title: 'Edit profile', icon: 'pencil', color: '#8e8e93', open: '/profile', words: 'name photo' },
         { title: 'Settings', icon: 'settings', color: '#8e8e93', open: '/settings', words: 'theme face id' },

@@ -8,6 +8,15 @@ export type WhatsNew = { id: string; title: string; items: string[] };
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: 'documents-approve',
+    title: 'Approve documents in the app',
+    items: [
+      'Documents that wait for your signature or approval show on Home.',
+      'Approve them with your saved signature in one tap, or all at once. Read each one first from the list.',
+      'Save or change your signature in Documents (Shortcuts or Settings).',
+    ],
+  },
+  {
     id: '1.1.0',
     title: 'New in Portal 1.1',
     items: [
