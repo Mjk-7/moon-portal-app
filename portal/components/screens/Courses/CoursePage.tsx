@@ -4,10 +4,12 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
-import { DocProse } from '@/components/shared/DocProse';
+import { lessonDoc } from '@/lib/courses/lessonDoc';
 import type { CourseView } from '@/lib/courses/server';
 import { cn } from '@/lib/utils';
 import { PortalSdk } from '@/utils/services/PortalSdk';
+
+import { DocEditor } from '../Project/DocEditor';
 
 const Symbol = ({ name, className }: { name: string; className?: string }) => (
   <span
@@ -217,11 +219,16 @@ export const CoursePage = ({ courseId }: { courseId: string }) => {
               <h2 className="mb-4 mt-1 text-2xl font-bold tracking-tight text-zinc-950">
                 {lesson.title}
               </h2>
-              <DocProse
-                markdown={lesson.body || '_Nothing here yet._'}
-                embeds
-                tone="light"
-              />
+              <div className="doc-paper">
+                <DocEditor
+                  key={lesson.id}
+                  content={lessonDoc(lesson)}
+                  editable={false}
+                  variant="compact"
+                  placeholder=""
+                  onChange={() => {}}
+                />
+              </div>
               <div className="mt-10 flex flex-col-reverse gap-2 border-t border-zinc-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
                 <button
                   type="button"

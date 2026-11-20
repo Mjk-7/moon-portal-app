@@ -1,4 +1,9 @@
-import { type BaseModel, type Loose, type Nullable } from './shared/base';
+import {
+  type BaseModel,
+  type JsonObject,
+  type Loose,
+  type Nullable,
+} from './shared/base';
 
 /*
  * Onboarding: what happens to someone after the hiring team marks them Hired.
@@ -220,8 +225,13 @@ export type OnboardingTemplate = Loose<
 export interface CourseLesson {
   id: string;
   title: string;
-  /** Markdown. */
+  /** Markdown, kept in step with `content` (what Claude reads and writes). */
   body: string;
+  /**
+   * The lesson as a page (Tiptap JSON), written in the same editor as
+   * project pages. Older lessons have only `body`.
+   */
+  content?: Nullable<JsonObject>;
 }
 
 /** A short course a company writes for its people. */

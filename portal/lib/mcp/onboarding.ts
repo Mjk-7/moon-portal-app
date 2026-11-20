@@ -590,7 +590,7 @@ export const ONBOARDING_TOOLS: Tool[] = [
     name: 'save_course',
     title: 'Write or update a course',
     description:
-      'Creates a course, or with course (an id) replaces its title, description and lessons. Lessons are { id?, title, body } in order, body in Markdown; a YouTube, Vimeo or Loom link on its own line plays as an embedded video. Keep ids of lessons you keep so progress stays. ready marks the course set up (true) or not (false): new hires only get the intro course while it is ready. Show the person the outline before saving.',
+      'Creates a course, or with course (an id) replaces its title, description and lessons. Lessons are { id?, title, body } in order, body in Markdown (lessons are pages, like project pages); for a video put <iframe src="https://youtu.be/…"></iframe> on its own line (YouTube, Vimeo, Loom). Keep ids of lessons you keep so progress stays. ready marks the course set up (true) or not (false): new hires only get the intro course while it is ready. Show the person the outline before saving.',
     inputSchema: {
       type: 'object',
       properties: {

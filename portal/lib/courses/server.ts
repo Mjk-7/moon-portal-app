@@ -1,14 +1,18 @@
 import { randomBytes } from 'crypto';
 
 import { db } from '@/lib/mongodb/db-client';
+import { docToMarkdown, markdownToDoc } from '@/lib/workspace/pageMarkdown';
 import { nowIso } from '@/lib/workspace/server';
 import type { Course, CourseLesson } from '@/models/onboarding';
+import type { JsonObject } from '@/models/shared/base';
 
 export const MAX_COURSE_TITLE = 120;
 export const MAX_COURSE_DESCRIPTION = 600;
 export const MAX_LESSONS = 60;
 export const MAX_LESSON_TITLE = 160;
 export const MAX_LESSON_BODY = 40000;
+/** A lesson page's JSON, in characters (images are links, not data). */
+export const MAX_LESSON_CONTENT = 400000;
 
 /** The course every new hire gets with their sign-in, before it is written. */
 export const INTRO_COURSE = {
@@ -102,13 +106,28 @@ export function parseCourseInput(body: Record<string, unknown>): {
       let id = typeof raw.id === 'string' ? raw.id.slice(0, 24) : '';
       if (!/^[a-z0-9]{6,24}$/.test(id) || seen.has(id)) id = lessonId();
       seen.add(id);
-      lessons.push({
-        id,
-        title,
-        body:
+      // The page editor sends the page; Claude sends Markdown. Either way
+      // both are kept, so the page and its Markdown always agree.
+      let content: JsonObject;
+      if (
+        raw.content &&
+        typeof raw.content === 'object' &&
+        (raw.content as JsonObject).type === 'doc'
+      ) {
+        if (JSON.stringify(raw.content).length > MAX_LESSON_CONTENT)
+          return { data, error: `"${title}" is too long for one lesson.` };
+        content = raw.content as JsonObject;
+      } else
+        content = markdownToDoc(
           typeof raw.body === 'string'
             ? raw.body.slice(0, MAX_LESSON_BODY)
             : '',
+        );
+      lessons.push({
+        id,
+        title,
+        body: docToMarkdown(content).slice(0, MAX_LESSON_BODY),
+        content,
       });
     }
     data.lessons = lessons;
