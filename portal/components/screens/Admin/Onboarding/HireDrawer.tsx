@@ -288,12 +288,21 @@ export const HireDrawer = ({
                         >
                           {hire.step === ONBOARDING_STEP.DETAILS
                             ? hire.terms
-                              ? 'Edit agreement terms'
-                              : 'Fill in agreement terms'
+                              ? 'Edit terms'
+                              : 'Fill in terms'
                             : hire.documents.length
                               ? 'Change terms and resend'
-                              : 'Fill in terms and send'}
+                              : hire.withoutAgreements
+                                ? 'Fill in terms and open access'
+                                : 'Fill in terms and send'}
                         </AdminButton>
+                      )}
+                      {next.short === 'Countersign' && (
+                        <a href="/user?tab=documents">
+                          <AdminButton size="sm" tone="primary" icon="draw">
+                            Countersign
+                          </AdminButton>
+                        </a>
                       )}
                       {hire.step === ONBOARDING_STEP.TRIAL &&
                         hire.canDecide && (
@@ -412,7 +421,13 @@ export const HireDrawer = ({
                             </span>
                             <span className="block text-xs text-neutral-500">
                               {d.signature
-                                ? `Signed as “${d.signature.name}”, ${ago(d.signature.at)}`
+                                ? `Signed as “${d.signature.name}”, ${ago(d.signature.at)}${
+                                    d.countersign
+                                      ? d.countersign.signedAt
+                                        ? ` · countersigned by ${d.countersign.name}`
+                                        : ` · waiting for ${d.countersign.name} to countersign`
+                                      : ''
+                                  }`
                                 : d.viewedAt
                                   ? `Opened ${ago(d.viewedAt)}, not signed yet`
                                   : `Sent ${ago(d.sentAt)}, not opened yet`}

@@ -29,6 +29,8 @@ export interface OnboardingEmailContext {
   loginUrl?: string;
   courseUrl?: string;
   passcode?: string | null;
+  /** Onboarding without the Trial Policy and NDA. */
+  withoutAgreements?: boolean;
   signInEmail?: string | null;
   trialStartsOn?: string | null;
   trialEndsOn?: string | null;
@@ -57,7 +59,7 @@ We work in the Portal, so the first step is your account. Fill in your details a
 
 ${ctx.joinUrl}
 
-Next, you'll get your Trial Policy and Non-Disclosure Agreement to sign on the same page, then your Portal sign-in.
+${ctx.withoutAgreements ? "Once it's in, we'll email your Portal sign-in." : "Next, you'll get your Trial Policy and Non-Disclosure Agreement to sign on the same page, then your Portal sign-in."}
 
 ${help}
 
@@ -72,7 +74,7 @@ Thanks for your details. Your Trial Policy and Non-Disclosure Agreement are read
 
 ${ctx.joinUrl}
 
-As soon as both are signed, we'll email your Portal sign-in.
+Once you've signed both and we've countersigned them, we'll email your Portal sign-in.
 
 ${help}
 
@@ -83,7 +85,7 @@ ${sign}`,
         subject: `Your Portal sign-in for ${ctx.companyName}`,
         text: `${hi}
 
-Thanks for signing. Your Portal access is open.
+${ctx.withoutAgreements ? 'Your Portal access is open.' : 'Your agreements are signed by both sides, and your Portal access is open.'}
 
 Sign in here: ${ctx.loginUrl}
 ${ctx.passcode ? `Your passcode: ${ctx.passcode}\n` : 'Use the passcode you already have.\n'}Google account to sign in with: ${ctx.signInEmail}

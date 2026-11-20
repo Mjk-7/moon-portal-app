@@ -59,6 +59,9 @@ export async function PATCH(request: Request, { params }: Params) {
           origin,
           {
             send: body.send !== false,
+            ...(typeof body.withoutAgreements === 'boolean'
+              ? { withoutAgreements: body.withoutAgreements }
+              : {}),
           },
         );
         break;

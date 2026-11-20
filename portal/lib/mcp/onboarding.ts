@@ -262,7 +262,7 @@ export const ONBOARDING_TOOLS: Tool[] = [
     name: 'start_onboarding',
     title: 'Start onboarding a new hire',
     description:
-      "Emails a new hire their details form (personal details and a profile photo), which makes their portal account. Use an applicant id from list_new_hires' readyToOnboard (moves them to Hired), or a name and email. Pass terms to have the Trial Policy and NDA go out by themselves as soon as the form is back. Confirm with the person before calling: it sends an email.",
+      "Emails a new hire their details form (personal details and a profile photo), which makes their portal account. Use an applicant id from list_new_hires' readyToOnboard (moves them to Hired), or an email (the name is optional; they give it on the form). Pass terms to have the Trial Policy and NDA go out by themselves as soon as the form is back. withoutAgreements: true skips the Trial Policy and NDA, so their access opens once the details and terms are in. With agreements, access opens only after both the hire and the company have signed. Confirm with the person before calling: it sends an email.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -271,6 +271,10 @@ export const ONBOARDING_TOOLS: Tool[] = [
         name: { type: 'string' },
         email: { type: 'string' },
         terms: TERMS_SCHEMA,
+        withoutAgreements: {
+          type: 'boolean',
+          description: 'Onboard without the Trial Policy and NDA.',
+        },
       },
     },
     annotations: { readOnlyHint: false, destructiveHint: false },
@@ -286,6 +290,7 @@ export const ONBOARDING_TOOLS: Tool[] = [
             name: args?.name ?? null,
             email: args?.email ?? null,
             terms: args?.terms ?? null,
+            withoutAgreements: args?.withoutAgreements === true,
           },
           context.origin,
         );
@@ -296,7 +301,7 @@ export const ONBOARDING_TOOLS: Tool[] = [
     name: 'send_agreements',
     title: 'Send the Trial Policy and NDA',
     description:
-      'Fills in the agreement terms and sends the Trial Policy and NDA to sign. Before the details form is back, the terms are saved and go out by themselves. Use preview: true first and show the person the terms and the contact named; send only after they say yes.',
+      'Fills in the agreement terms and sends the Trial Policy and NDA to sign. Before the details form is back, the terms are saved and go out by themselves. With withoutAgreements: true no documents are sent and their portal access opens as soon as their details are in (right away if they already are). Otherwise access opens once the hire has signed and the company has countersigned. Use preview: true first and show the person the terms and the contact named; send only after they say yes.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -305,6 +310,11 @@ export const ONBOARDING_TOOLS: Tool[] = [
         preview: {
           type: 'boolean',
           description: 'Return the documents without saving or sending.',
+        },
+        withoutAgreements: {
+          type: 'boolean',
+          description:
+            'Skip the Trial Policy and NDA and open their access instead.',
         },
       },
       required: ['hire', 'terms'],
@@ -333,6 +343,9 @@ export const ONBOARDING_TOOLS: Tool[] = [
           o,
           args?.terms ?? {},
           context.origin,
+          typeof args?.withoutAgreements === 'boolean'
+            ? { withoutAgreements: args.withoutAgreements }
+            : {},
         );
         return { ...summary(onboarding, context.origin), emailError };
       }),

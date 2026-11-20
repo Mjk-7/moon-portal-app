@@ -193,6 +193,11 @@ export type Onboarding = Loose<
     terms?: Nullable<OnboardingTerms>;
     /** Send the agreements as soon as the details form comes back. */
     autoSendAgreements?: boolean;
+    /**
+     * Onboard without the Trial Policy and NDA: their portal access opens
+     * as soon as their details and the terms are in.
+     */
+    withoutAgreements?: boolean;
     documents: OnboardingDocument[];
     trialPay?: Nullable<TrialPay>;
     trialStartsOn?: Nullable<string>;

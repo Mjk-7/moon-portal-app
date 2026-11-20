@@ -199,9 +199,11 @@ export function hireNext(
       kind: ONBOARDING_DOC_KIND;
       title: string;
       signature?: unknown;
+      countersign?: { name?: string; signature?: unknown } | null;
     }>;
     terms?: unknown;
     autoSendAgreements?: boolean | null;
+    withoutAgreements?: boolean | null;
     trialStartsOn?: string | null;
     trialEndsOn?: string | null;
   },
@@ -211,8 +213,42 @@ export function hireNext(
     o.documents
       .filter((d) => kinds.includes(d.kind) && !d.signature)
       .map((d) => d.title);
+  // Signed by the hire, still waiting for the company's signature.
+  const toCountersign = (kinds: ONBOARDING_DOC_KIND[]) =>
+    o.documents.filter(
+      (d) =>
+        kinds.includes(d.kind) &&
+        d.signature &&
+        d.countersign &&
+        !d.countersign.signature,
+    );
+  const countersignMove = (
+    kinds: ONBOARDING_DOC_KIND[],
+    opens: string,
+  ): NextMove | null => {
+    const docs = toCountersign(kinds);
+    if (!docs.length || unsigned(kinds).length) return null;
+    const who = docs[0].countersign?.name;
+    return {
+      who: 'you',
+      short: 'Countersign',
+      text: `They signed. ${who ? `${who} countersigns` : 'Countersign'} the ${docs.map((d) => d.title).join(' and the ')} to ${opens}.`,
+    };
+  };
   switch (o.step) {
     case ONBOARDING_STEP.DETAILS:
+      if (o.withoutAgreements)
+        return o.terms
+          ? {
+              who: 'them',
+              short: 'Filling in details',
+              text: 'Waiting for their details form. No agreements: their portal access opens by itself after.',
+            }
+          : {
+              who: 'them',
+              short: 'Filling in details',
+              text: 'Waiting for their details form. No agreements: fill in the terms and their access opens straight after.',
+            };
       return o.terms && o.autoSendAgreements
         ? {
             who: 'them',
@@ -227,11 +263,22 @@ export function hireNext(
     case ONBOARDING_STEP.AGREEMENTS: {
       const sent = o.documents.some((d) => AGREEMENT_DOCS.includes(d.kind));
       if (!sent)
-        return {
-          who: 'you',
-          short: 'Send agreements',
-          text: 'Their details are in. Fill in the terms and send the Trial Policy and NDA.',
-        };
+        return o.withoutAgreements
+          ? {
+              who: 'you',
+              short: 'Open access',
+              text: 'Their details are in. Fill in the terms to open their portal access (no agreements).',
+            }
+          : {
+              who: 'you',
+              short: 'Send agreements',
+              text: 'Their details are in. Fill in the terms and send the Trial Policy and NDA, or open access without agreements.',
+            };
+      const counter = countersignMove(
+        AGREEMENT_DOCS,
+        'open their portal access',
+      );
+      if (counter) return counter;
       const left = unsigned(AGREEMENT_DOCS);
       return {
         who: 'them',
@@ -260,6 +307,8 @@ export function hireNext(
       };
     }
     case ONBOARDING_STEP.OFFER: {
+      const counter = countersignMove(OFFER_DOCS, 'complete the hire');
+      if (counter) return counter;
       const left = unsigned(OFFER_DOCS);
       return {
         who: 'them',

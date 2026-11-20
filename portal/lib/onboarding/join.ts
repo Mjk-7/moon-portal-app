@@ -4,7 +4,13 @@ import { type Onboarding, ONBOARDING_STEP } from '@/models/onboarding';
 import type { Company } from '@/models/workspace';
 
 import { AGREEMENT_DOCS, OFFER_DOCS } from './meta';
-import { contactFor, currentRound, JOIN_TOKEN_PATTERN } from './server';
+import {
+  contactFor,
+  currentRound,
+  JOIN_TOKEN_PATTERN,
+  nameFromEmail,
+  roundSigned,
+} from './server';
 
 /** The onboarding behind a /join link. */
 export async function onboardingByToken(
@@ -38,8 +44,16 @@ export async function joinState(onboarding: Onboarding, origin: string) {
   return {
     token: onboarding.token,
     step: onboarding.step,
-    firstName: name.trim().split(/\s+/)[0] || name,
+    // Started from an email only: no name until they fill in the form.
+    firstName:
+      !onboarding.details && onboarding.name === nameFromEmail(onboarding.email)
+        ? 'there'
+        : name.trim().split(/\s+/)[0] || name,
     name: onboarding.name,
+    /** False when onboarding started from an email only. */
+    nameKnown:
+      !!onboarding.details ||
+      onboarding.name !== nameFromEmail(onboarding.email),
     email: onboarding.email,
     companyName: onboarding.terms?.companyName || company?.name || 'The team',
     companyLogo: (company?.logo as string | null) ?? null,
@@ -79,6 +93,12 @@ export async function joinState(onboarding: Onboarding, origin: string) {
     waitingOnTeam:
       onboarding.step === ONBOARDING_STEP.AGREEMENTS &&
       !onboarding.documents.some((d) => AGREEMENT_DOCS.includes(d.kind)),
+    /** They signed this round; the company hasn't countersigned yet. */
+    waitingOnCompany:
+      currentRound(onboarding).length > 0 &&
+      roundSigned(onboarding, 'hire') &&
+      !roundSigned(onboarding, 'both'),
+    withoutAgreements: !!onboarding.withoutAgreements,
     hasOffer: onboarding.documents.some((d) => OFFER_DOCS.includes(d.kind)),
     trialStartsOn: onboarding.trialStartsOn ?? null,
     trialEndsOn: onboarding.trialEndsOn ?? null,

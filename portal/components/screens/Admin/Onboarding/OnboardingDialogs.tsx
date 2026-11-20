@@ -36,6 +36,7 @@ import {
   Segmented,
   TextArea,
   TextInput,
+  ToggleSwitch,
   UserAvatar,
 } from '../shared/AdminUI';
 import { errorText } from '../Workspace/shared';
@@ -276,6 +277,26 @@ const termsProblem = (t: TermsDraft) =>
 
 /* ------------------------------ start a hire ------------------------------ */
 
+/** Whether a hire signs the Trial Policy and NDA before their access opens. */
+const AgreementsSwitch = ({
+  value,
+  onChange,
+}: {
+  value: boolean;
+  onChange: (value: boolean) => void;
+}) => (
+  <ToggleSwitch
+    checked={value}
+    onChange={onChange}
+    label="Trial Policy and NDA"
+    description={
+      value
+        ? 'They sign both, you countersign, then their portal access opens.'
+        : 'No agreements: their portal access opens as soon as their details and the terms are in.'
+    }
+  />
+);
+
 export const StartDialog = ({
   open,
   onOpenChange,
@@ -297,6 +318,7 @@ export const StartDialog = ({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [withTerms, setWithTerms] = useState(false);
+  const [withAgreements, setWithAgreements] = useState(true);
   const [terms, setTerms] = useState<TermsDraft | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -314,6 +336,7 @@ export const StartDialog = ({
     setName('');
     setEmail('');
     setWithTerms(false);
+    setWithAgreements(true);
     setTerms(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -344,13 +367,14 @@ export const StartDialog = ({
           ? { applicationId: chosen.applicationId }
           : { name: name.trim(), email: email.trim() }),
         terms: withTerms && terms ? termsPayload(terms) : null,
+        withoutAgreements: !withAgreements,
       });
       const hire: Hire = res.data.hire;
       if (res.data.emailError)
         toast.warning(
           `Onboarding started, but the email did not go out: ${res.data.emailError}. Copy their link from the panel.`,
         );
-      else toast.success(`Sent ${hire.name.split(' ')[0]} their details form`);
+      else toast.success(`Sent ${hire.email} their details form`);
       onStarted(hire);
       onOpenChange(false);
     } catch (err) {
@@ -366,7 +390,7 @@ export const StartDialog = ({
       open={open}
       onOpenChange={onOpenChange}
       title="Start onboarding"
-      description="They get an email with a form for their details and photo. Filling it in makes their Portal account."
+      description="Just an email is enough. They get a form for their name, details and photo, and filling it in makes their Portal account."
       icon="person_add"
       size="lg"
       footer={
@@ -383,7 +407,7 @@ export const StartDialog = ({
             size="sm"
             icon="send"
             loading={saving}
-            disabled={!chosen && (!name.trim() || !email.trim())}
+            disabled={!chosen && !email.trim()}
             onClick={submit}
           >
             Send details form
@@ -444,21 +468,25 @@ export const StartDialog = ({
 
         {pick === 'other' && (
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Name" required>
-              <TextInput
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </Field>
             <Field label="Email" required>
               <TextInput
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@example.com"
+                autoFocus
+              />
+            </Field>
+            <Field label="Name" hint="Optional. They fill it in on the form.">
+              <TextInput
+                value={name}
+                onChange={(e) => setName(e.target.value)}
               />
             </Field>
           </div>
         )}
+
+        <AgreementsSwitch value={withAgreements} onChange={setWithAgreements} />
 
         <button
           type="button"
@@ -468,12 +496,14 @@ export const StartDialog = ({
           <CheckBox checked={withTerms} className="mt-0.5" />
           <span>
             <span className="block text-sm text-neutral-100">
-              Fill in the agreement terms now
+              Fill in the terms now
             </span>
             <span className="block text-xs text-neutral-500">
-              The Trial Policy and NDA then go out by themselves the moment{' '}
-              {who ? who.split(' ')[0] : 'they'} sends the form. Skip it to do
-              it later.
+              {withAgreements
+                ? 'The Trial Policy and NDA then go out by themselves'
+                : 'Their portal access then opens by itself'}{' '}
+              the moment {who ? who.split(' ')[0] : 'they'} sends the form. Skip
+              it to do it later.
             </span>
           </span>
         </button>
@@ -504,10 +534,12 @@ export const TermsDialog = ({
   const templates = useTemplates(hire.companyId, open);
   const [terms, setTerms] = useState<TermsDraft | null>(null);
   const [saving, setSaving] = useState(false);
+  const [withAgreements, setWithAgreements] = useState(!hire.withoutAgreements);
   const detailsIn = hire.step !== ONBOARDING_STEP.DETAILS;
 
   useEffect(() => {
     if (!open) return;
+    setWithAgreements(!hire.withoutAgreements);
     setTerms(
       hire.terms
         ? termsDraftOf(hire.terms)
@@ -529,6 +561,7 @@ export const TermsDialog = ({
       const res = await PortalSdk.patchData(`/api/onboarding/${hire.id}`, {
         action: 'terms',
         terms: termsPayload(terms),
+        withoutAgreements: !withAgreements,
       });
       if (res.data.emailError)
         toast.warning(
@@ -536,9 +569,13 @@ export const TermsDialog = ({
         );
       else
         toast.success(
-          detailsIn
-            ? `Sent the Trial Policy and NDA to ${hire.name.split(' ')[0]}`
-            : 'Saved. They go out as soon as the details form is back.',
+          !withAgreements
+            ? detailsIn
+              ? `Opened ${hire.name.split(' ')[0]}'s portal access`
+              : 'Saved. Their access opens as soon as the details form is back.'
+            : detailsIn
+              ? `Sent the Trial Policy and NDA to ${hire.name.split(' ')[0]}`
+              : 'Saved. They go out as soon as the details form is back.',
         );
       onSaved(res.data.hire);
       onOpenChange(false);
@@ -553,8 +590,18 @@ export const TermsDialog = ({
     <AdminModal
       open={open}
       onOpenChange={onOpenChange}
-      title={detailsIn ? 'Send the Trial Policy and NDA' : 'Agreement terms'}
-      description="What you fill in here is written into the documents. The preview updates as you type."
+      title={
+        !withAgreements
+          ? 'Terms and portal access'
+          : detailsIn
+            ? 'Send the Trial Policy and NDA'
+            : 'Agreement terms'
+      }
+      description={
+        withAgreements
+          ? 'What you fill in here is written into the documents. The preview updates as you type.'
+          : 'No agreements: these set their role, project and trial dates.'
+      }
       icon="signature"
       size="lg"
       footer={
@@ -569,18 +616,38 @@ export const TermsDialog = ({
           <AdminButton
             tone="primary"
             size="sm"
-            icon="send"
+            icon={withAgreements ? 'send' : 'key'}
             loading={saving}
             onClick={save}
           >
-            {detailsIn ? 'Send to sign' : 'Save; send after details'}
+            {withAgreements
+              ? detailsIn
+                ? 'Send to sign'
+                : 'Save; send after details'
+              : detailsIn
+                ? 'Open portal access'
+                : 'Save; open after details'}
           </AdminButton>
         </>
       }
     >
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-        <TermsFields board={board} terms={terms} onChange={setTerms} />
-        <LivePreview kinds={AGREEMENT_DOCS} templates={templates} vars={vars} />
+      <div className="flex flex-col gap-5">
+        <AgreementsSwitch value={withAgreements} onChange={setWithAgreements} />
+        <div
+          className={cn(
+            'grid gap-5',
+            withAgreements && 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]',
+          )}
+        >
+          <TermsFields board={board} terms={terms} onChange={setTerms} />
+          {withAgreements && (
+            <LivePreview
+              kinds={AGREEMENT_DOCS}
+              templates={templates}
+              vars={vars}
+            />
+          )}
+        </div>
       </div>
     </AdminModal>
   );

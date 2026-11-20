@@ -57,6 +57,7 @@ export async function POST(request: Request) {
         name: body.name,
         email: body.email,
         terms: body.terms && typeof body.terms === 'object' ? body.terms : null,
+        withoutAgreements: body.withoutAgreements === true,
       },
       origin,
     );

@@ -386,7 +386,7 @@ export const AdminOnboarding = ({
               <EmptyState
                 icon="how_to_reg"
                 title="Nobody is onboarding right now"
-                description="Move an applicant to Hired, or start onboarding someone here. They get a details form first, then their agreements, then their Portal sign-in."
+                description="Move an applicant to Hired, or start onboarding someone here. They get a details form first, then their agreements (if any), then their Portal sign-in."
                 action={
                   canEdit ? (
                     <AdminButton
