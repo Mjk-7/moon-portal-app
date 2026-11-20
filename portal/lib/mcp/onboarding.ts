@@ -1,4 +1,5 @@
 import {
+  courseIsReady,
   courseView,
   ensureIntroCourse,
   parseCourseInput,
@@ -561,7 +562,7 @@ export const ONBOARDING_TOOLS: Tool[] = [
     name: 'list_courses',
     title: 'List courses',
     description:
-      "A company's courses, with their lessons. The intro course (Portal usage and guidance) is the one new hires get with their sign-in.",
+      "A company's courses, with their lessons. The intro course (Portal usage and guidance) is the one new hires get with their sign-in, but only while ready is true; a course that isn't ready is left out of onboarding emails.",
     inputSchema: {
       type: 'object',
       properties: { company: { type: 'string' } },
@@ -589,7 +590,7 @@ export const ONBOARDING_TOOLS: Tool[] = [
     name: 'save_course',
     title: 'Write or update a course',
     description:
-      'Creates a course, or with course (an id) replaces its title, description and lessons. Lessons are { id?, title, body } in order, body in Markdown; keep ids of lessons you keep so progress stays. Show the person the outline before saving.',
+      'Creates a course, or with course (an id) replaces its title, description and lessons. Lessons are { id?, title, body } in order, body in Markdown; a YouTube, Vimeo or Loom link on its own line plays as an embedded video. Keep ids of lessons you keep so progress stays. ready marks the course set up (true) or not (false): new hires only get the intro course while it is ready. Show the person the outline before saving.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -600,6 +601,11 @@ export const ONBOARDING_TOOLS: Tool[] = [
         },
         title: { type: 'string' },
         description: { type: 'string' },
+        ready: {
+          type: 'boolean',
+          description:
+            'Set up and fine to send to new hires. Leave out to keep it as is.',
+        },
         lessons: {
           type: 'array',
           items: {
@@ -619,7 +625,7 @@ export const ONBOARDING_TOOLS: Tool[] = [
     run: async (user, args, context) => {
       const company = await findCompany(user, args?.company, 'courses:edit');
       const input: Record<string, unknown> = {};
-      for (const key of ['title', 'description', 'lessons'])
+      for (const key of ['title', 'description', 'lessons', 'ready'])
         if (args?.[key] !== undefined) input[key] = args[key];
       const { data, error } = parseCourseInput(input);
       if (error) throw new ToolError(error);
@@ -642,6 +648,7 @@ export const ONBOARDING_TOOLS: Tool[] = [
             title: data.title,
             description: data.description ?? null,
             isIntro: false,
+            ...(typeof data.ready === 'boolean' ? { ready: data.ready } : {}),
             lessons: data.lessons ?? [],
             createdById: user.id,
             updatedById: user.id,
@@ -654,6 +661,7 @@ export const ONBOARDING_TOOLS: Tool[] = [
         id: course.id,
         title: course.title,
         lessons: (course.lessons ?? []).length,
+        ready: courseIsReady(course),
         url: `${context.origin}/courses/${course.id}`,
       };
     },

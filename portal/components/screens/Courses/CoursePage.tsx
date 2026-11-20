@@ -219,6 +219,7 @@ export const CoursePage = ({ courseId }: { courseId: string }) => {
               </h2>
               <DocProse
                 markdown={lesson.body || '_Nothing here yet._'}
+                embeds
                 tone="light"
               />
               <div className="mt-10 flex flex-col-reverse gap-2 border-t border-zinc-100 pt-6 sm:flex-row sm:items-center sm:justify-between">

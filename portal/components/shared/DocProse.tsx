@@ -14,12 +14,18 @@ export const DocProse = ({
   markdown,
   tone = 'paper',
   className,
+  embeds,
 }: {
   markdown: string;
+  /** Video links on their own line play in place (course lessons). */
+  embeds?: boolean;
   tone?: 'paper' | 'dark' | 'light';
   className?: string;
 }) => {
-  const html = useMemo(() => markdownToHtml(markdown), [markdown]);
+  const html = useMemo(
+    () => markdownToHtml(markdown, { embeds }),
+    [markdown, embeds],
+  );
   return (
     <div
       className={cn(
@@ -32,6 +38,7 @@ export const DocProse = ({
         '[&_blockquote]:my-4 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_hr]:my-6',
         '[&_code]:rounded [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[13px]',
         '[&_pre]:my-4 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:p-3',
+        '[&_.doc-video]:my-5 [&_.doc-video]:aspect-video [&_.doc-video]:w-full [&_.doc-video]:overflow-hidden [&_.doc-video]:rounded-xl [&_.doc-video]:bg-black [&_iframe]:size-full',
         '[&_table]:my-4 [&_table]:w-full [&_td]:border [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:px-2 [&_th]:py-1 [&_th]:text-left',
         tone === 'dark'
           ? 'text-neutral-300 [&_a]:text-sky-300 [&_blockquote]:border-white/20 [&_code]:bg-white/10 [&_h1]:text-white [&_h2]:text-white [&_h3]:text-neutral-100 [&_hr]:border-white/10 [&_pre]:bg-white/[0.06] [&_strong]:text-white [&_td]:border-white/10 [&_th]:border-white/10'

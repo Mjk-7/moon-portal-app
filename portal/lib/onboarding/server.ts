@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomInt } from 'crypto';
 
 import { requestOnboardingCountersign } from '@/lib/agreements/countersign';
-import { ensureIntroCourse } from '@/lib/courses/server';
+import { introCourseUrl } from '@/lib/courses/server';
 import { moveApplication } from '@/lib/hiring/server';
 import { db } from '@/lib/mongodb/db-client';
 import { ensureNotificationsReset } from '@/lib/notifications/server';
@@ -1025,9 +1025,10 @@ export async function grantAccess(
   const today = todayIst();
   const start = terms.startDate > today ? terms.startDate : today;
   const end = trialEndFor(start, terms.hireType);
-  const course = await ensureIntroCourse(
+  const courseUrl = await introCourseUrl(
     onboarding.companyId,
     onboarding.createdById,
+    origin,
   );
   await logStep(
     onboarding,
@@ -1042,14 +1043,20 @@ export async function grantAccess(
     },
   );
   const updated = await reload(onboarding.id);
+  // Always send the passcode: onboarding makes the account (and its code)
+  // when they send their details but never emails it before this, so "the
+  // passcode you already have" left new hires with none. It goes only to
+  // their own address.
   const mail = await emailHire(updated, 'access', origin, {
-    passcode: user.code ? null : passcode,
-    courseUrl: `${origin}/courses/${course.id}`,
+    passcode,
+    courseUrl: courseUrl ?? undefined,
   });
   await logStep(
     updated,
     mail.sent
-      ? 'Emailed their sign-in, passcode and the Portal course'
+      ? courseUrl
+        ? 'Emailed their sign-in, passcode and the Portal course'
+        : 'Emailed their sign-in and passcode (the course is not ready yet)'
       : `The sign-in email did not go out: ${mail.error}`,
     null,
   );
@@ -1222,13 +1229,14 @@ export async function completeHire(
       hiredAt: at,
     },
   );
-  const course = await ensureIntroCourse(
+  const courseUrl = await introCourseUrl(
     onboarding.companyId,
     onboarding.createdById,
+    origin,
   );
   const updated = await reload(onboarding.id);
   const mail = await emailHire(updated, 'hired', origin, {
-    courseUrl: `${origin}/courses/${course.id}`,
+    courseUrl: courseUrl ?? undefined,
   });
   await notifyTeam(
     updated,
@@ -1294,11 +1302,21 @@ export async function resendStepEmail(
   let mail;
   if (kind) mail = await emailHire(onboarding, kind, origin);
   else {
-    // On trial: their sign-in, with a fresh passcode only on request.
-    const course = await ensureIntroCourse(onboarding.companyId, actor.id);
+    // On trial: their sign-in again, with the passcode their account has.
+    const user = onboarding.userId
+      ? await db.user.findFirst({
+          where: { id: onboarding.userId },
+          select: { code: true },
+        })
+      : null;
+    const courseUrl = await introCourseUrl(
+      onboarding.companyId,
+      actor.id,
+      origin,
+    );
     mail = await emailHire(onboarding, 'access', origin, {
-      passcode: null,
-      courseUrl: `${origin}/courses/${course.id}`,
+      passcode: (user?.code as string | null | undefined) ?? null,
+      courseUrl: courseUrl ?? undefined,
     });
   }
   await logStep(

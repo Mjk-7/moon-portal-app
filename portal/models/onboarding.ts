@@ -235,6 +235,11 @@ export type Course = Loose<
      * one, made the first time it is needed.
      */
     isIntro?: boolean;
+    /**
+     * Set up and fine to send to new hires. Left unset, a course counts as
+     * ready once it has lessons. Onboarding leaves out a course that isn't.
+     */
+    ready?: Nullable<boolean>;
     lessons: CourseLesson[];
     createdById: string;
     updatedById?: Nullable<string>;

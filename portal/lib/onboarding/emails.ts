@@ -87,11 +87,15 @@ Thanks for signing. Your Portal access is open.
 
 Sign in here: ${ctx.loginUrl}
 ${ctx.passcode ? `Your passcode: ${ctx.passcode}\n` : 'Use the passcode you already have.\n'}Google account to sign in with: ${ctx.signInEmail}
-
+${
+  ctx.courseUrl
+    ? `
 Start with the Portal introductory course. It shows how the Portal works and what we expect every day, like writing your worklog:
 
 ${ctx.courseUrl}
-
+`
+    : ''
+}
 Your trial runs from ${formatDay(ctx.trialStartsOn)} to ${formatDay(ctx.trialEndsOn)}. Keep your passcode to yourself.
 
 ${help}
@@ -119,11 +123,15 @@ ${sign}`,
         text: `${hi}
 
 Everything is signed. You're now a full member of ${ctx.companyName}, and your Claude access is open.
-
+${
+  ctx.courseUrl
+    ? `
 The introductory course shows how to set up Claude with the Portal:
 
 ${ctx.courseUrl}
-
+`
+    : ''
+}
 ${ctx.contact.name} will be in touch for your introductory call.
 
 ${sign}`,

@@ -1,4 +1,4 @@
-import { ensureIntroCourse } from '@/lib/courses/server';
+import { introCourseUrl } from '@/lib/courses/server';
 import { db } from '@/lib/mongodb/db-client';
 import { type Onboarding, ONBOARDING_STEP } from '@/models/onboarding';
 import type { Company } from '@/models/workspace';
@@ -30,8 +30,8 @@ export async function joinState(onboarding: Onboarding, origin: string) {
     onboarding.step === ONBOARDING_STEP.TRIAL ||
     onboarding.step === ONBOARDING_STEP.OFFER ||
     onboarding.step === ONBOARDING_STEP.HIRED;
-  const course = hasAccess
-    ? await ensureIntroCourse(onboarding.companyId, onboarding.createdById)
+  const courseUrl = hasAccess
+    ? await introCourseUrl(onboarding.companyId, onboarding.createdById, origin)
     : null;
   const round = currentRound(onboarding);
   const name = onboarding.details?.preferredName || onboarding.name;
@@ -83,7 +83,7 @@ export async function joinState(onboarding: Onboarding, origin: string) {
     trialStartsOn: onboarding.trialStartsOn ?? null,
     trialEndsOn: onboarding.trialEndsOn ?? null,
     loginUrl: hasAccess ? `${origin}/login` : null,
-    courseUrl: course ? `${origin}/courses/${course.id}` : null,
+    courseUrl,
   };
 }
 

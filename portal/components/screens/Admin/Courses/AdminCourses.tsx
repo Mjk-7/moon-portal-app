@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 
 import { DocProse } from '@/components/shared/DocProse';
 import type { CourseView } from '@/lib/courses/server';
+import { videoEmbedUrl } from '@/lib/onboarding/markdown';
 import { cn } from '@/lib/utils';
 import { useWorkspace } from '@/utils/hooks/useWorkspace';
 import { PortalSdk } from '@/utils/services/PortalSdk';
@@ -23,6 +24,7 @@ import {
   SkeletonRows,
   TextArea,
   TextInput,
+  ToggleSwitch,
 } from '../shared/AdminUI';
 import { CompanyPicker, errorText, NeedsCompany } from '../Workspace/shared';
 
@@ -53,6 +55,11 @@ const CourseEditor = ({
   const [mode, setMode] = useState<'write' | 'preview'>('write');
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [savingReady, setSavingReady] = useState(false);
+  const [addingVideo, setAddingVideo] = useState(false);
+  const [videoLink, setVideoLink] = useState('');
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const videoOk = !!videoEmbedUrl(videoLink);
 
   useEffect(() => {
     setTitle(course.title);
@@ -102,6 +109,41 @@ const CourseEditor = ({
     }
   };
 
+  // Saved straight away, apart from the lesson edits.
+  const setReady = async (ready: boolean) => {
+    setSavingReady(true);
+    try {
+      const res = await PortalSdk.patchData(`/api/courses/${course.id}`, {
+        ready,
+      });
+      onSaved(res.data.course);
+      toast.success(
+        ready
+          ? 'New hires will get this course'
+          : 'Left out of onboarding until ready',
+      );
+    } catch (err) {
+      toast.error(errorText(err));
+    } finally {
+      setSavingReady(false);
+    }
+  };
+
+  // A video link goes in on its own line, where the cursor is.
+  const insertVideo = () => {
+    if (!lesson || !videoOk) return;
+    const url = videoLink.trim();
+    const el = bodyRef.current;
+    const at = mode === 'write' && el ? el.selectionStart : lesson.body.length;
+    const before = lesson.body.slice(0, at).replace(/\s*$/, '');
+    const after = lesson.body.slice(at).replace(/^\s*/, '');
+    edit({
+      body: `${before}${before ? '\n\n' : ''}${url}\n\n${after}`,
+    });
+    setVideoLink('');
+    setAddingVideo(false);
+  };
+
   const remove = async () => {
     try {
       await PortalSdk.deleteData(`/api/courses/${course.id}`, null);
@@ -125,11 +167,16 @@ const CourseEditor = ({
             onChange={(e) => setTitle(e.target.value)}
             className="h-10 min-w-0 flex-1 text-base font-semibold"
           />
-          {course.isIntro && (
-            <Pill tone="info" icon="how_to_reg">
-              Sent to new hires
-            </Pill>
-          )}
+          {course.isIntro &&
+            (course.ready ? (
+              <Pill tone="info" icon="how_to_reg">
+                Sent to new hires
+              </Pill>
+            ) : (
+              <Pill tone="warning" icon="pending">
+                Not sent yet
+              </Pill>
+            ))}
           <CopyButton value={link} label="Copy the course link" />
           <a href={`/courses/${course.id}`} target="_blank" rel="noreferrer">
             <IconAction icon="open_in_new" label="Open as a learner" />
@@ -149,6 +196,19 @@ const CourseEditor = ({
           placeholder="What this course is for, in a line or two"
           className="min-h-[56px]"
         />
+        {course.isIntro && (
+          <ToggleSwitch
+            checked={course.ready}
+            disabled={savingReady}
+            onChange={setReady}
+            label="Ready for new hires"
+            description={
+              course.ready
+                ? 'New hires get a link to this course with their Portal sign-in.'
+                : 'Still being set up, so it’s left out of onboarding emails and the join page. Turn this on when it’s ready.'
+            }
+          />
+        )}
       </div>
 
       <div className="grid min-h-[480px] md:grid-cols-[240px_minmax(0,1fr)]">
@@ -226,6 +286,11 @@ const CourseEditor = ({
                   ]}
                 />
                 <IconAction
+                  icon="smart_display"
+                  label="Add a video"
+                  onClick={() => setAddingVideo(true)}
+                />
+                <IconAction
                   icon="delete"
                   label="Remove lesson"
                   tone="danger"
@@ -239,10 +304,11 @@ const CourseEditor = ({
               </div>
               {mode === 'write' ? (
                 <textarea
+                  ref={bodyRef}
                   value={lesson.body}
                   onChange={(e) => edit({ body: e.target.value })}
                   placeholder={
-                    'Write in Markdown.\n\n## A heading\n\n- A point\n- Another point\n\n[A link](https://…)'
+                    'Write in Markdown.\n\n## A heading\n\n- A point\n- Another point\n\n[A link](https://…)\n\nA YouTube link on its own line shows as a video:\nhttps://www.youtube.com/watch?v=…'
                   }
                   className="custom-scrollbar min-h-[420px] flex-1 resize-none bg-transparent p-4 font-mono text-[13px] leading-relaxed text-neutral-200 placeholder:text-neutral-700 focus:outline-none"
                 />
@@ -253,6 +319,7 @@ const CourseEditor = ({
                   </h2>
                   <DocProse
                     markdown={lesson.body || '_Nothing written yet._'}
+                    embeds
                     tone="dark"
                   />
                 </div>
@@ -266,7 +333,7 @@ const CourseEditor = ({
               }
               description={
                 course.isIntro
-                  ? 'New hires get a link to it with their sign-in. Add lessons on worklogs, projects, and setting up Claude once fully hired. You can also ask Claude to write it with you.'
+                  ? 'New hires get a link to it with their sign-in once it’s marked ready. Add lessons on worklogs, projects, and setting up Claude once fully hired. You can also ask Claude to write it with you.'
                   : 'Add a lesson to start.'
               }
             />
@@ -290,6 +357,50 @@ const CourseEditor = ({
           Save course
         </AdminButton>
       </div>
+
+      <AdminModal
+        open={addingVideo}
+        onOpenChange={setAddingVideo}
+        title="Add a video"
+        icon="smart_display"
+        size="sm"
+        footer={
+          <>
+            <AdminButton
+              tone="ghost"
+              size="sm"
+              onClick={() => setAddingVideo(false)}
+            >
+              Cancel
+            </AdminButton>
+            <AdminButton
+              tone="primary"
+              size="sm"
+              disabled={!videoOk}
+              onClick={insertVideo}
+            >
+              Add video
+            </AdminButton>
+          </>
+        }
+      >
+        <Field label="Video link">
+          <TextInput
+            value={videoLink}
+            onChange={(e) => setVideoLink(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') insertVideo();
+            }}
+            placeholder="https://www.youtube.com/watch?v=…"
+            autoFocus
+          />
+        </Field>
+        <p className="mt-2 text-xs text-neutral-500">
+          {videoLink.trim() && !videoOk
+            ? 'That isn’t a YouTube, Vimeo or Loom video link.'
+            : 'Paste a YouTube, Vimeo or Loom link. It plays inside the lesson.'}
+        </p>
+      </AdminModal>
 
       <AdminModal
         open={confirmDelete}
@@ -486,7 +597,7 @@ export const AdminCourses = ({
                   {c.lessons.length
                     ? `${c.lessons.length} lessons`
                     : 'Empty, to write'}
-                  {c.isIntro ? ' · new hires' : ''}
+                  {c.isIntro ? (c.ready ? ' · new hires' : ' · not ready') : ''}
                 </span>
               </button>
             ))}
