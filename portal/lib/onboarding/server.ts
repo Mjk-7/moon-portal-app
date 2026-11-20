@@ -19,11 +19,11 @@ import {
 import { getCompanyAccess, nowIso } from '@/lib/workspace/server';
 import type { JobApplication, JobOpening } from '@/models/hiring';
 import { APPLICATION_STAGE } from '@/models/hiring';
-import type { ONBOARDING_DOC_KIND } from '@/models/onboarding';
 import {
   type HireDetails,
   type OfferTerms,
   type Onboarding,
+  ONBOARDING_DOC_KIND,
   ONBOARDING_STEP,
   type OnboardingDocument,
   type OnboardingEvent,
@@ -45,13 +45,16 @@ import { type OnboardingEmailKind, sendOnboardingEmail } from './emails';
 import {
   addDays,
   AGREEMENT_DOCS,
+  AGREEMENT_ROUND,
   CURRENCIES,
   DOC_LABEL,
+  docKey,
   formatDay,
   formatMoney,
   HIRE_TYPE_LABEL,
   isDay,
   isHireType,
+  listTitles,
   OFFER_DOCS,
   todayIst,
   trialEndFor,
@@ -275,18 +278,31 @@ async function docVariables(
   };
 }
 
-/** The documents of one round, written for this hire. */
+/**
+ * The documents of one round, written for this hire: built-in kinds, or
+ * keys from docKey (which can name the company's own documents).
+ */
 export async function renderDocuments(
   onboarding: Onboarding,
-  kinds: ONBOARDING_DOC_KIND[],
+  kindsOrKeys: Array<ONBOARDING_DOC_KIND | string>,
   terms: OnboardingTerms,
   offer: OfferTerms | null = null,
 ): Promise<OnboardingDocument[]> {
   const vars = await docVariables(onboarding, terms, offer);
   const at = nowIso();
-  return Promise.all(
-    kinds.map(async (kind) => {
-      const template = await templateFor(onboarding.companyId, kind);
+  const own = await companyDocuments(onboarding.companyId);
+  const docs = await Promise.all(
+    kindsOrKeys.map(async (key) => {
+      const custom = key.startsWith('custom:')
+        ? own.find((t) => docKey(t) === key)
+        : null;
+      if (key.startsWith('custom:') && !custom) return null;
+      const kind = custom
+        ? ONBOARDING_DOC_KIND.CUSTOM
+        : (key as ONBOARDING_DOC_KIND);
+      const template = custom
+        ? { title: custom.title, body: custom.body }
+        : await templateFor(onboarding.companyId, kind);
       const body = fillDocument(template.body, vars)
         // Lines left empty by a blank placeholder.
         .replace(/\n{3,}/g, '\n\n')
@@ -294,14 +310,101 @@ export async function renderDocuments(
       return {
         id: randomBytes(6).toString('hex'),
         kind,
+        templateId: custom?.id ?? null,
         title: fillDocument(template.title, vars).trim() || DOC_LABEL[kind],
         body,
         hash: sha256(body),
         sentAt: at,
         viewedAt: null,
         signature: null,
+      } as OnboardingDocument;
+    }),
+  );
+  return docs.filter((d): d is OnboardingDocument => !!d);
+}
+
+/** The company's own documents (signed before access), oldest first. */
+export async function companyDocuments(
+  companyId: string,
+): Promise<OnboardingTemplate[]> {
+  const list: OnboardingTemplate[] = await db.onboardingTemplate.findMany({
+    where: { companyId, kind: ONBOARDING_DOC_KIND.CUSTOM },
+    orderBy: { createdAt: 'asc' },
+  });
+  return list;
+}
+
+/**
+ * What can be signed before access: the Trial Policy, the NDA and the
+ * company's own documents, each with whether it is ticked by default.
+ */
+export async function agreementChoices(companyId: string) {
+  const [own, rows] = await Promise.all([
+    companyDocuments(companyId),
+    db.onboardingTemplate.findMany({
+      where: { companyId, kind: { in: AGREEMENT_DOCS } },
+    }) as Promise<OnboardingTemplate[]>,
+  ]);
+  return [
+    ...AGREEMENT_DOCS.map((kind) => {
+      const row = rows.find((r) => r.kind === kind);
+      return {
+        key: kind as string,
+        title: row?.title || DEFAULT_DOCUMENTS[kind].title,
+        sendByDefault: row?.sendByDefault !== false,
       };
     }),
+    ...own.map((t) => ({
+      key: docKey(t),
+      title: t.title,
+      sendByDefault: t.sendByDefault !== false,
+    })),
+  ];
+}
+
+/**
+ * The documents a hire signs before access, from a pick (unknown keys are
+ * dropped, the order follows the company's list) or the defaults.
+ */
+export async function pickAgreementDocs(
+  companyId: string,
+  picked: unknown,
+): Promise<string[]> {
+  const choices = await agreementChoices(companyId);
+  if (!Array.isArray(picked))
+    return choices.filter((c) => c.sendByDefault).map((c) => c.key);
+  const want = picked.filter((p): p is string => typeof p === 'string');
+  // Claude may name a document by its title.
+  const match = (p: string) =>
+    choices.find(
+      (c) =>
+        c.key === p || c.title.trim().toLowerCase() === p.trim().toLowerCase(),
+    )?.key;
+  const keys = new Set(want.map(match).filter(Boolean));
+  return choices.filter((c) => keys.has(c.key)).map((c) => c.key);
+}
+
+/**
+ * The documents a hire signs before access. An explicit pick wins;
+ * otherwise their saved pick (or none, when they're onboarding without
+ * agreements), else the company's defaults.
+ */
+export async function agreementKeysFor(
+  onboarding: Onboarding,
+  {
+    withoutAgreements,
+    documents,
+  }: { withoutAgreements?: boolean; documents?: unknown } = {},
+): Promise<string[]> {
+  if (withoutAgreements) return [];
+  if (documents !== undefined && documents !== null)
+    return pickAgreementDocs(onboarding.companyId, documents);
+  if (withoutAgreements === false && !onboarding.agreementDocs?.length)
+    return pickAgreementDocs(onboarding.companyId, null);
+  if (onboarding.withoutAgreements) return [];
+  return pickAgreementDocs(
+    onboarding.companyId,
+    onboarding.agreementDocs ?? null,
   );
 }
 
@@ -423,6 +526,12 @@ async function emailHire(
       courseUrl: extra.courseUrl,
       passcode: extra.passcode ?? null,
       withoutAgreements: !!onboarding.withoutAgreements,
+      documentTitles: onboarding.documents
+        .filter((d) => currentRound(onboarding).includes(d.kind))
+        .map((d) => d.title),
+      trialPolicySigned: onboarding.documents.some(
+        (d) => d.kind === ONBOARDING_DOC_KIND.TRIAL_POLICY && !!d.signature,
+      ),
       signInEmail: onboarding.details?.signInEmail ?? onboarding.email,
       trialStartsOn: onboarding.trialStartsOn,
       trialEndsOn: onboarding.trialEndsOn,
@@ -489,8 +598,10 @@ export interface StartInput {
   email?: string | null;
   /** Agreement terms filled in now, to send as soon as details come back. */
   terms?: Record<string, unknown> | null;
-  /** No Trial Policy and NDA: access opens once details and terms are in. */
+  /** No documents at all: access opens once details and terms are in. */
   withoutAgreements?: boolean;
+  /** The documents to sign before access (docKey keys); unset: defaults. */
+  documents?: string[] | null;
 }
 
 /** A stand-in name from an email ("asha.rao@x.com" is "Asha Rao"). */
@@ -548,6 +659,9 @@ export async function startOnboarding(
     input.terms && Object.keys(input.terms).length
       ? await parseTerms(input.companyId, input.terms)
       : null;
+  const agreementDocs = input.withoutAgreements
+    ? []
+    : await pickAgreementDocs(input.companyId, input.documents ?? null);
 
   const now = nowIso();
   const onboarding: Onboarding = await db.onboarding.create({
@@ -564,7 +678,8 @@ export async function startOnboarding(
       details: null,
       terms,
       autoSendAgreements: !!terms,
-      withoutAgreements: !!input.withoutAgreements,
+      agreementDocs,
+      withoutAgreements: agreementDocs.length === 0,
       documents: [],
       trialPay: terms
         ? trialPayFor(terms.monthlyPay, terms.hireType, terms.currency)
@@ -817,14 +932,14 @@ export async function submitDetails(
     `${updated.name} sent their details`,
     updated.withoutAgreements
       ? 'Fill in their terms to open their portal access.'
-      : 'Fill in their terms and send the Trial Policy and NDA.',
+      : 'Fill in their terms and send their agreements.',
   );
   updated = await reload(onboarding.id);
   return { onboarding: updated };
 }
 
 /**
- * Saves the agreement terms and sends the Trial Policy and NDA. Before the
+ * Saves the agreement terms and sends the documents picked for them. Before the
  * details form is back, the terms are kept and the agreements go out by
  * themselves once it is. Sending again replaces unsigned documents.
  */
@@ -836,17 +951,27 @@ export async function sendAgreements(
   {
     send = true,
     withoutAgreements,
-  }: { send?: boolean; withoutAgreements?: boolean } = {},
+    documents: picked,
+  }: {
+    send?: boolean;
+    withoutAgreements?: boolean;
+    /** The documents to sign (docKey keys); unset keeps the hire's pick. */
+    documents?: string[] | null;
+  } = {},
 ): Promise<StepResult> {
   if (
     onboarding.step !== ONBOARDING_STEP.DETAILS &&
     onboarding.step !== ONBOARDING_STEP.AGREEMENTS
   )
     throw new OnboardingError(409, 'The agreements are already signed.');
-  const skip = withoutAgreements ?? !!onboarding.withoutAgreements;
+  const keys = await agreementKeysFor(onboarding, {
+    withoutAgreements,
+    documents: picked,
+  });
+  const skip = keys.length === 0;
   if (
     onboarding.documents.some(
-      (d) => AGREEMENT_DOCS.includes(d.kind) && d.signature,
+      (d) => AGREEMENT_ROUND.includes(d.kind) && d.signature,
     )
   )
     throw new OnboardingError(
@@ -874,28 +999,35 @@ export async function sendAgreements(
           : 'Saved the agreement terms; they go out when the details form is back'
         : 'Saved the agreement terms',
       byUserId,
-      { terms, trialPay, autoSendAgreements: send, withoutAgreements: skip },
+      {
+        terms,
+        trialPay,
+        autoSendAgreements: send,
+        agreementDocs: keys,
+        withoutAgreements: skip,
+      },
     );
     return { onboarding: await reload(onboarding.id) };
   }
 
   if (skip) {
-    // No Trial Policy or NDA: unsigned ones sent earlier are withdrawn, and
+    // No documents: unsigned ones sent earlier are withdrawn, and
     // their access opens now.
     await logStep(onboarding, 'Chose to onboard without agreements', byUserId, {
       terms,
       trialPay,
       autoSendAgreements: false,
+      agreementDocs: [],
       withoutAgreements: true,
       documents: onboarding.documents.filter(
-        (d) => !AGREEMENT_DOCS.includes(d.kind),
+        (d) => !AGREEMENT_ROUND.includes(d.kind),
       ),
     });
     return grantAccess(await reload(onboarding.id), origin);
   }
 
   const withTerms = { ...onboarding, terms };
-  const documents = await renderDocuments(withTerms, AGREEMENT_DOCS, terms);
+  const documents = await renderDocuments(withTerms, keys, terms);
   await db.onboarding.update({
     where: { id: onboarding.id },
     data: {
@@ -903,6 +1035,7 @@ export async function sendAgreements(
       trialPay,
       documents,
       autoSendAgreements: false,
+      agreementDocs: keys,
       withoutAgreements: false,
     },
   });
@@ -911,7 +1044,7 @@ export async function sendAgreements(
   await logStep(
     updated,
     mail.sent
-      ? 'Sent the Trial Policy and NDA to sign'
+      ? `Sent the ${listTitles(documents.map((d) => d.title))} to sign`
       : `The agreements are ready, but the email did not go out: ${mail.error}`,
     byUserId,
   );
@@ -925,7 +1058,7 @@ const sameName = (a: string, b: string) =>
 /** The documents the hire is signing now. */
 export const currentRound = (onboarding: Onboarding) =>
   onboarding.step === ONBOARDING_STEP.AGREEMENTS
-    ? AGREEMENT_DOCS
+    ? AGREEMENT_ROUND
     : onboarding.step === ONBOARDING_STEP.OFFER
       ? OFFER_DOCS
       : [];

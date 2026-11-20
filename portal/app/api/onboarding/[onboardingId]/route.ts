@@ -33,7 +33,7 @@ export async function GET(request: Request, { params }: Params) {
 /**
  * One step for a hire, by `action`:
  * - `terms`: `{ terms, send? }` saves the agreement terms and sends the
- *   Trial Policy and NDA (or keeps them until the details form is back)
+ *   documents picked for them (or keeps them until the details form is back)
  * - `decide`: `{ outcome: ACCEPTED | REJECTED, offer?, note?, notify? }`
  * - `resend`: emails the current step again
  * - `end`: `{ note?, notify? }` stops onboarding
@@ -61,6 +61,9 @@ export async function PATCH(request: Request, { params }: Params) {
             send: body.send !== false,
             ...(typeof body.withoutAgreements === 'boolean'
               ? { withoutAgreements: body.withoutAgreements }
+              : {}),
+            ...(Array.isArray(body.documents)
+              ? { documents: body.documents }
               : {}),
           },
         );

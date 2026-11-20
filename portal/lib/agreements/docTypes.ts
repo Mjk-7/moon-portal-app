@@ -54,6 +54,13 @@ export const DOC_TYPES: DocTypeDef[] = [
     hint: 'States their pay.',
   },
   {
+    key: onboardingTypeKey(ONBOARDING_DOC_KIND.CUSTOM),
+    label: 'Other onboarding documents',
+    group: 'onboarding',
+    defaults: { signer: 'owner', confidential: false },
+    hint: 'The documents you add yourself, signed before access.',
+  },
+  {
     key: AGREEMENT_CATEGORY.NDA,
     label: 'NDA',
     group: 'agreements',

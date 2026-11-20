@@ -20,11 +20,36 @@ export const HIRE_TYPE_LABEL: Record<HIRE_TYPE, string> = {
   [HIRE_TYPE.FULL_TIME]: 'Full-time',
 };
 
-/** The documents each round sends, in signing order. */
+/** The built-in documents signed before access, in signing order. */
 export const AGREEMENT_DOCS = [
   ONBOARDING_DOC_KIND.TRIAL_POLICY,
   ONBOARDING_DOC_KIND.NDA,
 ];
+/**
+ * Every kind signed before access: the built-in ones and the company's own
+ * documents. Which of them a hire gets is picked per hire.
+ */
+export const AGREEMENT_ROUND = [...AGREEMENT_DOCS, ONBOARDING_DOC_KIND.CUSTOM];
+/** The built-in documents a company can reword. */
+export const BUILT_IN_DOCS = [
+  ONBOARDING_DOC_KIND.TRIAL_POLICY,
+  ONBOARDING_DOC_KIND.NDA,
+  ONBOARDING_DOC_KIND.OFFER_LETTER,
+  ONBOARDING_DOC_KIND.WORK_AGREEMENT,
+];
+
+/**
+ * How a document is picked for a hire: a built-in kind ("NDA") or one of
+ * the company's own documents ("custom:<template id>").
+ */
+export const docKey = (t: { kind: ONBOARDING_DOC_KIND; id?: string | null }) =>
+  t.kind === ONBOARDING_DOC_KIND.CUSTOM ? `custom:${t.id}` : t.kind;
+
+/** "Trial Policy, NDA and House Rules". */
+export const listTitles = (titles: string[]) =>
+  titles.length <= 1
+    ? (titles[0] ?? '')
+    : `${titles.slice(0, -1).join(', ')} and ${titles[titles.length - 1]}`;
 export const OFFER_DOCS = [
   ONBOARDING_DOC_KIND.OFFER_LETTER,
   ONBOARDING_DOC_KIND.WORK_AGREEMENT,
@@ -35,6 +60,7 @@ export const DOC_LABEL: Record<ONBOARDING_DOC_KIND, string> = {
   [ONBOARDING_DOC_KIND.NDA]: 'Non-Disclosure Agreement',
   [ONBOARDING_DOC_KIND.OFFER_LETTER]: 'Offer Letter',
   [ONBOARDING_DOC_KIND.WORK_AGREEMENT]: 'Work Agreement',
+  [ONBOARDING_DOC_KIND.CUSTOM]: 'Document',
 };
 
 /** The steps a hire moves through, as the stepper shows them. */
@@ -55,7 +81,7 @@ export const STEPS: Array<{
     step: ONBOARDING_STEP.AGREEMENTS,
     label: 'Agreements',
     icon: 'signature',
-    hint: 'Signs the Trial Policy and NDA',
+    hint: 'Signs their agreements, if any',
   },
   {
     step: ONBOARDING_STEP.TRIAL,
@@ -232,7 +258,7 @@ export function hireNext(
     return {
       who: 'you',
       short: 'Countersign',
-      text: `They signed. ${who ? `${who} countersigns` : 'Countersign'} the ${docs.map((d) => d.title).join(' and the ')} to ${opens}.`,
+      text: `They signed. ${who ? `${who} countersigns` : 'Countersign'} the ${listTitles(docs.map((d) => d.title))} to ${opens}.`,
     };
   };
   switch (o.step) {
@@ -261,8 +287,8 @@ export function hireNext(
             text: 'Waiting for their details form. Fill in the terms now and the agreements go out straight after.',
           };
     case ONBOARDING_STEP.AGREEMENTS: {
-      const sent = o.documents.some((d) => AGREEMENT_DOCS.includes(d.kind));
-      if (!sent)
+      const sent = o.documents.filter((d) => AGREEMENT_ROUND.includes(d.kind));
+      if (!sent.length)
         return o.withoutAgreements
           ? {
               who: 'you',
@@ -272,18 +298,18 @@ export function hireNext(
           : {
               who: 'you',
               short: 'Send agreements',
-              text: 'Their details are in. Fill in the terms and send the Trial Policy and NDA, or open access without agreements.',
+              text: 'Their details are in. Fill in the terms and pick the documents to send, or none to open access straight away.',
             };
       const counter = countersignMove(
-        AGREEMENT_DOCS,
+        AGREEMENT_ROUND,
         'open their portal access',
       );
       if (counter) return counter;
-      const left = unsigned(AGREEMENT_DOCS);
+      const left = unsigned(AGREEMENT_ROUND);
       return {
         who: 'them',
-        short: `Signing ${AGREEMENT_DOCS.length - left.length} of ${AGREEMENT_DOCS.length}`,
-        text: `Waiting for them to sign the ${left.join(' and the ')}.`,
+        short: `Signing ${sent.length - left.length} of ${sent.length}`,
+        text: `Waiting for them to sign the ${listTitles(left)}.`,
       };
     }
     case ONBOARDING_STEP.TRIAL: {
@@ -313,7 +339,7 @@ export function hireNext(
       return {
         who: 'them',
         short: 'Signing the offer',
-        text: `Waiting for them to sign the ${left.join(' and the ')}.`,
+        text: `Waiting for them to sign the ${listTitles(left)}.`,
       };
     }
     case ONBOARDING_STEP.HIRED:

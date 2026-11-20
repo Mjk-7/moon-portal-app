@@ -12,7 +12,8 @@ import {
  * they are fully hired, or the day their trial ends.
  *
  *   DETAILS     they fill in the details form; it makes their portal account
- *   AGREEMENTS  they sign the Trial Policy and the NDA
+ *   AGREEMENTS  they sign the documents picked for them (by default the
+ *               Trial Policy and the NDA), and the company countersigns
  *   TRIAL       they have portal access (no Claude yet) and are on trial
  *   OFFER       the trial passed; they sign the offer letter and work terms
  *   HIRED       all signed: a full member, with Claude access
@@ -33,12 +34,16 @@ export enum HIRE_TYPE {
   FULL_TIME = 'FULL_TIME',
 }
 
-/** The documents a hire signs. Each company can reword them. */
+/**
+ * The documents a hire signs. Each company can reword them, and add its own
+ * (CUSTOM, one OnboardingTemplate each) to send before portal access.
+ */
 export enum ONBOARDING_DOC_KIND {
   TRIAL_POLICY = 'TRIAL_POLICY',
   NDA = 'NDA',
   OFFER_LETTER = 'OFFER_LETTER',
   WORK_AGREEMENT = 'WORK_AGREEMENT',
+  CUSTOM = 'CUSTOM',
 }
 
 /** What the hire tells us on their details form. */
@@ -115,6 +120,8 @@ export interface DocumentSignature {
 export interface OnboardingDocument {
   id: string;
   kind: ONBOARDING_DOC_KIND;
+  /** For a company's own document: the template it was written from. */
+  templateId?: Nullable<string>;
   title: string;
   /** Markdown, with every placeholder already filled in. */
   body: string;
@@ -194,8 +201,13 @@ export type Onboarding = Loose<
     /** Send the agreements as soon as the details form comes back. */
     autoSendAgreements?: boolean;
     /**
-     * Onboard without the Trial Policy and NDA: their portal access opens
-     * as soon as their details and the terms are in.
+     * The documents picked for them to sign before access (keys from
+     * lib/onboarding/meta docKey). Unset: the company's defaults.
+     */
+    agreementDocs?: Nullable<string[]>;
+    /**
+     * No documents picked: their portal access opens as soon as their
+     * details and the terms are in.
      */
     withoutAgreements?: boolean;
     documents: OnboardingDocument[];
@@ -221,6 +233,11 @@ export type OnboardingTemplate = Loose<
     kind: ONBOARDING_DOC_KIND;
     title: string;
     body: string;
+    /**
+     * Ticked for new hires unless taken off for one (the documents signed
+     * before access). Unset counts as yes.
+     */
+    sendByDefault?: Nullable<boolean>;
     updatedById: string;
   }
 >;

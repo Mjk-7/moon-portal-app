@@ -3,7 +3,7 @@ import { db } from '@/lib/mongodb/db-client';
 import { type Onboarding, ONBOARDING_STEP } from '@/models/onboarding';
 import type { Company } from '@/models/workspace';
 
-import { AGREEMENT_DOCS, OFFER_DOCS } from './meta';
+import { AGREEMENT_ROUND, OFFER_DOCS } from './meta';
 import {
   contactFor,
   currentRound,
@@ -92,7 +92,7 @@ export async function joinState(onboarding: Onboarding, origin: string) {
       })),
     waitingOnTeam:
       onboarding.step === ONBOARDING_STEP.AGREEMENTS &&
-      !onboarding.documents.some((d) => AGREEMENT_DOCS.includes(d.kind)),
+      !onboarding.documents.some((d) => AGREEMENT_ROUND.includes(d.kind)),
     /** They signed this round; the company hasn't countersigned yet. */
     waitingOnCompany:
       currentRound(onboarding).length > 0 &&

@@ -7,7 +7,7 @@ import { DocProse } from '@/components/shared/DocProse';
 import type { JoinState } from '@/lib/onboarding/join';
 import { formatDay, HIRE_TYPE_LABEL, STEPS } from '@/lib/onboarding/meta';
 import { cn } from '@/lib/utils';
-import { ONBOARDING_STEP } from '@/models/onboarding';
+import { ONBOARDING_DOC_KIND, ONBOARDING_STEP } from '@/models/onboarding';
 import { TMD_PORTAL_API_KEY } from '@/utils/constants/appInfo';
 
 const sans = Plus_Jakarta_Sans({
@@ -391,8 +391,10 @@ const DetailsForm = ({
           </h1>
           <p className="mt-2 text-[15px] leading-relaxed text-zinc-600">
             First, a few details to set up your portal account. It takes about
-            three minutes. Next come your Trial Policy and NDA to sign, then
-            your sign-in.
+            three minutes.{' '}
+            {state.withoutAgreements
+              ? 'Your sign-in comes right after.'
+              : 'Next come your agreements to sign, then your sign-in.'}
           </p>
         </div>
 
@@ -828,6 +830,24 @@ const DocList = ({
   </ul>
 );
 
+/** What the documents before access are for, in a line each. */
+const agreementsIntro = (state: JoinState) => {
+  const kinds = state.toSign.map((d) => d.kind);
+  const about = [
+    kinds.includes(ONBOARDING_DOC_KIND.TRIAL_POLICY) &&
+      'The Trial Policy explains how your trial works and how you are paid for it.',
+    kinds.includes(ONBOARDING_DOC_KIND.NDA) &&
+      "The NDA keeps our work and our clients' work private.",
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const sign =
+    state.toSign.length === 1
+      ? 'Read it, then sign with your name. Your sign-in comes once we countersign it too.'
+      : 'Read each one, then sign with your name. Your sign-in comes once we countersign them too.';
+  return about ? `${about} ${sign}` : sign;
+};
+
 const SignRound = ({
   state,
   title,
@@ -957,7 +977,7 @@ const WaitingCard = ({ state }: { state: JoinState }) => (
       <p className="mt-2 text-[15px] leading-relaxed text-zinc-600">
         {state.withoutAgreements
           ? `${state.contact.name} is setting up your trial. We will email your Portal sign-in as soon as it is ready, usually within a day.`
-          : `${state.contact.name} is preparing your Trial Policy and NDA. We will email you as soon as they are ready to sign, usually within a day.`}{' '}
+          : `${state.contact.name} is preparing your agreements. We will email you as soon as they are ready to sign, usually within a day.`}{' '}
         You can come back to this same link any time.
       </p>
     </div>
@@ -1049,8 +1069,12 @@ export const JoinPage = ({ initial }: { initial: JoinState }) => {
         ) : (
           <SignRound
             state={state}
-            title="Two agreements to sign"
-            intro="The Trial Policy explains how your trial works and how you are paid for it. The NDA keeps our work and our clients' work private. Read each one, then sign with your name. Your sign-in comes once we countersign them too."
+            title={
+              state.toSign.length === 1
+                ? 'One document to sign'
+                : `${state.toSign.length} documents to sign`
+            }
+            intro={agreementsIntro(state)}
             onOpen={setOpen}
           />
         ))}

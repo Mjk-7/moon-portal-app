@@ -46,6 +46,7 @@ export async function hireView(
     terms: onboarding.terms ?? null,
     autoSendAgreements: !!onboarding.autoSendAgreements,
     withoutAgreements: !!onboarding.withoutAgreements,
+    agreementDocs: onboarding.agreementDocs ?? null,
     trialPay: onboarding.trialPay ?? null,
     trialStartsOn: onboarding.trialStartsOn ?? null,
     trialEndsOn: onboarding.trialEndsOn ?? null,

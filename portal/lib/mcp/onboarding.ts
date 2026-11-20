@@ -6,15 +6,10 @@ import {
 } from '@/lib/courses/server';
 import { db } from '@/lib/mongodb/db-client';
 import {
-  DEFAULT_DOCUMENTS,
   DOC_PLACEHOLDERS,
-  MAX_DOC_BODY,
-  MAX_DOC_TITLE,
   unknownDocPlaceholders,
 } from '@/lib/onboarding/documents';
 import {
-  AGREEMENT_DOCS,
-  DOC_LABEL,
   formatDay,
   formatMoney,
   HIRE_TYPE_LABEL,
@@ -25,6 +20,7 @@ import {
   trialPayFor,
 } from '@/lib/onboarding/meta';
 import {
+  agreementKeysFor,
   decideTrial,
   endOnboarding,
   OnboardingError,
@@ -35,15 +31,20 @@ import {
   sendAgreements,
   startOnboarding,
 } from '@/lib/onboarding/server';
+import {
+  addTemplate,
+  findTemplate,
+  listTemplates,
+  removeTemplate,
+  saveTemplate,
+} from '@/lib/onboarding/templates';
 import { hireView, onboardingBoard } from '@/lib/onboarding/view';
 import type { SessionUser } from '@/lib/permissions/server';
 import { nowIso } from '@/lib/workspace/server';
 import {
   type Course,
   type Onboarding,
-  ONBOARDING_DOC_KIND,
   ONBOARDING_STEP,
-  type OnboardingTemplate,
 } from '@/models/onboarding';
 
 import { findCompany } from './hiring';
@@ -130,6 +131,13 @@ const summary = (o: Onboarding, origin: string) => ({
   url: hireLink(origin, o),
 });
 
+const DOCUMENTS_SCHEMA = {
+  type: 'array',
+  items: { type: 'string' },
+  description:
+    'The documents to sign before access, by key or title from list_onboarding_documents (e.g. ["NDA"]). Left out: the company\'s defaults. []: none.',
+};
+
 const TERMS_SCHEMA = {
   type: 'object',
   description:
@@ -177,7 +185,7 @@ export const ONBOARDING_TOOLS: Tool[] = [
     name: 'list_new_hires',
     title: 'List new hires in onboarding',
     description:
-      "New hires going through onboarding (details form, Trial Policy and NDA, trial, offer), what each is waiting on, and hired applicants whose onboarding hasn't started. Also the company's people and projects, for the terms. Start here.",
+      "New hires going through onboarding (details form, documents to sign, trial, offer), what each is waiting on, and hired applicants whose onboarding hasn't started. Also the company's people and projects, for the terms. Start here.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -262,7 +270,7 @@ export const ONBOARDING_TOOLS: Tool[] = [
     name: 'start_onboarding',
     title: 'Start onboarding a new hire',
     description:
-      "Emails a new hire their details form (personal details and a profile photo), which makes their portal account. Use an applicant id from list_new_hires' readyToOnboard (moves them to Hired), or an email (the name is optional; they give it on the form). Pass terms to have the Trial Policy and NDA go out by themselves as soon as the form is back. withoutAgreements: true skips the Trial Policy and NDA, so their access opens once the details and terms are in. With agreements, access opens only after both the hire and the company have signed. Confirm with the person before calling: it sends an email.",
+      "Emails a new hire their details form (personal details and a profile photo), which makes their portal account. Use an applicant id from list_new_hires' readyToOnboard (moves them to Hired), or an email (the name is optional; they give it on the form). Pass terms to have their documents go out by themselves as soon as the form is back. documents picks what they sign before access (keys or titles from list_onboarding_documents, e.g. just the NDA); left out, the company's defaults go. An empty list, or withoutAgreements: true, means no documents, so their access opens once the details and terms are in. With documents, access opens only after both the hire and the company have signed. Confirm with the person before calling: it sends an email.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -271,9 +279,10 @@ export const ONBOARDING_TOOLS: Tool[] = [
         name: { type: 'string' },
         email: { type: 'string' },
         terms: TERMS_SCHEMA,
+        documents: DOCUMENTS_SCHEMA,
         withoutAgreements: {
           type: 'boolean',
-          description: 'Onboard without the Trial Policy and NDA.',
+          description: 'Onboard without any documents to sign.',
         },
       },
     },
@@ -290,6 +299,7 @@ export const ONBOARDING_TOOLS: Tool[] = [
             name: args?.name ?? null,
             email: args?.email ?? null,
             terms: args?.terms ?? null,
+            documents: Array.isArray(args?.documents) ? args.documents : null,
             withoutAgreements: args?.withoutAgreements === true,
           },
           context.origin,
@@ -299,9 +309,9 @@ export const ONBOARDING_TOOLS: Tool[] = [
   },
   {
     name: 'send_agreements',
-    title: 'Send the Trial Policy and NDA',
+    title: 'Send the agreements to sign',
     description:
-      'Fills in the agreement terms and sends the Trial Policy and NDA to sign. Before the details form is back, the terms are saved and go out by themselves. With withoutAgreements: true no documents are sent and their portal access opens as soon as their details are in (right away if they already are). Otherwise access opens once the hire has signed and the company has countersigned. Use preview: true first and show the person the terms and the contact named; send only after they say yes.',
+      "Fills in the agreement terms and sends the documents to sign before access: the ones in documents (keys or titles from list_onboarding_documents, e.g. only the NDA, or the NDA and a company document), else the ones picked when onboarding started, else the company's defaults. Before the details form is back, the terms are saved and go out by themselves. An empty documents list, or withoutAgreements: true, sends nothing and opens their portal access as soon as their details are in (right away if they already are). Otherwise access opens once the hire has signed and the company has countersigned. Use preview: true first and show the person the documents, the terms and the contact named; send only after they say yes.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -311,10 +321,10 @@ export const ONBOARDING_TOOLS: Tool[] = [
           type: 'boolean',
           description: 'Return the documents without saving or sending.',
         },
+        documents: DOCUMENTS_SCHEMA,
         withoutAgreements: {
           type: 'boolean',
-          description:
-            'Skip the Trial Policy and NDA and open their access instead.',
+          description: 'Send no documents and open their access instead.',
         },
       },
       required: ['hire', 'terms'],
@@ -331,9 +341,21 @@ export const ONBOARDING_TOOLS: Tool[] = [
             terms.hireType,
             terms.currency,
           );
-          const docs = await renderDocuments(o, AGREEMENT_DOCS, terms);
+          const keys = await agreementKeysFor(o, {
+            withoutAgreements:
+              typeof args?.withoutAgreements === 'boolean'
+                ? args.withoutAgreements
+                : undefined,
+            documents: Array.isArray(args?.documents) ? args.documents : null,
+          });
+          const docs = await renderDocuments(o, keys, terms);
           return {
             preview: true,
+            ...(keys.length
+              ? {}
+              : {
+                  note: 'No documents: their portal access opens once their details are in.',
+                }),
             trialPay: `${formatMoney(pay.full, pay.currency)} for the ${trialLength(terms.hireType)} if confirmed; ${formatMoney(pay.half, pay.currency)} if the trial ends (written into the Trial Policy)`,
             documents: docs.map((d) => ({ title: d.title, body: d.body })),
           };
@@ -343,9 +365,14 @@ export const ONBOARDING_TOOLS: Tool[] = [
           o,
           args?.terms ?? {},
           context.origin,
-          typeof args?.withoutAgreements === 'boolean'
-            ? { withoutAgreements: args.withoutAgreements }
-            : {},
+          {
+            ...(typeof args?.withoutAgreements === 'boolean'
+              ? { withoutAgreements: args.withoutAgreements }
+              : {}),
+            ...(Array.isArray(args?.documents)
+              ? { documents: args.documents }
+              : {}),
+          },
         );
         return { ...summary(onboarding, context.origin), emailError };
       }),
@@ -483,7 +510,7 @@ export const ONBOARDING_TOOLS: Tool[] = [
     name: 'list_onboarding_documents',
     title: 'List onboarding document templates',
     description:
-      "The company's Trial Policy, NDA, Offer Letter and Work Agreement as templates (Markdown with {{placeholders}}), and the placeholders they can use. Read before editing one.",
+      "The company's onboarding documents as templates (Markdown with {{placeholders}}), and the placeholders they can use. The Trial Policy and NDA, plus any the company added itself, are signed before portal access (beforeAccess); sendByDefault says whether a new hire gets one unless told otherwise. The Offer Letter and Work Agreement go with the offer. Use a document's key (or title) to pick it for a hire or to edit it.",
     inputSchema: {
       type: 'object',
       properties: { company: { type: 'string' } },
@@ -492,21 +519,19 @@ export const ONBOARDING_TOOLS: Tool[] = [
     visible: canHire,
     run: async (user, args) => {
       const company = await findCompany(user, args?.company, 'hiring:read');
-      const own: OnboardingTemplate[] = await db.onboardingTemplate.findMany({
-        where: { companyId: company.id },
-      });
+      const all = await listTemplates(company.id);
       return {
         placeholders: DOC_PLACEHOLDERS,
-        documents: Object.values(ONBOARDING_DOC_KIND).map((kind) => {
-          const t = own.find((x) => x.kind === kind);
-          return {
-            kind,
-            label: DOC_LABEL[kind],
-            custom: !!t,
-            title: t?.title ?? DEFAULT_DOCUMENTS[kind].title,
-            body: t?.body ?? DEFAULT_DOCUMENTS[kind].body,
-          };
-        }),
+        documents: all.map((t) => ({
+          key: t.key,
+          label: t.label,
+          title: t.title,
+          own: t.own,
+          custom: t.custom,
+          beforeAccess: t.beforeAccess,
+          sendByDefault: t.beforeAccess ? t.sendByDefault : undefined,
+          body: t.body,
+        })),
       };
     },
   },
@@ -514,62 +539,70 @@ export const ONBOARDING_TOOLS: Tool[] = [
     name: 'save_onboarding_document',
     title: 'Save an onboarding document template',
     description:
-      "Saves the company's wording for one document. Documents already sent keep the text they were sent with. Show the person the change first.",
+      "Saves the company's wording for one document, adds a new document of its own (leave out document; it is signed before portal access), or removes one (remove: true; a built-in one goes back to its starting draft). sendByDefault sets whether new hires get a before-access document unless told otherwise; a new one starts off unless you set it. Documents already sent keep the text they were sent with. Show the person the change first.",
     inputSchema: {
       type: 'object',
       properties: {
         company: { type: 'string' },
-        kind: { type: 'string', enum: Object.values(ONBOARDING_DOC_KIND) },
+        document: {
+          type: 'string',
+          description:
+            'Key or title from list_onboarding_documents. Leave out to add a new document.',
+        },
         title: { type: 'string' },
         body: {
           type: 'string',
           description: 'Markdown with {{placeholders}}.',
         },
+        sendByDefault: { type: 'boolean' },
+        remove: { type: 'boolean' },
       },
-      required: ['kind', 'title', 'body'],
     },
-    annotations: { readOnlyHint: false, destructiveHint: false },
+    annotations: { readOnlyHint: false, destructiveHint: true },
     visible: canHire,
-    run: async (user, args) => {
-      const company = await findCompany(user, args?.company, 'hiring:edit');
-      const kind = args?.kind as ONBOARDING_DOC_KIND;
-      if (!Object.values(ONBOARDING_DOC_KIND).includes(kind))
-        throw new ToolError('Unknown kind.');
-      const title = String(args?.title ?? '')
-        .trim()
-        .slice(0, MAX_DOC_TITLE);
-      const body = String(args?.body ?? '').slice(0, MAX_DOC_BODY);
-      if (!title || !body.trim())
-        throw new ToolError('Add a title and the text.');
-      const unknown = unknownDocPlaceholders(body);
-      if (unknown.length)
-        throw new ToolError(
-          `Unknown placeholders: ${unknown.join(', ')}. Use list_onboarding_documents for the list.`,
-        );
-      const now = nowIso();
-      const found: OnboardingTemplate | null =
-        await db.onboardingTemplate.findFirst({
-          where: { companyId: company.id, kind },
-        });
-      if (found)
-        await db.onboardingTemplate.update({
-          where: { id: found.id },
-          data: { title, body, updatedById: user.id, updatedAt: now },
-        });
-      else
-        await db.onboardingTemplate.create({
-          data: {
-            companyId: company.id,
-            kind,
-            title,
-            body,
-            updatedById: user.id,
-            createdAt: now,
-            updatedAt: now,
-          },
-        });
-      return { saved: DOC_LABEL[kind] };
-    },
+    run: async (user, args) =>
+      attempt(async () => {
+        const company = await findCompany(user, args?.company, 'hiring:edit');
+        const body = typeof args?.body === 'string' ? args.body : undefined;
+        const unknown = body ? unknownDocPlaceholders(body) : [];
+        if (unknown.length)
+          throw new ToolError(
+            `Unknown placeholders: ${unknown.join(', ')}. Use list_onboarding_documents for the list.`,
+          );
+        const input = {
+          title: args?.title,
+          body,
+          sendByDefault: args?.sendByDefault,
+        };
+        if (args?.document === undefined || args?.document === null) {
+          if (args?.remove) throw new ToolError('Name the document to remove.');
+          if (!String(args?.title ?? '').trim() || !body?.trim())
+            throw new ToolError('Add a title and the text.');
+          const added = await addTemplate(company.id, user.id, input);
+          return { added: added.title, key: added.key };
+        }
+        const found = await findTemplate(company.id, args.document);
+        if (!found)
+          throw new ToolError(
+            'No such document. Use list_onboarding_documents for the list.',
+          );
+        if (args?.remove) {
+          await removeTemplate(company.id, found.key);
+          return found.own
+            ? { removed: found.title }
+            : { reset: `${found.label} is back to the starting draft.` };
+        }
+        if (input.sendByDefault !== undefined && !found.beforeAccess)
+          throw new ToolError(
+            `${found.label} always goes with the offer; only documents signed before access can be ticked on or off.`,
+          );
+        const saved = await saveTemplate(company.id, user.id, found.key, input);
+        return {
+          saved: saved.title,
+          key: saved.key,
+          ...(saved.beforeAccess ? { sendByDefault: saved.sendByDefault } : {}),
+        };
+      }),
   },
   {
     name: 'list_courses',

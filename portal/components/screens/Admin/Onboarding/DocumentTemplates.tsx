@@ -9,7 +9,6 @@ import {
   unknownDocPlaceholders,
 } from '@/lib/onboarding/documents';
 import { cn } from '@/lib/utils';
-import type { ONBOARDING_DOC_KIND } from '@/models/onboarding';
 import { HIRE_TYPE } from '@/models/onboarding';
 import { PortalSdk } from '@/utils/services/PortalSdk';
 
@@ -21,6 +20,7 @@ import {
   Segmented,
   SkeletonRows,
   TextInput,
+  ToggleSwitch,
 } from '../shared/AdminUI';
 import { errorText } from '../Workspace/shared';
 import {
@@ -32,8 +32,10 @@ import { Paper } from './OnboardingDialogs';
 
 /**
  * Onboarding > Documents: the company's Trial Policy, NDA, Offer Letter and
- * Work Agreement. Each is Markdown with {{placeholders}} filled from the
- * terms at send time. Documents already sent keep their text.
+ * Work Agreement, and any documents of its own to sign before access. Each
+ * is Markdown with {{placeholders}} filled from the terms at send time, and
+ * the ones before access say whether new hires get them ticked by default.
+ * Documents already sent keep their text.
  */
 export const DocumentTemplates = ({
   companyId,
@@ -46,7 +48,7 @@ export const DocumentTemplates = ({
 }) => {
   const [templates, setTemplates] = useState<DocTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [kind, setKind] = useState<ONBOARDING_DOC_KIND | null>(null);
+  const [kind, setKind] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [mode, setMode] = useState<'edit' | 'preview'>('edit');
@@ -62,7 +64,9 @@ export const DocumentTemplates = ({
       );
       const list: DocTemplate[] = res?.data?.templates ?? [];
       setTemplates(list);
-      setKind((k) => k ?? list[0]?.kind ?? null);
+      setKind((k) =>
+        k && list.some((t) => t.key === k) ? k : (list[0]?.key ?? null),
+      );
     } catch (err) {
       toast.error(errorText(err));
     } finally {
@@ -74,7 +78,7 @@ export const DocumentTemplates = ({
     load();
   }, [load]);
 
-  const current = templates.find((t) => t.kind === kind) ?? null;
+  const current = templates.find((t) => t.key === kind) ?? null;
   useEffect(() => {
     setTitle(current?.title ?? '');
     setBody(current?.body ?? '');
@@ -102,7 +106,7 @@ export const DocumentTemplates = ({
     try {
       await PortalSdk.putData('/api/onboarding/templates', {
         companyId,
-        kind,
+        key: kind,
         title,
         body,
       });
@@ -120,15 +124,52 @@ export const DocumentTemplates = ({
     setSaving(true);
     try {
       await PortalSdk.deleteData(
-        `/api/onboarding/templates?companyId=${companyId}&kind=${kind}`,
+        `/api/onboarding/templates?companyId=${companyId}&key=${encodeURIComponent(kind)}`,
         null,
       );
-      toast.success('Back to the starting draft');
+      toast.success(
+        current?.own ? 'Document removed' : 'Back to the starting draft',
+      );
       await load();
     } catch (err) {
       toast.error(errorText(err));
     } finally {
       setSaving(false);
+    }
+  };
+
+  /** Adds a document of the company's own and opens it. */
+  const add = async () => {
+    setSaving(true);
+    try {
+      const res = await PortalSdk.postData('/api/onboarding/templates', {
+        companyId,
+      });
+      await load();
+      setKind(res.data.template.key);
+      setMode('edit');
+    } catch (err) {
+      toast.error(errorText(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** Whether new hires get it ticked; saved straight away. */
+  const setDefault = async (sendByDefault: boolean) => {
+    if (!current) return;
+    setTemplates((all) =>
+      all.map((t) => (t.key === current.key ? { ...t, sendByDefault } : t)),
+    );
+    try {
+      await PortalSdk.putData('/api/onboarding/templates', {
+        companyId,
+        key: current.key,
+        sendByDefault,
+      });
+    } catch (err) {
+      toast.error(errorText(err));
+      await load();
     }
   };
 
@@ -178,29 +219,44 @@ export const DocumentTemplates = ({
         <div className="flex gap-2 overflow-x-auto lg:flex-col">
           {templates.map((t) => (
             <button
-              key={t.kind}
+              key={t.key}
               type="button"
-              onClick={() => setKind(t.kind)}
+              onClick={() => setKind(t.key)}
               className={cn(
                 'flex min-w-[180px] flex-col gap-1 rounded-xl border px-3 py-3 text-left transition-colors',
-                kind === t.kind
+                kind === t.key
                   ? 'border-white/20 bg-white/[0.07]'
                   : 'border-white/[0.07] bg-white/[0.02] hover:border-white/15',
               )}
             >
               <span className="text-sm text-white">{t.label}</span>
               <span className="flex items-center gap-2 text-[11px] text-neutral-500">
-                {t.custom ? (
+                {t.own ? (
+                  <Pill tone="info">Your document</Pill>
+                ) : t.custom ? (
                   <Pill tone="info">Your wording</Pill>
                 ) : (
                   <Pill>Starting draft</Pill>
                 )}
-                {['TRIAL_POLICY', 'NDA'].includes(t.kind)
-                  ? 'Before access'
+                {t.beforeAccess
+                  ? t.sendByDefault
+                    ? 'Before access'
+                    : 'Before access, off'
                   : 'After the trial'}
               </span>
             </button>
           ))}
+          {canEdit && (
+            <button
+              type="button"
+              disabled={saving}
+              onClick={add}
+              className="flex min-w-[180px] items-center gap-2 rounded-xl border border-dashed border-white/10 p-3 text-left text-sm text-neutral-400 transition-colors hover:border-white/25 hover:text-white disabled:opacity-50"
+            >
+              <Icon name="add" className="text-[16px]" />
+              Add a document
+            </button>
+          )}
         </div>
 
         {current && (
@@ -222,6 +278,21 @@ export const DocumentTemplates = ({
                 ]}
               />
             </div>
+            {current.beforeAccess && (
+              <div className="border-b border-white/[0.07] px-4 py-3">
+                <ToggleSwitch
+                  checked={current.sendByDefault}
+                  disabled={!canEdit}
+                  onChange={setDefault}
+                  label="Ticked for new hires"
+                  description={
+                    current.sendByDefault
+                      ? 'Signed before portal access, unless you untick it for someone when you send their agreements.'
+                      : 'Not sent unless you tick it for someone when you send their agreements.'
+                  }
+                />
+              </div>
+            )}
             {mode === 'edit' ? (
               <div className="flex flex-col gap-3 p-4">
                 <div className="flex flex-wrap gap-1.5">
@@ -265,16 +336,28 @@ export const DocumentTemplates = ({
             )}
             {canEdit && (
               <div className="flex items-center justify-end gap-2 border-t border-white/[0.07] px-4 py-3">
-                {current.custom && (
+                {current.own ? (
                   <AdminButton
                     size="sm"
                     tone="ghost"
-                    icon="restart_alt"
+                    icon="delete"
                     disabled={saving}
                     onClick={reset}
                   >
-                    Back to the draft
+                    Remove document
                   </AdminButton>
+                ) : (
+                  current.custom && (
+                    <AdminButton
+                      size="sm"
+                      tone="ghost"
+                      icon="restart_alt"
+                      disabled={saving}
+                      onClick={reset}
+                    >
+                      Back to the draft
+                    </AdminButton>
+                  )
                 )}
                 <AdminButton
                   size="sm"
