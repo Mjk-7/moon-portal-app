@@ -169,7 +169,7 @@ export const AdminFeedback = () => {
             disabled={working === 'settings'}
             onChange={toggle}
             label={settings.enabled ? 'Taking feedback' : 'Paused'}
-            description="Paused: the cat says feedback is off."
+            description="When paused, the cat tells people feedback is off."
           />
         )}
       </Panel>
