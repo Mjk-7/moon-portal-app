@@ -32,16 +32,6 @@ the same way as the website and talks to the portal API.
 - Standalone folder with its own `package.json`; install it on its own
 - Setup, sign-in and release steps in [mobile/README.md](mobile/README.md)
 
-## Payzone App - /payzone
-
-For all payment and secure features accessible to the team & clients.
-Referral dahboard is also included in this repo.
-
-Deployed on
-
-- Digital Ocean Droplet
-- [pay.themoondevs.com](http://portal.themoondevs.com)
-
 ## TMD smart contracts - /contract
 
 For all smart contracts of TheMoonDevs, deployed on all chains
@@ -57,9 +47,9 @@ For all smart contracts of TheMoonDevs, deployed on all chains
 1. **Trigger:** Runs when a PR is opened or updated.  
 2. **Concurrency:** Cancels previous runs if a new commit is pushed.  
 3. **`determine_project` Job:**  
-   - Checks if any file in `portal/` or `payzone/` changed; skips if no changes.  
+   - Checks if any file in `portal/` changed; skips if no changes.  
 4. **`build_and_deploy` Job (Runs for Each Project):**  
-   - Installs dependencies and assigns a preview port (`8000-8500` for Portal, `8500-9000` for Payzone). 
+   - Installs dependencies and assigns a preview port (`8000-8500` for Portal). 
    - Get the ci env keys for that project using dotenv-vault key stored in github secrets
    - Builds and uploads the files to droplet (`apps/builds/[project-name]/preview/[pr-number]/`) using rsync.
    - Starts the project via SSH and PM2.  
@@ -76,7 +66,7 @@ For all smart contracts of TheMoonDevs, deployed on all chains
 
 
 ## Environment Variables
-### Portal & Payzone App
+### Portal App
 - Production and CI envs are managed via [dotenv-vault](https://vault.dotenv.org/ui/ui1/organization/3wFqnV/projects).  
 - Development env changes should be shared within the team on Slack.  
 
@@ -111,4 +101,7 @@ API Usage Guidelines:
 - Use the full original URL for external APIs.  
 - For internal APIs deployed on the droplet, use:  
   - **Portal:** `http://localhost:3001`  
-  - **Payzone:** `http://localhost:3002`  
+
+## Removed apps
+
+- **Payzone** (`/payzone`, pay.themoondevs.com) was removed in November 2026. The last code is kept on the `backup/payzone` branch.
