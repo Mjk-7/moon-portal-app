@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Linking,
   Modal,
   Pressable,
   StyleSheet,
@@ -40,9 +41,10 @@ import {
   useChat,
 } from '@/lib/chat';
 import { clock, dayTitle, timeAgo, todayKey } from '@/lib/dates';
+import { feedbackAction, openFeedbackChat } from '@/lib/feedback';
 import { mentionMatches, mentionQuery, mentionsIn, nameOf as personName, splitMentions } from '@/lib/mentions';
 import { queryClient } from '@/lib/query';
-import type { ChatConversation, ChatMessage, ChatPerson } from '@/lib/types';
+import type { ChatConversation, ChatMessage, ChatPerson, FeedbackCard } from '@/lib/types';
 
 const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 const EDIT_WINDOW = 15 * 60 * 1000;
@@ -61,7 +63,8 @@ const mediaUrl = (id: string, thumb = false) =>
 /** One chat: messages newest at the bottom, live ticks and typing. */
 export default function ChatScreen() {
   // `draft`: words shared from another app, ready to send.
-  const { id, draft } = useLocalSearchParams<{ id: string; draft?: string }>();
+  // `from`: opened from Settings' "Give feedback", which told the cat already.
+  const { id, draft, from } = useLocalSearchParams<{ id: string; draft?: string; from?: string }>();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -95,6 +98,11 @@ export default function ChatScreen() {
     initialDataUpdatedAt: 0,
   });
   const chat = conversation.data?.conversation;
+  // The Feedback Cat: no block or report, its cards and a thinking bubble.
+  const isBot = chat?.partner.bot === 'feedback';
+  useEffect(() => {
+    if (isBot && !from) void openFeedbackChat('Messages').catch(() => null);
+  }, [isBot, from, id]);
   // In a group, "@" offers its members to name (lib/mentions.ts).
   const members = useMemo(() => chat?.group?.members ?? [], [chat?.group?.members]);
   const others = useMemo(() => members.filter((p) => p.id !== me), [members, me]);
@@ -186,6 +194,13 @@ export default function ChatScreen() {
       }
       return;
     }
+    setText('');
+    setReplyTo(null);
+    await sendWords(body);
+  };
+
+  /** A new text message: typed, or a Feedback Cat chip. */
+  const sendWords = async (body: string) => {
     const clientId = newClientId();
     const message: ChatMessage = {
       id: `local-${clientId}`,
@@ -201,10 +216,17 @@ export default function ChatScreen() {
       reactions: [],
       createdAt: new Date().toISOString(),
     };
-    setText('');
-    setReplyTo(null);
     void Haptics.selectionAsync();
     await send(message);
+  };
+
+  const onFeedback = async (m: ChatMessage, action: 'file' | 'change' | 'discard') => {
+    void Haptics.selectionAsync();
+    try {
+      await feedbackAction(m.id, action);
+    } catch (e) {
+      Alert.alert('Couldn’t do that', messageOf(e));
+    }
   };
 
   const react = async (m: ChatMessage, emoji: string) => {
@@ -297,7 +319,11 @@ export default function ChatScreen() {
 
   const subtitle = !chat
     ? ''
-    : typingUserId
+    : isBot
+      ? typingUserId
+        ? 'thinking…'
+        : 'Bot · sends your feedback to the team'
+      : typingUserId
       ? chat.kind === 'direct'
         ? 'typing…'
         : `${nameOf(typingUserId).split(' ')[0]} is typing…`
@@ -337,7 +363,7 @@ export default function ChatScreen() {
           // A solid header with no blur: messages never show through it.
           headerStyle: { backgroundColor: theme.backgroundElement },
           scrollEdgeEffects: { top: 'hidden', bottom: 'hidden', left: 'hidden', right: 'hidden' },
-          headerRight: direct ? () => <IconButton name="ellipsis" label="Chat options" onPress={more} /> : undefined,
+          headerRight: direct && !isBot ? () => <IconButton name="ellipsis" label="Chat options" onPress={more} /> : undefined,
           headerTitle: () =>
             !chat ? (
               <ThemedText type="smallBold">Chat</ThemedText>
@@ -390,6 +416,8 @@ export default function ChatScreen() {
             onEndReached={() => {
               if (messages.hasNextPage && !messages.isFetchingNextPage) void messages.fetchNextPage();
             }}
+            // Upside down, the header sits at the bottom: the cat thinking.
+            ListHeaderComponent={isBot && typingUserId ? <CatThinking /> : undefined}
             ListFooterComponent={
               messages.isFetchingNextPage ? <ActivityIndicator color={theme.textSecondary} /> : undefined
             }
@@ -443,6 +471,8 @@ export default function ChatScreen() {
                     onOpen={() =>
                       item.kind === 'image' ? setViewing(item) : void openFile(item)
                     }
+                    onFeedback={isBot ? (action) => void onFeedback(item, action) : undefined}
+                    onChip={isBot ? (words) => void sendWords(words) : undefined}
                   />
                 </View>
               );
@@ -599,7 +629,7 @@ export default function ChatScreen() {
               {!acting.pending ? (
                 <SheetRow title="Delete for me" danger onPress={() => void remove(acting, 'me')} />
               ) : null}
-              {acting.senderId !== me && !acting.pending ? (
+              {acting.senderId !== me && !acting.pending && !isBot ? (
                 <>
                   <SheetRow
                     title="Report"
@@ -712,6 +742,8 @@ function Bubble({
   onLongPress,
   onRetry,
   onOpen,
+  onFeedback,
+  onChip,
 }: {
   message: ChatMessage;
   mine: boolean;
@@ -728,6 +760,10 @@ function Bubble({
   onLongPress: () => void;
   onRetry: () => void;
   onOpen: () => void;
+  /** The Feedback Cat's draft buttons. */
+  onFeedback?: (action: 'file' | 'change' | 'discard') => void;
+  /** The Feedback Cat's welcome chips: sends the words. */
+  onChip?: (words: string) => void;
 }) {
   const theme = useTheme();
   if (m.kind === 'system')
@@ -747,6 +783,7 @@ function Bubble({
   const expired = !!m.attachment?.expiredAt;
   const ratio =
     m.attachment?.width && m.attachment?.height ? m.attachment.width / m.attachment.height : 4 / 3;
+  const card = m.deletedAt ? null : m.feedback;
 
   return (
     <View style={[styles.bubbleRow, mine ? styles.right : styles.left, !tail && styles.tight]}>
@@ -830,7 +867,12 @@ function Bubble({
                 </View>
               </Pressable>
             ) : null}
-            {m.text ? (
+            {card?.type === 'draft' && onFeedback ? (
+              <>
+                {card.lead ? <ThemedText style={{ color: ink }}>{card.lead}</ThemedText> : null}
+                <DraftCard card={card} onAction={onFeedback} />
+              </>
+            ) : m.text ? (
               <ThemedText style={{ color: ink }}>
                 {group
                   ? splitMentions(m.text, names).map((part, i) =>
@@ -844,6 +886,24 @@ function Bubble({
                     )
                   : m.text}
               </ThemedText>
+            ) : null}
+            {card?.type === 'welcome' && card.chips?.length && onChip ? (
+              <View style={styles.chips}>
+                {card.chips.map((chip) => (
+                  <Pressable
+                    key={chip}
+                    accessibilityRole="button"
+                    onPress={() => onChip(chip)}
+                    style={({ pressed }) => [
+                      styles.chip,
+                      { borderColor: theme.accent, opacity: pressed ? 0.6 : 1 },
+                    ]}>
+                    <ThemedText type="small" style={{ color: theme.accent }}>
+                      {chip}
+                    </ThemedText>
+                  </Pressable>
+                ))}
+              </View>
             ) : null}
           </>
         )}
@@ -883,6 +943,119 @@ function Bubble({
           ))}
         </View>
       ) : null}
+    </View>
+  );
+}
+
+const CARD_STATUS: Record<string, string> = {
+  filing: 'Sending…',
+  filed: 'Filed',
+  merged: 'Added as a +1',
+  saved: 'Saved for the team',
+  discarded: 'Dropped',
+};
+
+/** The issue the Feedback Cat is about to file, and what became of it. */
+function DraftCard({
+  card,
+  onAction,
+}: {
+  card: FeedbackCard;
+  onAction: (action: 'file' | 'change' | 'discard') => void;
+}) {
+  const theme = useTheme();
+  const status = card.status ?? 'draft';
+  const tags = [card.kind, card.area, card.priority].filter(Boolean) as string[];
+  return (
+    <View
+      style={[
+        styles.card,
+        { borderColor: theme.border, backgroundColor: theme.background, opacity: status === 'discarded' ? 0.6 : 1 },
+      ]}>
+      <View style={styles.cardBody}>
+        <ThemedText type="small" themeColor="textSecondary">
+          DRAFT ISSUE
+        </ThemedText>
+        <ThemedText
+          type="smallBold"
+          style={status === 'discarded' ? { textDecorationLine: 'line-through' } : undefined}>
+          {card.title}
+        </ThemedText>
+        {card.summary ? (
+          <ThemedText type="small" themeColor="textSecondary">
+            {card.summary}
+          </ThemedText>
+        ) : null}
+        {tags.length ? (
+          <View style={styles.chips}>
+            {tags.map((tag) => (
+              <View key={tag} style={[styles.tag, { backgroundColor: theme.backgroundSelected }]}>
+                <ThemedText type="small">{tag}</ThemedText>
+              </View>
+            ))}
+          </View>
+        ) : null}
+      </View>
+      {status === 'draft' ? (
+        <View style={[styles.cardActions, { borderColor: theme.border }]}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => onAction('file')}
+            style={({ pressed }) => [styles.cardButton, { opacity: pressed ? 0.6 : 1 }]}>
+            <ThemedText type="smallBold" style={{ color: theme.chatGreen }}>
+              File it
+            </ThemedText>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => onAction('change')}
+            style={({ pressed }) => [
+              styles.cardButton,
+              { borderColor: theme.border, borderLeftWidth: StyleSheet.hairlineWidth, opacity: pressed ? 0.6 : 1 },
+            ]}>
+            <ThemedText type="smallBold">Change</ThemedText>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Drop this draft"
+            onPress={() => onAction('discard')}
+            style={({ pressed }) => [
+              styles.cardClose,
+              { borderColor: theme.border, opacity: pressed ? 0.6 : 1 },
+            ]}>
+            <Icon name="close" size={15} color={theme.textSecondary} />
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable
+          disabled={!card.issueUrl}
+          onPress={() => card.issueUrl && void Linking.openURL(card.issueUrl)}
+          style={[styles.cardStatus, { borderColor: theme.border }]}>
+          <ThemedText type="smallBold" themeColor={status === 'discarded' ? 'textSecondary' : 'text'}>
+            {CARD_STATUS[status] ?? ''}
+          </ThemedText>
+          {card.issueNumber ? (
+            <ThemedText type="smallBold" themeColor="accent">
+              #{card.issueNumber}
+            </ThemedText>
+          ) : null}
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+/** The Feedback Cat thinking, while Claude writes its answer. */
+function CatThinking() {
+  const theme = useTheme();
+  return (
+    <View style={[styles.left, styles.thinking]}>
+      <Image source={{ uri: portalUrl('/feedback/cat-thinking.png') }} style={styles.thinkingCat} />
+      <View style={[styles.thinkingDots, { backgroundColor: theme.bubbleTheirs }]}>
+        <ThemedText type="small" themeColor="textSecondary">
+          • • •
+        </ThemedText>
+      </View>
     </View>
   );
 }
@@ -1035,6 +1208,40 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   viewer: { flex: 1, backgroundColor: '#000' },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one, marginTop: Spacing.one },
+  chip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: Spacing.two + 2,
+    paddingVertical: Spacing.one,
+  },
+  tag: { borderRadius: 999, paddingHorizontal: Spacing.two, paddingVertical: 1 },
+  card: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radius.medium,
+    overflow: 'hidden',
+    marginTop: Spacing.one,
+    width: 250,
+  },
+  cardBody: { padding: Spacing.two + 2, gap: Spacing.one },
+  cardActions: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth },
+  cardButton: { flex: 1, alignItems: 'center', paddingVertical: Spacing.two + 2 },
+  cardClose: {
+    width: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderLeftWidth: StyleSheet.hairlineWidth,
+  },
+  cardStatus: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: Spacing.two + 2,
+    paddingVertical: Spacing.two,
+  },
+  thinking: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.two, marginVertical: Spacing.two },
+  thinkingCat: { width: 28, height: 28, borderRadius: 14 },
+  thinkingDots: { borderRadius: 10, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
   viewerClose: { position: 'absolute', left: Spacing.three },
   viewerShare: { position: 'absolute', right: Spacing.three },
 });

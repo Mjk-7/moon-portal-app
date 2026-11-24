@@ -1,6 +1,14 @@
 import { type Filter, ObjectId } from 'mongodb';
 
 import { getMongoDb } from '@/lib/db/mongoose';
+import {
+  FEEDBACK_BOT_ID,
+  feedbackBotPerson,
+  feedbackKey,
+  isFeedbackBot,
+  WELCOME_CHIPS,
+  WELCOME_TEXT,
+} from '@/lib/feedback/bot';
 import { db } from '@/lib/mongodb/db-client';
 import { ensureNotificationsReset } from '@/lib/notifications/server';
 import { listablePeopleIds } from '@/lib/people/visibility';
@@ -22,6 +30,7 @@ import {
   type ChatReport,
   type ChatReportStatus,
   type ChatSystemNote,
+  type FeedbackCard,
 } from '@/models/chat';
 import { NotificationType } from '@/models/shared/enums';
 import type { Company, CompanyMember, Project } from '@/models/workspace';
@@ -68,7 +77,20 @@ type ConversationDoc = {
   lastMessageId?: string | null;
   lastMessageAt?: Date | null;
   createdAt: Date;
+  /** The person's chat with the feedback cat. */
+  bot?: 'feedback' | null;
+  /** Feedback chats: where the person last opened it from. */
+  feedbackContext?: FeedbackContext | null;
 };
+
+/** What the feedback cat may put on an issue. Never names or emails. */
+export interface FeedbackContext {
+  platform?: string | null;
+  appVersion?: string | null;
+  page?: string | null;
+  screen?: string | null;
+  at?: Date | null;
+}
 
 type MessageDoc = {
   _id: ObjectId;
@@ -97,6 +119,8 @@ type MessageDoc = {
   deletedAt?: Date | null;
   /** People who chose "Delete for me". */
   hiddenFor?: string[];
+  /** The feedback cat's cards. */
+  feedback?: FeedbackCard | null;
 };
 
 type PresenceDoc = { _id: string; lastSeenAt: Date };
@@ -222,8 +246,11 @@ async function sharedCompanies(userId: string, otherId: string) {
 }
 
 async function peopleById(ids: string[]): Promise<Map<string, ChatPerson>> {
-  const unique = Array.from(new Set(ids.filter(Boolean)));
-  if (!unique.length) return new Map();
+  const all = Array.from(new Set(ids.filter(Boolean)));
+  const unique = all.filter((id) => !isFeedbackBot(id));
+  const bot = all.length !== unique.length;
+  if (!unique.length)
+    return new Map(bot ? [[FEEDBACK_BOT_ID, feedbackBotPerson()]] : []);
   const users: ChatPerson[] = await db.user.findMany({
     where: { id: { in: unique } },
     select: {
@@ -234,7 +261,9 @@ async function peopleById(ids: string[]): Promise<Map<string, ChatPerson>> {
       positionTitle: true,
     },
   });
-  return new Map(users.map((u) => [u.id, u]));
+  const found = new Map(users.map((u) => [u.id, u]));
+  if (bot) found.set(FEEDBACK_BOT_ID, feedbackBotPerson());
+  return found;
 }
 
 /** People the person can start a chat with, A to Z. */
@@ -408,6 +437,7 @@ function toMessage(doc: MessageDoc): ChatMessage {
     deliveredAt: iso(doc.deliveredAt),
     readAt: iso(doc.readAt),
     deletedAt: iso(doc.deletedAt),
+    ...(!deleted && doc.feedback && { feedback: doc.feedback }),
     ...(recipients > 1 && {
       readCount: doc.readAt ? recipients : (doc.readBy?.length ?? 0),
       recipientCount: recipients,
@@ -430,6 +460,10 @@ const othersIn = (room: ConversationDoc, userId: string) =>
 
 const stateOf = (room: ConversationDoc, userId: string): ChatMemberState =>
   room.state?.[userId] ?? { unread: 0 };
+
+/** The person's chat with the feedback cat. */
+export const isFeedbackRoom = (room: Pick<ConversationDoc, 'memberIds'>) =>
+  room.memberIds.includes(FEEDBACK_BOT_ID);
 
 /* -------------------------------------------------------------------------- */
 /*                                Conversations                               */
@@ -539,7 +573,10 @@ export async function requireConversation(
       project,
     };
   const partnerId = partnerOf(room, userId);
-  const companies = await sharedCompanies(userId, partnerId);
+  // The feedback cat is everyone's contact, whatever their companies.
+  const companies = isFeedbackBot(partnerId)
+    ? ['Portal']
+    : await sharedCompanies(userId, partnerId);
   if (!companies.length) throw new ChatError(404, 'Chat not found.');
   return { room, partnerId: partnerId as string | null, companies, project };
 }
@@ -665,6 +702,11 @@ export async function listConversations(userId: string) {
     contactsOf(userId),
     projectsOf(userId),
     blockedIdsOf(userId),
+    // Paused (a ChatError) just means no new feedback chats for now.
+    ensureFeedbackConversation(userId).catch((error) => {
+      if (!(error instanceof ChatError))
+        console.error('[feedback] could not open the chat:', error);
+    }),
   ]);
   const blocked = new Set(blockedIds);
   const rooms = await conversations
@@ -685,7 +727,9 @@ export async function listConversations(userId: string) {
   for (const room of rooms) {
     const kind = kindOf(room);
     if (kind === 'direct') {
-      if (contacts.has(partnerOf(room, userId))) visible.push(room);
+      const partnerId = partnerOf(room, userId);
+      if (contacts.has(partnerId) || isFeedbackBot(partnerId))
+        visible.push(room);
       continue;
     }
     if (kind === 'group') {
@@ -724,7 +768,9 @@ export async function listConversations(userId: string) {
       const project = c.projectId ? myProjects.get(c.projectId) : null;
       return conversationView(c, userId, {
         person: people.get(partnerId),
-        companies: contacts.get(partnerId),
+        companies: isFeedbackBot(partnerId)
+          ? ['Portal']
+          : contacts.get(partnerId),
         lastMessage: c.lastMessageId ? lastById.get(c.lastMessageId) : null,
         lastSeenAt: seen.get(partnerId),
         people,
@@ -767,6 +813,10 @@ export async function getConversation(userId: string, conversationId: string) {
 
 /** The chat between the person and someone they share a company with. */
 export async function openDirectConversation(userId: string, otherId: string) {
+  if (isFeedbackBot(otherId)) {
+    const room = await ensureFeedbackConversation(userId);
+    return getConversation(userId, room._id.toHexString());
+  }
   if (!otherId || otherId === userId)
     throw new ChatError(400, 'Pick someone to message.');
   const companies = await sharedCompanies(userId, otherId);
@@ -1306,8 +1356,17 @@ export async function sendMessage(
     if (block.bBlockedA)
       throw new ChatError(403, 'You can’t message this person.');
   }
+  const feedbackChat = isFeedbackRoom(room);
+  if (feedbackChat && (input.attachment || input.forwardOfId))
+    throw new ChatError(
+      400,
+      'The Feedback Cat reads words only for now. Describe it in a message.',
+    );
   const blockers = await blockersOf(userId, recipientIds);
-  const listeners = recipientIds.filter((id) => !blockers.has(id));
+  // The cat answers on its own; it has no unread count or phone to ping.
+  const listeners = recipientIds.filter(
+    (id) => !blockers.has(id) && !isFeedbackBot(id),
+  );
 
   let text = String(input.text ?? '').slice(0, CHAT_LIMITS.maxTextLength);
   let attachment: ChatAttachment | null = null;
@@ -1420,6 +1479,11 @@ export async function sendMessage(
     }),
     notifyNewMessage(after, userId, listeners, doc),
   ]);
+  if (feedbackChat) {
+    // After the response: Claude's answer comes in as the cat's message.
+    const { queueFeedbackReply } = await import('@/lib/feedback/reply');
+    queueFeedbackReply(userId, conversationId, doc._id.toHexString());
+  }
   return message;
 }
 
@@ -1843,6 +1907,11 @@ export async function listBlocked(userId: string): Promise<ChatPerson[]> {
 export async function blockPerson(userId: string, otherId: unknown) {
   const id = String(otherId ?? '');
   if (!id || id === userId) throw new ChatError(400, 'Pick someone to block.');
+  if (isFeedbackBot(id))
+    throw new ChatError(
+      400,
+      'The Feedback Cat can’t be blocked. Mute or archive the chat instead.',
+    );
   if (!ObjectId.isValid(id) || !(await peopleById([id])).has(id))
     throw new ChatError(404, 'Person not found.');
   await addBlock(userId, id);
@@ -2172,4 +2241,259 @@ export async function cleanupOldMedia({ batch = 500 } = {}) {
     if (docs.length < batch) break;
   }
   return { removed };
+}
+
+/* -------------------------------------------------------------------------- */
+/*                               Feedback chat                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The person's chat with the feedback cat, made (pinned, with a welcome
+ * message) the first time. While an admin has the cat switched off, no
+ * new chats are made; existing ones stay.
+ */
+export async function ensureFeedbackConversation(userId: string) {
+  const { conversations } = await collections();
+  const key = feedbackKey(userId);
+  const found = await conversations.findOne({ key });
+  if (found) return found;
+  const { feedbackEnabled } = await import('@/lib/feedback/store');
+  if (!(await feedbackEnabled()))
+    throw new ChatError(403, 'Feedback is paused for now.');
+  const memberIds = [userId, FEEDBACK_BOT_ID].sort();
+  const now = new Date();
+  // `before`: only the call that made the chat gets null, and only it
+  // says hello, so two tabs opening it at once don't greet twice.
+  const before = await conversations.findOneAndUpdate(
+    { key },
+    {
+      $setOnInsert: {
+        kind: 'direct',
+        key,
+        memberIds,
+        bot: 'feedback',
+        state: {
+          [userId]: { unread: 1, pinned: true },
+          [FEEDBACK_BOT_ID]: { unread: 0 },
+        },
+        lastMessageId: null,
+        lastMessageAt: now,
+        createdAt: now,
+      },
+    },
+    { upsert: true, returnDocument: 'before' },
+  );
+  const room = before ?? (await conversations.findOne({ key }));
+  if (!room) throw new ChatError(500, 'Could not open the chat.');
+  if (!before)
+    await postFeedbackBotMessage(room._id.toHexString(), userId, {
+      text: WELCOME_TEXT,
+      feedback: { type: 'welcome', chips: WELCOME_CHIPS },
+      quiet: true,
+    });
+  return room;
+}
+
+/** Where the person opened the feedback chat from, for the issue. */
+export async function setFeedbackContext(
+  userId: string,
+  conversationId: string,
+  context: FeedbackContext,
+) {
+  const { room } = await requireConversation(userId, conversationId);
+  if (!isFeedbackRoom(room)) throw new ChatError(400, 'Not a feedback chat.');
+  const { conversations } = await collections();
+  await conversations.updateOne(
+    { _id: room._id },
+    { $set: { feedbackContext: { ...context, at: new Date() } } },
+  );
+}
+
+/** The feedback chat's room, for the cat (no access check: server only). */
+export async function feedbackRoom(conversationId: string) {
+  const { conversations } = await collections();
+  const room = await conversations.findOne({ _id: toObjectId(conversationId) });
+  return room && isFeedbackRoom(room) ? room : null;
+}
+
+/**
+ * The person's side of the current talk with the cat, oldest first: every
+ * message since the last card that was filed or dropped, at most `limit`.
+ */
+export async function feedbackHistory(
+  userId: string,
+  conversationId: string,
+  limit: number,
+) {
+  const { messages } = await collections();
+  const room = await feedbackRoom(conversationId);
+  if (!room) return [];
+  const docs = await messages
+    .find({
+      conversationId,
+      deletedAt: null,
+      ...visibleTo(room, userId),
+    })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .toArray();
+  const talk: MessageDoc[] = [];
+  for (const doc of docs) {
+    const done =
+      doc.feedback?.type === 'draft' &&
+      doc.feedback.status !== 'draft' &&
+      doc.feedback.status !== 'filing';
+    if (done) break;
+    talk.push(doc);
+  }
+  return talk.reverse().map((doc) => ({
+    id: doc._id.toHexString(),
+    fromBot: isFeedbackBot(doc.senderId),
+    text: doc.text,
+    feedback: doc.feedback ?? null,
+    createdAt: doc.createdAt,
+  }));
+}
+
+/** A message from the feedback cat to the person. */
+export async function postFeedbackBotMessage(
+  conversationId: string,
+  userId: string,
+  {
+    text,
+    feedback = null,
+    quiet = false,
+  }: { text: string; feedback?: FeedbackCard | null; quiet?: boolean },
+) {
+  const { conversations, messages } = await collections();
+  const doc: MessageDoc = {
+    _id: new ObjectId(),
+    conversationId,
+    senderId: FEEDBACK_BOT_ID,
+    recipientIds: [userId],
+    clientId: new ObjectId().toHexString(),
+    kind: 'text',
+    text: text.slice(0, CHAT_LIMITS.maxTextLength),
+    feedback,
+    reactions: [],
+    createdAt: new Date(),
+    editedAt: null,
+    deliveredAt: null,
+    readAt: null,
+    deliveredTo: [],
+    readBy: [],
+    deletedAt: null,
+    hiddenFor: [],
+  };
+  await messages.insertOne(doc);
+  const room = await conversations.findOneAndUpdate(
+    { _id: toObjectId(conversationId) },
+    {
+      $set: {
+        lastMessageId: doc._id.toHexString(),
+        lastMessageAt: doc.createdAt,
+      },
+      $inc: { [`state.${userId}.unread`]: quiet ? 0 : 1 },
+    },
+    { returnDocument: 'after' },
+  );
+  const message = toMessage(doc);
+  await publishToUsers([userId], { type: 'message', conversationId, message });
+  if (!quiet && room)
+    await notifyNewMessage(room, FEEDBACK_BOT_ID, [userId], doc);
+  return message;
+}
+
+/** Changes a card on one of the cat's messages and tells the person. */
+export async function updateFeedbackCard(
+  messageId: string,
+  card: Partial<FeedbackCard>,
+  text?: string,
+) {
+  const { messages } = await collections();
+  const set: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(card))
+    set[`feedback.${key}`] = value;
+  if (text !== undefined) set.text = text.slice(0, CHAT_LIMITS.maxTextLength);
+  const doc = await messages.findOneAndUpdate(
+    { _id: toObjectId(messageId), senderId: FEEDBACK_BOT_ID },
+    { $set: set },
+    { returnDocument: 'after' },
+  );
+  if (doc) await broadcastUpdate(doc, doc.recipientIds);
+  return doc ? toMessage(doc) : null;
+}
+
+/** One of the cat's draft cards, if the person may act on it. */
+export async function feedbackDraftFor(userId: string, messageId: string) {
+  const { messages } = await collections();
+  const doc = await messages.findOne({
+    _id: toObjectId(messageId),
+    senderId: FEEDBACK_BOT_ID,
+    recipientIds: userId,
+  });
+  if (!doc || doc.feedback?.type !== 'draft')
+    throw new ChatError(404, 'That draft is gone.');
+  return {
+    id: doc._id.toHexString(),
+    conversationId: doc.conversationId,
+    card: doc.feedback,
+  };
+}
+
+/** The cat has read everything the person sent: blue ticks, live. */
+export async function markReadByFeedbackBot(
+  conversationId: string,
+  userId: string,
+) {
+  const { messages } = await collections();
+  const now = new Date();
+  const result = await messages.updateMany(
+    { conversationId, senderId: userId, readAt: null },
+    { $set: { deliveredAt: now, readAt: now } },
+  );
+  if (result.modifiedCount)
+    await publishToUsers([userId], {
+      type: 'receipt',
+      conversationId,
+      by: FEEDBACK_BOT_ID,
+      status: 'read',
+      upTo: now.toISOString(),
+      at: now.toISOString(),
+    });
+}
+
+/**
+ * Words that must not reach a public feedback issue: the names, usernames
+ * and emails of the person and everyone in their companies, and the
+ * companies' names.
+ */
+export async function privateWordsFor(userId: string) {
+  const contacts = await contactsOf(userId);
+  const companies = new Set<string>();
+  contacts.forEach((names) => names.forEach((n) => companies.add(n)));
+  const ids = [userId, ...Array.from(contacts.keys())];
+  const people: {
+    name: string | null;
+    username: string | null;
+    email: string | null;
+  }[] = await db.user.findMany({
+    where: { id: { in: ids } },
+    select: { name: true, username: true, email: true },
+  });
+  const personal = new Set<string>();
+  for (const p of people) {
+    for (const value of [p.name, p.username, p.email]) {
+      if (!value) continue;
+      personal.add(value.trim());
+      // First and last names on their own too.
+      if (value === p.name)
+        for (const part of value.split(/\s+/))
+          if (part.length > 2) personal.add(part);
+    }
+  }
+  return {
+    people: Array.from(personal).filter((w) => w.length > 2),
+    companies: Array.from(companies).filter((w) => w.length > 1),
+  };
 }

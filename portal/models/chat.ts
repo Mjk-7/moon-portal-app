@@ -105,6 +105,43 @@ export interface ChatMessage {
   recipientCount?: number | null;
   /** "This message was deleted": text and file are gone. */
   deletedAt?: string | null;
+  /** The feedback cat's cards: the welcome chips or a draft issue. Older
+   * apps ignore it and show `text`, which always reads on its own. */
+  feedback?: FeedbackCard | null;
+}
+
+/** Labels a feedback issue can get. */
+export type FeedbackType =
+  | 'bug'
+  | 'error'
+  | 'feature request'
+  | 'improvement'
+  | 'design'
+  | 'performance';
+
+export type FeedbackPriority = 'P1' | 'P2' | 'P3';
+
+/**
+ * A card under one of the feedback cat's messages.
+ * - `welcome`: quick-start chips; tapping one sends its words.
+ * - `draft`: the issue it is about to file, with File it / Change buttons.
+ *   It moves to `filed` (with the issue), `saved` (kept in the portal
+ *   because GitHub isn't set up), `merged` (added to an open issue as a +1)
+ *   or `discarded`.
+ */
+export interface FeedbackCard {
+  type: 'welcome' | 'draft';
+  chips?: string[];
+  /** Drafts: the cat's line above the card ("Here's what I'll send"). */
+  lead?: string | null;
+  status?: 'draft' | 'filing' | 'filed' | 'saved' | 'merged' | 'discarded';
+  title?: string;
+  summary?: string;
+  kind?: FeedbackType;
+  area?: string | null;
+  priority?: FeedbackPriority;
+  issueNumber?: number | null;
+  issueUrl?: string | null;
 }
 
 /** One person's settings and counters in a conversation. */
@@ -127,6 +164,9 @@ export interface ChatPerson {
   positionTitle?: string | null;
   /** The companies both people are in, by name. */
   companies?: string[];
+  /** Set for the feedback cat (lib/feedback): not a person, can't be
+   * blocked, has no "last seen". */
+  bot?: 'feedback' | null;
 }
 
 /** A group's details, for its header, info panel and sender names. */

@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import { useChat } from '@/components/screens/Messages/ChatProvider';
+import { openFeedbackChat } from '@/components/screens/Messages/FeedbackCards';
 import media from '@/styles/media';
 import { APP_ROUTES } from '@/utils/constants/appInfo';
 import { useNotifications } from '@/utils/hooks/useNotifications';
@@ -203,6 +204,20 @@ export const Bottombar = ({
   const [isLogoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [isMoreOpen, setMoreOpen] = useState(false);
 
+  // "Give feedback" opens the chat with the Feedback Cat, noting this page.
+  const openFeedback = async () => {
+    setMoreOpen(false);
+    try {
+      const chat = await openFeedbackChat(path);
+      router.push(
+        `${APP_ROUTES.messages}/${chat.id}?from=${encodeURIComponent(path ?? '')}`,
+      );
+    } catch (error) {
+      console.warn('[feedback] could not open the chat', error);
+      router.push(APP_ROUTES.messages);
+    }
+  };
+
   useEffect(() => setMoreOpen(false), [path]);
 
   if (!visible && !visibleOnlyOn) return null;
@@ -308,6 +323,17 @@ export const Bottombar = ({
             ))}
           <SidebarLink
             option={{
+              name: 'Give feedback',
+              path: '',
+              icon: 'pets',
+              group: 'bottom',
+            }}
+            isActive={false}
+            unreadCount={0}
+            onClick={openFeedback}
+          />
+          <SidebarLink
+            option={{
               name: 'Logout',
               path: '',
               icon: 'logout',
@@ -350,6 +376,15 @@ export const Bottombar = ({
                 </button>
               );
             })}
+            <button
+              onClick={openFeedback}
+              className="flex w-full items-center gap-3 rounded-xl p-3 text-sm hover:bg-neutral-700"
+            >
+              <span className="material-symbols-outlined !text-[20px]">
+                pets
+              </span>
+              Give feedback
+            </button>
             <button
               onClick={() => {
                 setMoreOpen(false);

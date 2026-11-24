@@ -21,6 +21,7 @@ import {
 } from './Agreements/AdminAgreements';
 import { AdminBadges } from './Badges/AdminBadges';
 import { AdminChatReports } from './ChatReports/AdminChatReports';
+import { AdminFeedback } from './Feedback/AdminFeedback';
 import { AdminOverview } from './Overview/AdminOverview';
 import SendNotifications from './SendNotifications';
 import { AdminCommandPalette } from './shared/AdminCommandPalette';
@@ -253,6 +254,8 @@ export const AdminPage = () => {
         return <AdminBadges />;
       case 'chat-reports':
         return <AdminChatReports />;
+      case 'feedback':
+        return <AdminFeedback />;
       case 'companies':
         return (
           <AdminCompanies

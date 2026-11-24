@@ -266,6 +266,8 @@ export type ChatMessage = {
   readCount?: number | null;
   recipientCount?: number | null;
   deletedAt?: string | null;
+  /** The Feedback Cat's cards (lib/feedback.ts). */
+  feedback?: FeedbackCard | null;
   /** Only in the app: still sending, or failed to send. */
   pending?: 'sending' | 'failed';
 };
@@ -277,6 +279,26 @@ export type ChatPerson = {
   avatar?: string | null;
   positionTitle?: string | null;
   companies?: string[];
+  /** The Feedback Cat: not a person, can't be blocked. */
+  bot?: 'feedback' | null;
+};
+
+/**
+ * A card under one of the Feedback Cat's messages: the welcome chips, or
+ * the issue it is about to file (File it / Change / drop).
+ */
+export type FeedbackCard = {
+  type: 'welcome' | 'draft';
+  chips?: string[];
+  lead?: string | null;
+  status?: 'draft' | 'filing' | 'filed' | 'saved' | 'merged' | 'discarded';
+  title?: string;
+  summary?: string;
+  kind?: string;
+  area?: string | null;
+  priority?: string;
+  issueNumber?: number | null;
+  issueUrl?: string | null;
 };
 
 export type ChatConversation = {

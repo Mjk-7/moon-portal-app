@@ -29,6 +29,11 @@ import {
 import { useChat, useChatEvents } from './ChatProvider';
 import { Composer } from './Composer';
 import {
+  CatThinking,
+  type FeedbackAction,
+  openFeedbackChat,
+} from './FeedbackCards';
+import {
   dayLabelOf,
   lastSeenText,
   newClientId,
@@ -136,6 +141,7 @@ export const ChatThread = ({
   const partnerName = partner.name || 'Someone';
   const group = conversation.group ?? null;
   const isGroup = conversation.kind !== 'direct';
+  const isBot = partner.bot === 'feedback';
   const {
     live,
     setOpenChat,
@@ -508,6 +514,20 @@ export const ChatThread = ({
       }
     },
     [conversationId, finishSend, me],
+  );
+
+  const sendTextRef = useRef<(text: string) => void>(() => undefined);
+  // The Feedback Cat's welcome chips and draft buttons.
+  const onChip = useCallback((text: string) => sendTextRef.current(text), []);
+  const onFeedback = useCallback(
+    async (m: ChatMessage, action: FeedbackAction) => {
+      try {
+        await chatApi(`/api/chat/feedback/${m.id}`, 'POST', { action });
+      } catch (e) {
+        toast.error((e as Error).message);
+      }
+    },
+    [],
   );
 
   const sendText = (text: string) => {
@@ -928,6 +948,15 @@ export const ChatThread = ({
     [messages],
   );
 
+  sendTextRef.current = sendText;
+
+  // Tell the cat where the person came from (platform and page) for the issue.
+  useEffect(() => {
+    if (!isBot) return;
+    const from = new URLSearchParams(window.location.search).get('from');
+    openFeedbackChat(from).catch(() => undefined);
+  }, [isBot, conversationId]);
+
   const typingName =
     isGroup && typingUserId
       ? (membersById.get(typingUserId)?.name || 'Someone').split(' ')[0]
@@ -938,23 +967,27 @@ export const ChatThread = ({
         .sort((a, b) => (a === 'You' ? 1 : b === 'You' ? -1 : 0))
         .join(', ')
     : '';
-  const status = isGroup
-    ? typingName
-      ? `${typingName} is typing…`
-      : memberLine
-    : partnerTyping
-      ? 'typing…'
-      : partnerOnline
-        ? 'online'
-        : lastSeenText(conversation.partnerLastSeenAt) ||
-          (partner.companies ?? []).join(', ');
+  const status = isBot
+    ? partnerTyping
+      ? 'thinking…'
+      : 'Bot · sends your feedback to the team'
+    : isGroup
+      ? typingName
+        ? `${typingName} is typing…`
+        : memberLine
+      : partnerTyping
+        ? 'typing…'
+        : partnerOnline
+          ? 'online'
+          : lastSeenText(conversation.partnerLastSeenAt) ||
+            (partner.companies ?? []).join(', ');
   const statusLive = isGroup ? !!typingName : partnerTyping || partnerOnline;
 
   return (
     <div
       className="relative flex h-full min-h-0 flex-col"
       onDragOver={(e) => {
-        if (e.dataTransfer.types.includes('Files')) {
+        if (!isBot && e.dataTransfer.types.includes('Files')) {
           e.preventDefault();
           setDragging(true);
         }
@@ -966,7 +999,7 @@ export const ChatThread = ({
         e.preventDefault();
         setDragging(false);
         const files = Array.from(e.dataTransfer.files);
-        if (files.length) setStaged(files);
+        if (files.length && !isBot) setStaged(files);
       }}
     >
       {/* Header */}
@@ -1004,7 +1037,11 @@ export const ChatThread = ({
             {(() => {
               const inner = (
                 <>
-                  <ChatAvatar conversation={conversation} size={40} />
+                  <ChatAvatar
+                    conversation={conversation}
+                    size={40}
+                    mood={partnerTyping ? 'thinking' : 'idle'}
+                  />
                   <span className="min-w-0">
                     <span className="flex items-center gap-1.5">
                       <span className="truncate font-semibold leading-tight">
@@ -1027,6 +1064,7 @@ export const ChatThread = ({
               );
               const className =
                 'flex min-w-0 flex-1 items-center gap-3 rounded-lg py-1 pl-1 text-left';
+              if (isBot) return <div className={className}>{inner}</div>;
               return isGroup ? (
                 <button
                   type="button"
@@ -1191,12 +1229,15 @@ export const ChatThread = ({
               ) : !hasMore ? (
                 <p className="mx-6 max-w-sm rounded-lg bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-200/80 auto-light:bg-amber-100 auto-light:text-amber-900">
                   <Icon name="lock" className="mr-1 align-[-2px] text-[13px]" />
-                  {conversation.kind === 'project'
-                    ? "Everyone on the project's team can see these messages, including people who join later."
-                    : isGroup
-                      ? 'Only people in this group can see these messages.'
-                      : `Only you and ${partnerName} can see these messages.`}{' '}
-                  Photos, videos and files are kept for 90 days.
+                  {isBot
+                    ? 'The cat uses Claude to read this chat and write up your feedback. Issues it files on GitHub are public, with names and emails taken out.'
+                    : `${
+                        conversation.kind === 'project'
+                          ? "Everyone on the project's team can see these messages, including people who join later."
+                          : isGroup
+                            ? 'Only people in this group can see these messages.'
+                            : `Only you and ${partnerName} can see these messages.`
+                      } Photos, videos and files are kept for 90 days.`}
                 </p>
               ) : null}
             </div>
@@ -1256,11 +1297,14 @@ export const ChatThread = ({
                         setViewer({ items: visualMedia, start: msg.id })
                       }
                       onJumpTo={jumpToMessage}
+                      onFeedback={isBot ? onFeedback : undefined}
+                      onChip={isBot ? onChip : undefined}
                     />
                   )}
                 </Fragment>
               );
             })}
+            {isBot && partnerTyping && <CatThinking />}
             {!items.some((x) => x.message.kind !== 'system') && (
               <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
                 <ChatAvatar conversation={conversation} size={72} />
@@ -1305,6 +1349,7 @@ export const ChatThread = ({
         onSaveEdit={saveEdit}
         onPickFiles={(files) => setStaged(files)}
         onTyping={notifyTyping}
+        allowFiles={!isBot}
       />
 
       {dragging && (

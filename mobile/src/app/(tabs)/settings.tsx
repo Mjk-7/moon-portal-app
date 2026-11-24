@@ -16,6 +16,7 @@ import { appleAvailable, appleIdentityToken } from '@/lib/apple';
 import { useAuth } from '@/lib/auth';
 import { APP_VERSION, PORTAL_URL } from '@/lib/config';
 import { timeAgo } from '@/lib/dates';
+import { openFeedbackChat } from '@/lib/feedback';
 import { openWebsite } from '@/lib/links';
 import { biometricsAvailable, confirmWithBiometrics } from '@/lib/lock';
 import { useMyDocuments } from '@/lib/documents';
@@ -136,6 +137,16 @@ export default function SettingsScreen() {
     }
   };
 
+  // The Feedback Cat's chat in Messages.
+  const giveFeedback = async () => {
+    try {
+      const chat = await openFeedbackChat('Settings');
+      router.push({ pathname: '/chat/[id]', params: { id: chat.id, from: 'settings' } });
+    } catch (e) {
+      Alert.alert('Couldn’t open feedback', messageOf(e));
+    }
+  };
+
   const confirmSignOut = () =>
     Alert.alert('Sign out?', 'You’ll need your sign-in code to come back.', [
       { text: 'Cancel', style: 'cancel' },
@@ -187,6 +198,13 @@ export default function SettingsScreen() {
         />
         <Row icon="video" title="Meetings" detail="Upcoming, and your booking link" chevron onPress={() => router.push('/meetings')} />
         <Row icon="sparkles" title="What’s new" detail="What changed in the app" chevron onPress={() => router.push('/whats-new')} />
+        <Row
+          icon="paw"
+          title="Give feedback"
+          detail="Tell the Feedback Cat what to fix or add"
+          chevron
+          onPress={() => void giveFeedback()}
+        />
       </Card>
 
       <Section title="Appearance">

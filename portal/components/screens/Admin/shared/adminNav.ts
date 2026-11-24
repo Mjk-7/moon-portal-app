@@ -11,7 +11,8 @@ export type AdminTabId =
   | 'signing-rules'
   | 'agreement-templates'
   | 'required-documents'
-  | 'chat-reports';
+  | 'chat-reports'
+  | 'feedback';
 
 /** Tabs that moved to the Hiring space, and the page each opens there. */
 export const MOVED_TO_HIRING: Record<string, string> = {
@@ -169,6 +170,16 @@ export const ADMIN_TABS: AdminTab[] = [
     title: 'Reported messages',
     description:
       'Messages people reported in chat. Remove each one for everyone or leave it up, within a day.',
+    group: 'Community',
+    access: 'admin',
+  },
+  {
+    id: 'feedback',
+    label: 'Feedback',
+    icon: 'pets',
+    title: 'Feedback',
+    description:
+      'What people told the Feedback Cat in Messages, and the GitHub issues it filed.',
     group: 'Community',
     access: 'admin',
   },

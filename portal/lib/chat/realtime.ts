@@ -51,6 +51,16 @@ export async function publishToUsers(userIds: string[], event: ChatEvent) {
   );
 }
 
+/** "typing…" in a chat, sent by the server as `clientId` (the feedback cat). */
+export async function publishTyping(conversationId: string, clientId: string) {
+  const ably = client();
+  if (!ably) return;
+  await ably.channels
+    .get(dmChannel(conversationId))
+    .publish({ name: 'typing', data: {}, clientId })
+    .catch(() => undefined);
+}
+
 /**
  * A token request for one browser: it may read its own inbox, be present
  * as online, and, for the chat that is open (`chat`), see whether the other

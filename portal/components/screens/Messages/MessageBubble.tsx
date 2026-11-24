@@ -7,6 +7,11 @@ import { cn } from '@/lib/utils';
 import { CHAT_LIMITS } from '@/models/chat';
 
 import { type ChatMessage, mediaUrl } from './api';
+import {
+  type FeedbackAction,
+  FeedbackChips,
+  FeedbackDraft,
+} from './FeedbackCards';
 import { durationOf, sizeOf, timeOf } from './format';
 import {
   floatingPanel,
@@ -51,6 +56,10 @@ export interface BubbleProps {
   onReact: (message: ChatMessage, emoji: string | null) => void;
   onOpenMedia: (message: ChatMessage) => void;
   onJumpTo: (messageId: string) => void;
+  /** Feedback Cat cards: a draft's buttons. */
+  onFeedback?: (message: ChatMessage, action: FeedbackAction) => Promise<void>;
+  /** Feedback Cat cards: a welcome chip, sent as a message. */
+  onChip?: (text: string) => void;
 }
 
 const isPending = (m: ChatMessage) => m.id.startsWith('pending:');
@@ -90,6 +99,8 @@ export const MessageBubble = memo(function MessageBubble({
   onReact,
   onOpenMedia,
   onJumpTo,
+  onFeedback,
+  onChip,
 }: BubbleProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pressTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -107,6 +118,10 @@ export const MessageBubble = memo(function MessageBubble({
   const hasMedia = !!m.attachment && !m.attachment.expiredAt;
   const isVisual = m.kind === 'image' || m.kind === 'video';
   const myReaction = m.reactions.find((r) => r.userId === me)?.emoji ?? null;
+  // The cat's draft shows its lead line and the card; `text` is for old apps.
+  const card = !deleted ? m.feedback : null;
+  const draft = card?.type === 'draft' && !!onFeedback;
+  const text = draft ? (card?.lead ?? '') : m.text;
 
   // Long-press opens the menu on touch screens.
   const startPress = () => {
@@ -301,19 +316,27 @@ export const MessageBubble = memo(function MessageBubble({
                 onRetry={() => onAction('retry', m)}
               />
             )}
-            {!!m.text && (
+            {!!text && (
               <p
                 className={cn(
                   'whitespace-pre-wrap break-words text-[15px] leading-snug',
                   isVisual && hasMedia && 'px-1.5 pt-1',
                 )}
               >
-                <RichText text={m.text} />
+                <RichText text={text} />
                 {/* Room for the time and ticks on the last line. */}
-                <span
-                  className={cn('inline-block', mine ? 'w-[74px]' : 'w-12')}
-                />
+                {!draft && (
+                  <span
+                    className={cn('inline-block', mine ? 'w-[74px]' : 'w-12')}
+                  />
+                )}
               </p>
+            )}
+            {draft && onFeedback && (
+              <FeedbackDraft message={m} onAction={onFeedback} />
+            )}
+            {card?.type === 'welcome' && !!card.chips?.length && onChip && (
+              <FeedbackChips chips={card.chips} onPick={onChip} />
             )}
           </>
         )}
@@ -323,7 +346,7 @@ export const MessageBubble = memo(function MessageBubble({
             'float-right -mb-0.5 ml-2 flex items-center gap-0.5 text-[11px] leading-none opacity-70',
             !m.text && isVisual && hasMedia && !deleted
               ? 'absolute bottom-2 right-2.5 rounded-full bg-black/40 px-1.5 py-1 text-white opacity-100'
-              : m.text && !deleted
+              : text && !deleted && !draft && card?.type !== 'welcome'
                 ? '-mt-4'
                 : 'mt-1',
           )}

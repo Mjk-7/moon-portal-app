@@ -143,10 +143,15 @@ export const menuItem =
 export const ChatAvatar = ({
   conversation: c,
   size = 48,
+  mood,
 }: {
   conversation: Pick<ChatConversation, 'kind' | 'partner'>;
   size?: number;
+  /** The Feedback Cat's face. */
+  mood?: CatMood;
 }) => {
+  if (c.partner.bot === 'feedback')
+    return <CatAvatar size={size} mood={mood} />;
   if (c.kind === 'direct')
     return (
       <UserAvatar src={c.partner.avatar} name={c.partner.name} size={size} />
@@ -191,5 +196,42 @@ export const ProjectTag = ({ className }: { className?: string }) => (
     )}
   >
     <Icon name="folder" filled className="text-[11px]" /> Project
+  </span>
+);
+
+/* The Feedback Cat's pixel avatar (public/feedback), with its moods. */
+export type CatMood = 'idle' | 'thinking' | 'done';
+
+const CAT_SRC: Record<CatMood, string> = {
+  idle: '/feedback/cat.svg',
+  thinking: '/feedback/cat-thinking.svg',
+  done: '/feedback/cat-done.svg',
+};
+
+export const CatAvatar = ({
+  size = 40,
+  mood = 'idle',
+  className,
+}: {
+  size?: number;
+  mood?: CatMood;
+  className?: string;
+}) => (
+  <span
+    className={cn(
+      'flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#1f2433] ring-1 ring-white/10',
+      className,
+    )}
+    style={{ width: size, height: size }}
+  >
+    {/* eslint-disable-next-line @next/next/no-img-element */}
+    <img
+      src={CAT_SRC[mood]}
+      alt="Feedback Cat"
+      width={Math.round(size * 0.8)}
+      height={Math.round(size * 0.8)}
+      style={{ imageRendering: 'pixelated' }}
+      draggable={false}
+    />
   </span>
 );
