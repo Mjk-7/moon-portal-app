@@ -73,7 +73,7 @@ export async function userFromBearer(
   if (token.expiresAt && new Date(token.expiresAt) < new Date()) return null;
 
   const record = await db.user.findFirst({ where: { id: token.userId } });
-  // New hires get Claude only once they are fully hired.
+  // New hires get Claude once their Portal access opens (the trial).
   if (record?.claudeLocked) return null;
   const user = await sessionUserFromRecord(record);
   if (!user) return null;

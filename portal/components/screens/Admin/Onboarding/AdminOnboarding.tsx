@@ -46,7 +46,7 @@ const COLUMNS = [
 const COLUMN_HINT: Record<string, string> = {
   [ONBOARDING_STEP.DETAILS]: 'Details form and photo',
   [ONBOARDING_STEP.AGREEMENTS]: 'Documents, signed by both sides',
-  [ONBOARDING_STEP.TRIAL]: 'In the Portal, no Claude yet',
+  [ONBOARDING_STEP.TRIAL]: 'In the Portal, with Claude',
   [ONBOARDING_STEP.OFFER]: 'Offer letter to sign',
 };
 

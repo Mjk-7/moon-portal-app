@@ -917,7 +917,7 @@ const AccessCard = ({
       </h1>
       <p className="mt-2 text-[15px] leading-relaxed text-zinc-600">
         {hired
-          ? 'You are fully hired. Claude is now open for you: connect it from Settings in the portal.'
+          ? 'You are fully hired. Welcome aboard.'
           : 'Your portal account is ready. We emailed you a passcode. Sign in with Google and enter it, then start with the Portal course.'}
       </p>
     </div>
@@ -958,8 +958,8 @@ const AccessCard = ({
     {!hired && (
       <p className="flex items-start gap-2 text-xs leading-relaxed text-zinc-500">
         <Symbol name="info" className="text-[16px]" />
-        During the trial you work in the portal directly. Claude opens once you
-        are fully hired. Write a worklog every day: it is how your work is seen.
+        You can use Claude from your first trial day: connect it from Settings
+        in the portal. Write a worklog every day: it is how your work is seen.
       </p>
     )}
   </Card>

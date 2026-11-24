@@ -354,7 +354,7 @@ const CourseEditor = ({
               }
               description={
                 course.isIntro
-                  ? 'New hires get a link to it with their sign-in once it’s marked ready. Add lessons on worklogs, projects, and setting up Claude once fully hired. You can also ask Claude to write it with you.'
+                  ? 'New hires get a link to it with their sign-in once it’s marked ready. Add lessons on worklogs, projects, and setting up Claude. You can also ask Claude to write it with you.'
                   : 'Add a lesson to start.'
               }
             />
