@@ -10,10 +10,6 @@ workflow:
   - .github/workflows/**/*
 
 # --------------- App level labels ---------------
-# Add 'contract' to any changes within 'contract' folder
-contract:
-  - contract/*
-
 # Add 'home' to any changes within 'home' folder
 home:
   - home/**/*

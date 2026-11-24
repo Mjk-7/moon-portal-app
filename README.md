@@ -32,15 +32,6 @@ the same way as the website and talks to the portal API.
 - Standalone folder with its own `package.json`; install it on its own
 - Setup, sign-in and release steps in [mobile/README.md](mobile/README.md)
 
-## TMD smart contracts - /contract
-
-For all smart contracts of TheMoonDevs, deployed on all chains
-
-### TMDCredit
-
-- Base chain
-
-
 ## CI/CD Setup
 
 ### Preview Deployment Flow  
@@ -105,3 +96,4 @@ API Usage Guidelines:
 ## Removed apps
 
 - **Payzone** (`/payzone`, pay.themoondevs.com) was removed in November 2026. The last code is kept on the `backup/payzone` branch.
+- **TMD smart contracts** (`/contract`, the TMDCredit contract on Base) were removed in November 2026. The last code is kept on the same `backup/payzone` branch.
