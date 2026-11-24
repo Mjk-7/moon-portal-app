@@ -146,6 +146,16 @@ export const ADMIN_TABS: AdminTab[] = [
     permission: 'agreements:read',
   },
   {
+    id: 'feedback',
+    label: 'Feedback',
+    icon: 'pets',
+    title: 'Feedback',
+    description:
+      'What people told the Feedback Cat in Messages, and the GitHub issues it filed.',
+    group: 'Administration',
+    access: 'admin',
+  },
+  {
     id: 'roles',
     label: 'Roles',
     icon: 'badge',
@@ -170,16 +180,6 @@ export const ADMIN_TABS: AdminTab[] = [
     title: 'Reported messages',
     description:
       'Messages people reported in chat. Remove each one for everyone or leave it up, within a day.',
-    group: 'Community',
-    access: 'admin',
-  },
-  {
-    id: 'feedback',
-    label: 'Feedback',
-    icon: 'pets',
-    title: 'Feedback',
-    description:
-      'What people told the Feedback Cat in Messages, and the GitHub issues it filed.',
     group: 'Community',
     access: 'admin',
   },

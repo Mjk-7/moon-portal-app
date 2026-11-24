@@ -36,6 +36,10 @@ export interface FeedbackInboxItem {
   error: string | null;
   createdAt: string;
   filedAt: string | null;
+  /** When the person was told it's fixed, and by which pull request. */
+  fixedAt: string | null;
+  fixPrNumber: number | null;
+  fixPrUrl: string | null;
 }
 
 export async function inboxItems(docs: FeedbackReportDoc[]) {
@@ -73,6 +77,9 @@ export async function inboxItems(docs: FeedbackReportDoc[]) {
       error: d.error ?? null,
       createdAt: d.createdAt.toISOString(),
       filedAt: d.filedAt ? d.filedAt.toISOString() : null,
+      fixedAt: d.fixedAt ? d.fixedAt.toISOString() : null,
+      fixPrNumber: d.fixPrNumber ?? null,
+      fixPrUrl: d.fixPrUrl ?? null,
     }),
   );
 }

@@ -12,6 +12,8 @@ const EXEMPT_PREFIXES = [
   '/api/oauth/token',
   '/api/oauth/register',
   '/api/hiring/emails/webhook',
+  // GitHub tells the Feedback Cat about merged fixes; signed with a secret.
+  '/api/feedback/github',
   // The service worker confirms chat notifications; it can't send the key.
   '/api/chat/push-ack',
   // The mobile app signs in with a sign-in code + Google (lib/auth/signIn.ts).

@@ -67,6 +67,11 @@ const STATUS_LINE: Record<
     text: 'Added as a +1',
     className: 'text-emerald-300 auto-light:text-emerald-700',
   },
+  fixed: {
+    icon: 'celebration',
+    text: 'Fix pushed',
+    className: 'text-emerald-300 auto-light:text-emerald-700',
+  },
   saved: {
     icon: 'inventory_2',
     text: 'Saved for the team',

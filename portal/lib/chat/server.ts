@@ -2248,8 +2248,8 @@ export async function cleanupOldMedia({ batch = 500 } = {}) {
 /* -------------------------------------------------------------------------- */
 
 /**
- * The person's chat with the feedback cat, made (pinned, with a welcome
- * message) the first time. While an admin has the cat switched off, no
+ * The person's chat with the feedback cat, made (with a welcome message)
+ * the first time. It isn't pinned; it sorts like any other chat. While an admin has the cat switched off, no
  * new chats are made; existing ones stay.
  */
 export async function ensureFeedbackConversation(userId: string) {
@@ -2273,7 +2273,7 @@ export async function ensureFeedbackConversation(userId: string) {
         memberIds,
         bot: 'feedback',
         state: {
-          [userId]: { unread: 1, pinned: true },
+          [userId]: { unread: 1 },
           [FEEDBACK_BOT_ID]: { unread: 0 },
         },
         lastMessageId: null,

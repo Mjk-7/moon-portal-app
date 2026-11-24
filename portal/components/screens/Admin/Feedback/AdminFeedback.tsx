@@ -193,6 +193,7 @@ export const AdminFeedback = () => {
                 <li key={r.id} className="flex flex-col gap-3 px-5 py-4">
                   <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500">
                     <Pill tone={status.tone}>{status.label}</Pill>
+                    {r.fixedAt && <Pill tone="positive">Fix pushed</Pill>}
                     <Pill tone={KIND_TONE[r.kind] ?? 'neutral'}>{r.kind}</Pill>
                     {r.area && <Pill>{r.area}</Pill>}
                     <Pill>{r.priority}</Pill>
@@ -242,6 +243,17 @@ export const AdminFeedback = () => {
                         >
                           #{r.issueNumber}
                           <Icon name="open_in_new" className="text-[14px]" />
+                        </a>
+                      )}
+                      {r.fixPrUrl && r.fixPrNumber && (
+                        <a
+                          href={r.fixPrUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1 text-xs text-emerald-300 hover:underline auto-light:text-emerald-700"
+                        >
+                          Fix: PR #{r.fixPrNumber}
+                          <Icon name="open_in_new" className="text-[13px]" />
                         </a>
                       )}
                       {(r.status === 'saved' || r.status === 'failed') && (

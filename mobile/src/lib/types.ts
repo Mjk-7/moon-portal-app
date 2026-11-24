@@ -291,7 +291,14 @@ export type FeedbackCard = {
   type: 'welcome' | 'draft';
   chips?: string[];
   lead?: string | null;
-  status?: 'draft' | 'filing' | 'filed' | 'saved' | 'merged' | 'discarded';
+  status?:
+    | 'draft'
+    | 'filing'
+    | 'filed'
+    | 'saved'
+    | 'merged'
+    | 'fixed'
+    | 'discarded';
   title?: string;
   summary?: string;
   kind?: string;

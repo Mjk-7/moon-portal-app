@@ -51,6 +51,11 @@ export interface FeedbackReportDoc {
   createdAt: Date;
   updatedAt: Date;
   filedAt?: Date | null;
+  /** When the person was told the fix is in (set once, so they hear once). */
+  fixedAt?: Date | null;
+  /** The merged pull request that fixed it, when GitHub says which. */
+  fixPrNumber?: number | null;
+  fixPrUrl?: string | null;
 }
 
 interface UsageDoc {
@@ -79,6 +84,7 @@ export async function feedbackCollections() {
     reports.createIndex({ messageId: 1 }, { unique: true }),
     reports.createIndex({ createdAt: -1 }),
     reports.createIndex({ userId: 1, createdAt: -1 }),
+    reports.createIndex({ issueNumber: 1 }),
   ])
     .then(() => undefined)
     .catch((error) => {
@@ -203,4 +209,42 @@ export async function reportById(id: string) {
   if (!ObjectId.isValid(id)) return null;
   const { reports } = await feedbackCollections();
   return reports.findOne({ _id: new ObjectId(id) });
+}
+
+/**
+ * The filed reports (and +1s) on these issues whose people haven't heard the
+ * fix is in yet.
+ */
+export async function reportsAwaitingFix(issueNumbers: number[]) {
+  if (!issueNumbers.length) return [];
+  const { reports } = await feedbackCollections();
+  return reports
+    .find({
+      issueNumber: { $in: issueNumbers },
+      status: { $in: ['filed', 'merged'] as FeedbackReportStatus[] },
+      fixedAt: null,
+    })
+    .limit(200)
+    .toArray();
+}
+
+/** Marks the report fixed, only if nobody else did first. */
+export async function claimFix(
+  id: ObjectId,
+  pr: { number: number; url: string } | null,
+) {
+  const { reports } = await feedbackCollections();
+  const now = new Date();
+  return reports.findOneAndUpdate(
+    { _id: id, fixedAt: null },
+    {
+      $set: {
+        fixedAt: now,
+        fixPrNumber: pr?.number ?? null,
+        fixPrUrl: pr?.url ?? null,
+        updatedAt: now,
+      },
+    },
+    { returnDocument: 'after' },
+  );
 }

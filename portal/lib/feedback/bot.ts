@@ -36,7 +36,7 @@ export const feedbackBotPerson = (): ChatPerson => ({
 
 export const WELCOME_TEXT = [
   'Meow! I’m the Feedback Cat 🐾',
-  'Tell me what broke, what’s confusing, or what you wish the portal did. I’ll ask a quick question if I need to, show you what I’ll send, and file it for the team.',
+  'Tell me what broke, what’s confusing, or what you wish the portal did. I’ll ask a quick question if I need to, show you what I’ll send, and file it for the team. When it’s fixed, I’ll tell you here.',
   'I can’t help with how-to or account questions. For those, use Support in the menu.',
 ].join('\n\n');
 

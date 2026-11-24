@@ -130,3 +130,50 @@ export async function commentOnIssue(number: number, body: string) {
 
 export const issueUrl = (number: number) =>
   `https://github.com/${feedbackRepo()}/issues/${number}`;
+
+type ClosedBy = {
+  data?: {
+    repository?: {
+      issue?: {
+        timelineItems?: {
+          nodes?: {
+            closer?: { number?: number; url?: string; merged?: boolean } | null;
+          }[];
+        };
+      } | null;
+    } | null;
+  };
+};
+
+/**
+ * The merged pull request that closed an issue, if GitHub will say. A token
+ * with only Issues access may not see pull requests; then this is null.
+ */
+export async function closingPullRequest(number: number) {
+  if (!githubReady()) return null;
+  const [owner, name] = feedbackRepo().split('/');
+  try {
+    const response = await fetch(`${API}/graphql`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.FEEDBACK_GITHUB_TOKEN}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'portal-feedback-cat',
+      },
+      body: JSON.stringify({
+        query: `query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){issue(number:$number){timelineItems(itemTypes:[CLOSED_EVENT],last:1){nodes{...on ClosedEvent{closer{...on PullRequest{number url merged}}}}}}}}`,
+        variables: { owner, name, number },
+      }),
+      cache: 'no-store',
+    });
+    if (!response.ok) return null;
+    const json = (await response.json()) as ClosedBy;
+    const closer =
+      json.data?.repository?.issue?.timelineItems?.nodes?.at(-1)?.closer;
+    return closer?.number && closer.url && closer.merged
+      ? { number: closer.number, url: closer.url }
+      : null;
+  } catch {
+    return null;
+  }
+}

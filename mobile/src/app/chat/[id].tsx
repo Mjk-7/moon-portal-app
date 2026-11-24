@@ -951,6 +951,7 @@ const CARD_STATUS: Record<string, string> = {
   filing: 'Sending…',
   filed: 'Filed',
   merged: 'Added as a +1',
+  fixed: 'Fix pushed 🎉',
   saved: 'Saved for the team',
   discarded: 'Dropped',
 };

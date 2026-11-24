@@ -134,7 +134,14 @@ export interface FeedbackCard {
   chips?: string[];
   /** Drafts: the cat's line above the card ("Here's what I'll send"). */
   lead?: string | null;
-  status?: 'draft' | 'filing' | 'filed' | 'saved' | 'merged' | 'discarded';
+  status?:
+    | 'draft'
+    | 'filing'
+    | 'filed'
+    | 'saved'
+    | 'merged'
+    | 'fixed'
+    | 'discarded';
   title?: string;
   summary?: string;
   kind?: FeedbackType;
