@@ -50,6 +50,7 @@ export const Composer = ({
   onSaveEdit,
   onPickFiles,
   onTyping,
+  allowFiles = true,
 }: {
   conversationId: string;
   me: string | null;
@@ -62,6 +63,8 @@ export const Composer = ({
   onSaveEdit: (text: string) => void;
   onPickFiles: (files: File[]) => void;
   onTyping: () => void;
+  /** False for the Feedback Cat, which reads words only. */
+  allowFiles?: boolean;
 }) => {
   const [text, setText] = useState('');
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -171,7 +174,7 @@ export const Composer = ({
           active={emojiOpen}
           onClick={() => setEmojiOpen((open) => !open)}
         />
-        {!editing && (
+        {!editing && allowFiles && (
           <Menu.Root modal={false}>
             <Menu.Trigger asChild>
               <button
@@ -274,7 +277,7 @@ export const Composer = ({
           }}
           onPaste={(e) => {
             const files = Array.from(e.clipboardData.files);
-            if (files.length && !editing) {
+            if (files.length && !editing && allowFiles) {
               e.preventDefault();
               onPickFiles(files);
             }

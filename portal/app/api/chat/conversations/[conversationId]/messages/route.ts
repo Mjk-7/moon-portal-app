@@ -4,6 +4,8 @@ import { chatRoute, readJson } from '@/lib/chat/api';
 import { listMessages, sendMessage } from '@/lib/chat/server';
 
 export const dynamic = 'force-dynamic';
+// The Feedback Cat answers after the send returns (lib/feedback/reply.ts).
+export const maxDuration = 60;
 
 type Params = { params: { conversationId: string } };
 

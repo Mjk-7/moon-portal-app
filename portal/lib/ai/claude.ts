@@ -32,11 +32,14 @@ export async function askClaudeForJson<T>({
   schema,
   size = 'small',
   maxTokens = 8000,
+  system,
 }: {
   prompt: string;
   schema: Record<string, unknown>;
   size?: ClaudeSize;
   maxTokens?: number;
+  /** Standing instructions, kept apart from what users wrote. */
+  system?: string;
 }): Promise<T | null> {
   if (!claudeReady()) return null;
   const response = await claude().messages.create({
@@ -46,6 +49,7 @@ export async function askClaudeForJson<T>({
       effort: size === 'small' ? 'low' : 'medium',
       format: { type: 'json_schema', schema },
     },
+    ...(system && { system }),
     messages: [{ role: 'user', content: prompt }],
   });
   if (response.stop_reason !== 'end_turn') return null;
