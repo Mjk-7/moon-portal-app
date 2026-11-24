@@ -1,11 +1,10 @@
 export const SLACK_BOT_OAUTH_TOKEN =
-  process.env.NEXT_PUBLIC_SLACK_OAUTH_TOKEN ||
-  "xoxb-1613705032464-7115299573767-URKFl8Zz5Q4yygFZ2YVr7J2O";
+  process.env.NEXT_PUBLIC_SLACK_OAUTH_TOKEN || "";
 
 /** HOW TO ADD slack channel webhook
  *  Goto link - https://api.slack.com/apps/A073TMTD3GS/incoming-webhooks
  * Add a webhook for the specific channel - and add it here.
- * oauth token - xoxb-1613705032464-7115299573767-URKFl8Zz5Q4yygFZ2YVr7J2O
+ * oauth token - set NEXT_PUBLIC_SLACK_OAUTH_TOKEN (never commit it)
  */
 
 /**
