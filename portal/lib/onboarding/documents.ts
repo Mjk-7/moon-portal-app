@@ -106,7 +106,7 @@ By the last trial day, your hiring manager, your buddy or a company owner confir
 
 ## 6. Tools during the trial
 
-You work in the Portal from the first trial day. Claude and other AI tools connected to the company's systems are set up only after you are fully hired.
+You work in the Portal from the first trial day, and you can connect Claude to it from that day too. If the trial ends, your Portal and Claude access close the same day.
 
 ## 7. Agreement
 

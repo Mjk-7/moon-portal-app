@@ -381,7 +381,7 @@ export const ONBOARDING_TOOLS: Tool[] = [
     name: 'decide_trial',
     title: 'Confirm or end a trial',
     description:
-      "Ends a new hire's trial. ACCEPTED sends the offer letter and Work Agreement to sign (a trial can be confirmed early); once signed, Claude opens for them. REJECTED closes all their portal access and records half the trial pay as owed. Only their hiring manager, buddy or a company owner can decide. Use preview: true for the offer first, and get the person's explicit OK before deciding: it can't be undone.",
+      "Ends a new hire's trial. ACCEPTED sends the offer letter and Work Agreement to sign (a trial can be confirmed early); they already have Claude from the trial. REJECTED closes all their portal access, Claude included, and records half the trial pay as owed. Only their hiring manager, buddy or a company owner can decide. Use preview: true for the offer first, and get the person's explicit OK before deciding: it can't be undone.",
     inputSchema: {
       type: 'object',
       properties: {

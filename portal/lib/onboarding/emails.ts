@@ -104,7 +104,7 @@ ${ctx.passcode ? `Your passcode: ${ctx.passcode}\n` : 'Use the passcode you alre
 ${
   ctx.courseUrl
     ? `
-Start with the Portal introductory course. It shows how the Portal works and what we expect every day, like writing your worklog:
+Start with the Portal introductory course. It shows how the Portal works, how to set up Claude with it, and what we expect every day, like writing your worklog:
 
 ${ctx.courseUrl}
 `
@@ -125,7 +125,7 @@ Your trial is complete, and we'd love you to stay. Your offer letter and Work Ag
 
 ${ctx.joinUrl}
 
-Once both are signed, your Claude access opens and we'll set up your introductory call.
+Once both are signed, we'll set up your introductory call.
 
 ${help}
 
@@ -136,11 +136,11 @@ ${sign}`,
         subject: `Welcome to the team at ${ctx.companyName}`,
         text: `${hi}
 
-Everything is signed. You're now a full member of ${ctx.companyName}, and your Claude access is open.
+Everything is signed. You're now a full member of ${ctx.companyName}.
 ${
   ctx.courseUrl
     ? `
-The introductory course shows how to set up Claude with the Portal:
+The introductory course is still there whenever you need it:
 
 ${ctx.courseUrl}
 `

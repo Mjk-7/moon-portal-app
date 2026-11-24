@@ -14,9 +14,9 @@ import {
  *   DETAILS     they fill in the details form; it makes their portal account
  *   AGREEMENTS  they sign the documents picked for them (by default the
  *               Trial Policy and the NDA), and the company countersigns
- *   TRIAL       they have portal access (no Claude yet) and are on trial
+ *   TRIAL       they have portal and Claude access and are on trial
  *   OFFER       the trial passed; they sign the offer letter and work terms
- *   HIRED       all signed: a full member, with Claude access
+ *   HIRED       all signed: a full member
  *   ENDED       the trial did not pass, or onboarding was stopped: no access
  */
 

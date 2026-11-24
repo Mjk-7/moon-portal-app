@@ -18,7 +18,7 @@ export const MAX_LESSON_CONTENT = 400000;
 export const INTRO_COURSE = {
   title: 'Portal usage and guidance',
   description:
-    'How we work in the Portal: worklogs every day, projects and tasks, and setting up Claude once you are fully hired.',
+    'How we work in the Portal: worklogs every day, projects and tasks, and setting up Claude.',
 };
 
 export const lessonId = () => randomBytes(6).toString('hex');

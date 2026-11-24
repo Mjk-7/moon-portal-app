@@ -99,7 +99,7 @@ export const STEPS: Array<{
     step: ONBOARDING_STEP.HIRED,
     label: 'Hired',
     icon: 'verified',
-    hint: 'Full member, Claude unlocked',
+    hint: 'Full member',
   },
 ];
 
@@ -346,7 +346,7 @@ export function hireNext(
       return {
         who: 'done',
         short: 'Fully hired',
-        text: 'Fully hired, with Claude access. Set up their introductory call.',
+        text: 'Fully hired. Set up their introductory call.',
       };
     case ONBOARDING_STEP.ENDED:
     default:

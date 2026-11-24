@@ -854,6 +854,7 @@ export async function submitDetails(
         code: await freshSignInCode(),
         timezone: details.timezone,
         status: 'ACTIVE',
+        // Locked until their Portal access opens at the trial start.
         claudeLocked: true,
         createdAt: now,
         updatedAt: now,
@@ -1182,7 +1183,8 @@ export async function advanceOnboarding(
 /**
  * Everything is signed: their portal account opens (with a passcode), they
  * join the company and their first project, and the trial starts. They get
- * their sign-in and the intro course by email. No Claude yet.
+ * their sign-in and the intro course by email. Claude opens too, so they can
+ * use it during the trial.
  */
 export async function grantAccess(
   onboarding: Onboarding,
@@ -1204,7 +1206,7 @@ export async function grantAccess(
       code: passcode,
       status: 'ACTIVE',
       positionTitle: user.positionTitle || terms.role,
-      ...(onboarding.createdUser ? { claudeLocked: true } : {}),
+      claudeLocked: false,
       updatedAt: new Date(),
     },
   });
@@ -1294,9 +1296,9 @@ export async function grantAccess(
 }
 
 /**
- * Closes a hire's access: out of the company and its projects, their API
- * tokens revoked, and (when onboarding made their account) the account
- * itself turned off.
+ * Closes a hire's access: out of the company and its projects, and (when
+ * onboarding made their account) the account turned off, Claude locked and
+ * every Claude token and app connection revoked.
  */
 async function revokeAccess(onboarding: Onboarding) {
   if (!onboarding.userId) return;
@@ -1324,7 +1326,7 @@ async function revokeAccess(onboarding: Onboarding) {
   if (onboarding.createdUser) {
     await db.user.update({
       where: { id: userId },
-      data: { status: 'INACTIVE', updatedAt: new Date() },
+      data: { status: 'INACTIVE', claudeLocked: true, updatedAt: new Date() },
     });
     await db.apiToken.updateMany({
       where: { userId, revokedAt: null },
@@ -1434,7 +1436,7 @@ export async function decideTrial(
   return { onboarding: await reload(onboarding.id), emailError: mail.error };
 }
 
-/** The offer is signed: Claude opens and they are fully hired. */
+/** The offer is signed: they are fully hired. */
 export async function completeHire(
   onboarding: Onboarding,
   origin: string,
@@ -1443,12 +1445,13 @@ export async function completeHire(
   if (onboarding.userId)
     await db.user.update({
       where: { id: onboarding.userId },
+      // Already open since the trial; cleared again for older hires.
       data: { claudeLocked: false, updatedAt: new Date() },
     });
   const at = nowIso();
   await logStep(
     onboarding,
-    'Signed the offer; fully hired, Claude unlocked',
+    'Signed the offer; fully hired',
     null,
     {
       step: ONBOARDING_STEP.HIRED,
