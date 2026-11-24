@@ -41,9 +41,15 @@ concurrency:
   group: mobile-update-${{ github.event.inputs.channel || 'production' }}
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   publish:
     name: Publish update
+    # EXPO_TOKEN lives in this environment, which only main may deploy from
+    # (Settings → Environments → production → Deployment branches: main).
+    environment: production
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:

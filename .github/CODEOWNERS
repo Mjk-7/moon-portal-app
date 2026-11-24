@@ -1,0 +1,13 @@
+# Every change needs a review from a code owner before it can merge into main
+# (turn on "Require review from Code Owners" in the main branch ruleset).
+# Add a trusted reviewer next to the owner on a line to let them approve too,
+# e.g. `/mobile/ @karcreativeworks @some-lead`.
+*                     @karcreativeworks
+
+# Workflows, this file and deploy settings decide what runs with secrets.
+/.github/             @karcreativeworks
+/portal/vercel.json   @karcreativeworks
+/portal/middleware.ts @karcreativeworks
+/portal/middlewares/  @karcreativeworks
+/mobile/eas.json      @karcreativeworks
+/mobile/app.config.ts @karcreativeworks

@@ -24,9 +24,15 @@ on:
           - ios
           - android
 
+permissions:
+  contents: read
+
 jobs:
   release:
     name: Build and submit
+    # EXPO_TOKEN lives in this environment, which only main may deploy from
+    # (Settings → Environments → production → Deployment branches: main).
+    environment: production
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
